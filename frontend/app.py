@@ -194,7 +194,7 @@ def dashboard_page():
         "Status": ["✅ Fermé", "✅ Fermé", "✅ Fermé"]
     }
     
-    st.dataframe(trades_data, use_container_width=True)
+    st.dataframe(trades_data, width='stretch')
 
 
 def data_collection_page():
@@ -236,7 +236,7 @@ def data_collection_page():
         )
     
     with col_search2:
-        search_button = st.button("🔍 Rechercher", type="secondary", use_container_width=True)
+        search_button = st.button("🔍 Rechercher", type="secondary", width='stretch')
     
     # Initialize session state for search results
     if 'search_results' not in st.session_state:
@@ -276,7 +276,7 @@ def data_collection_page():
                     """, unsafe_allow_html=True)
                 
                 with col_result2:
-                    if st.button("Sélectionner", key=f"select_{i}", use_container_width=True):
+                    if st.button("Sélectionner", key=f"select_{i}", width='stretch'):
                         st.session_state.selected_stock = stock
                         st.rerun()
         
@@ -418,7 +418,7 @@ def data_collection_page():
             bar_size = bar_size_options[selected_bar_size]
         
         # Collect button
-        if st.button("📊 Collecter les données", type="primary", use_container_width=True):
+        if st.button("📊 Collecter les données", type="primary", width='stretch'):
             
             if use_yahoo:
                 # Yahoo Finance collection with chunking and progress
@@ -647,7 +647,7 @@ def data_collection_page():
                 key="viz_end_date"
             )
     
-    if st.button("📊 Afficher le graphique", use_container_width=True):
+    if st.button("📊 Afficher le graphique", width='stretch'):
         from backend.data_collector import DataCollector
         import plotly.graph_objects as go
         from datetime import datetime, timedelta
@@ -713,7 +713,7 @@ def data_collection_page():
                         hovermode='x unified'
                     )
                     
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
                     
                     # Volume chart
                     fig_volume = go.Figure(data=[go.Bar(
@@ -730,7 +730,7 @@ def data_collection_page():
                         height=200
                     )
                     
-                    st.plotly_chart(fig_volume, use_container_width=True)
+                    st.plotly_chart(fig_volume, width='stretch')
                     
                     # Statistics
                     col1, col2, col3, col4 = st.columns(4)
@@ -871,10 +871,10 @@ def technical_analysis_page():
                 height=500
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             # Data table
-            st.dataframe(df.tail(20), use_container_width=True)
+            st.dataframe(df.tail(20), width='stretch')
         else:
             st.info("Aucune donnée disponible pour ce ticker. Téléchargez des données d'abord.")
 
@@ -956,7 +956,7 @@ def technical_analysis_page():
     fig.add_trace(go.Bar(x=df.index, y=df['volume'], name='Volume'), row=4, col=1)
     
     fig.update_layout(height=1000, showlegend=True, xaxis_rangeslider_visible=False)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
     
     # Indicator values
     st.subheader("📊 Valeurs actuelles des indicateurs")
@@ -1069,7 +1069,7 @@ def backtesting_page():
             )
         
         # Button to start optimization
-        if st.button("🚀 Lancer la recherche", type="primary", use_container_width=True):
+        if st.button("🚀 Lancer la recherche", type="primary", width='stretch'):
             # Clear previous results
             st.session_state.best_strategy = None
             st.session_state.best_result = None
@@ -1301,7 +1301,7 @@ def backtesting_page():
             # Debug info
             st.caption(f"📝 Nom actuel : {strategy_name}")
             
-            if st.button("💾 Sauvegarder la stratégie", type="primary", key="save_strategy_btn", use_container_width=True):
+            if st.button("💾 Sauvegarder la stratégie", type="primary", key="save_strategy_btn", width='stretch'):
                 # Log button click
                 logger.info(f"Save button clicked for strategy: {strategy_name}")
                 
@@ -1351,7 +1351,7 @@ def backtesting_page():
                 trades_df = pd.DataFrame(best_result.trades)
                 trades_df['entry_date'] = pd.to_datetime(trades_df['entry_date'])
                 trades_df['exit_date'] = pd.to_datetime(trades_df['exit_date'])
-                st.dataframe(trades_df, use_container_width=True)
+                st.dataframe(trades_df, width='stretch')
     
     with tab2:
         st.subheader("💾 Stratégies Sauvegardées")
@@ -1401,7 +1401,7 @@ def backtesting_page():
                         if st.button(f"📊 Voir backtests", key=f"view_{strat['id']}"):
                             backtests = StrategyManager.get_strategy_backtests(strat['id'])
                             if backtests:
-                                st.dataframe(pd.DataFrame(backtests), use_container_width=True)
+                                st.dataframe(pd.DataFrame(backtests), width='stretch')
                     
                     with col_b:
                         if st.button(f"🗑️ Supprimer", key=f"delete_{strat['id']}", type="secondary"):
@@ -1494,7 +1494,7 @@ def backtesting_page():
             finally:
                 db.close()
             
-            if st.button("▶️ Lancer le backtest", type="primary", use_container_width=True):
+            if st.button("▶️ Lancer le backtest", type="primary", width='stretch'):
                 from datetime import datetime
                 
                 with st.spinner("Exécution du backtest..."):
@@ -1536,7 +1536,7 @@ def backtesting_page():
                             trades_df = pd.DataFrame(result.trades)
                             trades_df['entry_date'] = pd.to_datetime(trades_df['entry_date'])
                             trades_df['exit_date'] = pd.to_datetime(trades_df['exit_date'])
-                            st.dataframe(trades_df, use_container_width=True)
+                            st.dataframe(trades_df, width='stretch')
                         
                         # Save replayed strategy option
                         st.markdown("---")
@@ -1551,7 +1551,7 @@ def backtesting_page():
                             )
                         
                         with col2:
-                            if st.button("💾 Sauvegarder", type="primary", use_container_width=True):
+                            if st.button("💾 Sauvegarder", type="primary", width='stretch'):
                                 try:
                                     # Get original strategy
                                     from backend.strategy_manager import StrategyManager
