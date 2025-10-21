@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import sys
+import os
 from pathlib import Path
 
 # Add parent directory to path
@@ -268,26 +269,50 @@ def data_collection_page():
         
         # Duration
         duration_options = {
+            "1 heure": "1H",
+            "4 heures": "4H",
             "1 jour": "1D",
+            "2 jours": "2D",
+            "3 jours": "3D",
             "5 jours": "5D",
-            "1 mois": "1M"
+            "1 semaine": "1W",
+            "2 semaines": "2W",
+            "1 mois": "1M",
+            "2 mois": "2M",
+            "3 mois": "3M",
+            "6 mois": "6M",
+            "1 an": "1Y"
         }
         selected_duration = st.selectbox(
             "Durée",
-            list(duration_options.keys())
+            list(duration_options.keys()),
+            index=4  # Default: 3 jours
         )
         duration = duration_options[selected_duration]
         
         # Bar size
         bar_size_options = {
+            "1 seconde": "1sec",
+            "5 secondes": "5sec",
+            "10 secondes": "10sec",
+            "30 secondes": "30sec",
             "1 minute": "1min",
+            "2 minutes": "2min",
+            "3 minutes": "3min",
             "5 minutes": "5min",
+            "10 minutes": "10min",
             "15 minutes": "15min",
-            "1 heure": "1hour"
+            "30 minutes": "30min",
+            "1 heure": "1hour",
+            "2 heures": "2hour",
+            "4 heures": "4hour",
+            "1 jour": "1day",
+            "1 semaine": "1week"
         }
         selected_bar_size = st.selectbox(
             "Intervalle",
-            list(bar_size_options.keys())
+            list(bar_size_options.keys()),
+            index=4  # Default: 1 minute
         )
         bar_size = bar_size_options[selected_bar_size]
         
@@ -670,30 +695,78 @@ def settings_page():
     """Settings page"""
     st.header("⚙️ Paramètres")
     
-    st.subheader("Configuration IBKR")
+    st.subheader("🏦 Configuration Saxo Bank")
+    
+    # Saxo Bank connection info
     col1, col2 = st.columns(2)
     
     with col1:
-        st.text_input("Host", value="127.0.0.1")
-        st.text_input("Port", value="7497")
+        st.text_input("Base URL", value=os.getenv("SAXO_BASE_URL", "https://gateway.saxobank.com/sim/openapi"), disabled=True)
+        st.text_input("App Key", value=os.getenv("SAXO_APP_KEY", "")[:20] + "...", disabled=True, type="password")
     
     with col2:
-        st.text_input("Client ID", value="1")
-        st.text_input("Account ID", value="")
+        st.text_input("Auth URL", value=os.getenv("SAXO_AUTH_URL", "https://sim.logonvalidation.net"), disabled=True)
+        st.text_input("Redirect URI", value=os.getenv("SAXO_REDIRECT_URI", "http://localhost:8501/callback"), disabled=True)
+    
+    # Connection status
+    st.markdown("---")
+    st.subheader("📡 État de la connexion")
+    
+    if st.session_state.saxo_connected:
+        st.success("✅ Connecté à Saxo Bank (Mode Simulation)")
+        
+        # Token info
+        try:
+            with open('.saxo_tokens', 'r') as f:
+                lines = f.readlines()
+                if len(lines) >= 3:
+                    expires_at_str = lines[2].split('=')[1].strip()
+                    from datetime import datetime
+                    expires_at = datetime.fromisoformat(expires_at_str)
+                    time_left = expires_at - datetime.now()
+                    
+                    if time_left.total_seconds() > 0:
+                        hours_left = int(time_left.total_seconds() // 3600)
+                        minutes_left = int((time_left.total_seconds() % 3600) // 60)
+                        st.info(f"⏱️ Token expire dans : {hours_left}h {minutes_left}min")
+                    else:
+                        st.warning("⚠️ Token expiré - Veuillez vous reconnecter")
+        except Exception as e:
+            st.warning("⚠️ Impossible de lire les informations du token")
+        
+        if st.button("🔄 Renouveler l'authentification"):
+            st.info("Pour renouveler l'authentification :\n1. Fermez Streamlit\n2. Exécutez: `python authenticate_saxo.py`\n3. Relancez Streamlit")
+    else:
+        st.error("❌ Non connecté à Saxo Bank")
+        st.info("Pour vous connecter :\n1. Fermez Streamlit\n2. Exécutez: `python authenticate_saxo.py`\n3. Suivez les instructions\n4. Relancez Streamlit")
     
     st.markdown("---")
     
-    st.subheader("Configuration de Trading")
+    st.subheader("⚙️ Configuration de Trading")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.checkbox("Mode Paper Trading", value=True)
+        st.checkbox("Mode Simulation", value=True, disabled=True, help="Mode simulation Saxo Bank activé par défaut")
         st.number_input("Taille maximale de position (€)", value=10000, step=1000)
     
     with col2:
         st.slider("Risque par trade (%)", min_value=0.5, max_value=5.0, value=2.0, step=0.5)
         st.slider("Stop-loss (%)", min_value=1.0, max_value=10.0, value=5.0, step=0.5)
+    
+    st.markdown("---")
+    
+    st.subheader("📊 Paramètres de collecte de données")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.number_input("Délai entre requêtes (secondes)", value=1, min_value=0, max_value=10, help="Délai pour éviter le rate limiting")
+        st.number_input("Limite de points par requête", value=1200, min_value=100, max_value=5000, step=100)
+    
+    with col2:
+        st.checkbox("Utiliser données simulées si API échoue", value=True)
+        st.checkbox("Stocker les données brutes", value=True)
     
     if st.button("💾 Sauvegarder les paramètres"):
         st.success("✅ Paramètres sauvegardés")
