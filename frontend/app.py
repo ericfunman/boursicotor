@@ -1577,12 +1577,20 @@ def backtesting_page():
                                         strategy_params = {k: v for k, v in original_strategy.__dict__.items() 
                                                           if k not in ['name', 'description', 'parameters']}
                                         
+                                        # Debug logging
+                                        logger.info(f"New strategy name: {new_strategy_name}")
+                                        logger.info(f"Strategy params keys: {list(strategy_params.keys())}")
+                                        
                                         # Create new strategy instance with custom name and description
                                         new_strategy = original_strategy.__class__(
                                             name=new_strategy_name,
                                             description=new_description,
                                             **strategy_params
                                         )
+                                        
+                                        # Verify the name is set
+                                        logger.info(f"Created strategy with name: {new_strategy.name}")
+                                        logger.info(f"Created strategy with description: {new_strategy.description[:50]}...")
                                         
                                         # Save the new strategy
                                         saved_id = StrategyManager.save_strategy(new_strategy, result)
