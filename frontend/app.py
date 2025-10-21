@@ -3,6 +3,7 @@ Main Streamlit application for Boursicotor
 """
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
@@ -952,17 +953,399 @@ def technical_analysis_page():
 
 def backtesting_page():
     """Backtesting page"""
-    st.header("🔙 Backtesting")
-    st.info("🚧 Module de backtesting en cours de développement")
+    st.header("🔙 Backtesting & Génération de Stratégies")
     
-    st.markdown("""
-    ### Fonctionnalités à venir:
-    - Sélection de stratégie
-    - Période de test configurable
-    - Métriques de performance (Sharpe ratio, drawdown, etc.)
-    - Visualisation des trades
-    - Comparaison de stratégies
-    """)
+    # Tabs for different sections
+    tab1, tab2, tab3 = st.tabs(["🔍 Générer Stratégie", "💾 Stratégies Sauvegardées", "🔄 Rejouer Stratégie"])
+    
+    with tab1:
+        st.subheader("🔍 Recherche de Stratégie Profitable")
+        st.info("L'algorithme va tester différentes stratégies jusqu'à trouver un gain ≥ 10% (ou arrêt après 100 itérations)")
+        
+        # Get available tickers
+        from backend.models import SessionLocal, Ticker as TickerModel, HistoricalData
+        db = SessionLocal()
+        try:
+            tickers = [t.symbol for t in db.query(TickerModel).all()]
+        finally:
+            db.close()
+        
+        if not tickers:
+            st.warning("⚠️ Aucune donnée disponible. Collectez d'abord des données historiques.")
+            return
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            selected_ticker = st.selectbox(
+                "Action",
+                tickers,
+                format_func=lambda x: FRENCH_TICKERS.get(x, x),
+                key="backtest_ticker"
+            )
+        
+        with col2:
+            # Get date range for ticker
+            db = SessionLocal()
+            try:
+                ticker_obj = db.query(TickerModel).filter(TickerModel.symbol == selected_ticker).first()
+                if ticker_obj:
+                    count = db.query(HistoricalData).filter(HistoricalData.ticker_id == ticker_obj.id).count()
+                    st.metric("Points de données", f"{count:,}")
+            finally:
+                db.close()
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            initial_capital = st.number_input(
+                "Capital initial (€)",
+                min_value=1000.0,
+                max_value=1000000.0,
+                value=10000.0,
+                step=1000.0
+            )
+        
+        with col2:
+            target_return = st.number_input(
+                "Objectif de gain (%)",
+                min_value=1.0,
+                max_value=100.0,
+                value=10.0,
+                step=1.0
+            )
+        
+        with col3:
+            max_iterations = st.number_input(
+                "Max itérations",
+                min_value=10,
+                max_value=1000,
+                value=100,
+                step=10
+            )
+        
+        if st.button("🚀 Lancer la recherche", type="primary", use_container_width=True):
+            from backend.backtesting_engine import StrategyGenerator, BacktestingEngine
+            from backend.strategy_manager import StrategyManager
+            import pandas as pd
+            
+            with st.spinner(f"Recherche en cours sur {selected_ticker}..."):
+                # Load data
+                db = SessionLocal()
+                try:
+                    ticker = db.query(TickerModel).filter(TickerModel.symbol == selected_ticker).first()
+                    
+                    if not ticker:
+                        st.error(f"Ticker {selected_ticker} not found")
+                        return
+                    
+                    # Get all data
+                    data = db.query(HistoricalData).filter(
+                        HistoricalData.ticker_id == ticker.id
+                    ).order_by(HistoricalData.timestamp.asc()).all()
+                    
+                    if len(data) < 100:
+                        st.error("Pas assez de données (minimum 100 points requis)")
+                        return
+                    
+                    # Convert to DataFrame
+                    df = pd.DataFrame([{
+                        'timestamp': d.timestamp,
+                        'open': d.open,
+                        'high': d.high,
+                        'low': d.low,
+                        'close': d.close,
+                        'volume': d.volume
+                    } for d in data])
+                    
+                    df.set_index('timestamp', inplace=True)
+                    
+                    st.info(f"📊 {len(df)} points chargés pour l'analyse")
+                    
+                    # Progress bar
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    results_container = st.empty()
+                    
+                    # Search for strategy
+                    generator = StrategyGenerator(target_return=target_return)
+                    
+                    best_return = -np.inf
+                    iterations_done = 0
+                    
+                    for i in range(max_iterations):
+                        iterations_done = i + 1
+                        progress = (i + 1) / max_iterations
+                        progress_bar.progress(progress)
+                        
+                        # Generate random strategy
+                        strategy_type = np.random.choice(['ma', 'rsi', 'multi'])
+                        
+                        if strategy_type == 'ma':
+                            from backend.backtesting_engine import MovingAverageCrossover
+                            fast = np.random.randint(5, 20)
+                            slow = np.random.randint(fast + 5, 50)
+                            strategy = MovingAverageCrossover(fast_period=fast, slow_period=slow)
+                        elif strategy_type == 'rsi':
+                            from backend.backtesting_engine import RSIStrategy
+                            period = np.random.randint(10, 20)
+                            oversold = np.random.randint(20, 35)
+                            overbought = np.random.randint(65, 80)
+                            strategy = RSIStrategy(rsi_period=period, oversold=oversold, overbought=overbought)
+                        else:
+                            from backend.backtesting_engine import MultiIndicatorStrategy
+                            strategy = MultiIndicatorStrategy(
+                                ma_fast=np.random.randint(5, 15),
+                                ma_slow=np.random.randint(20, 40),
+                                rsi_period=np.random.randint(10, 20),
+                                rsi_oversold=np.random.randint(20, 35),
+                                rsi_overbought=np.random.randint(65, 80)
+                            )
+                        
+                        # Run backtest
+                        engine = BacktestingEngine(initial_capital=initial_capital)
+                        result = engine.run_backtest(df, strategy, selected_ticker)
+                        
+                        # Update best
+                        if result.total_return > best_return:
+                            best_return = result.total_return
+                            
+                            with results_container.container():
+                                col_a, col_b, col_c = st.columns(3)
+                                with col_a:
+                                    st.metric("Meilleur retour", f"{best_return:.2f}%")
+                                with col_b:
+                                    st.metric("Itération", f"{iterations_done}/{max_iterations}")
+                                with col_c:
+                                    st.metric("Win Rate", f"{result.win_rate:.1f}%")
+                        
+                        status_text.text(f"⏳ Itération {iterations_done}/{max_iterations} | Meilleur: {best_return:.2f}%")
+                        
+                        # Check if target reached
+                        if result.total_return >= target_return:
+                            progress_bar.progress(1.0)
+                            st.success(f"🎯 Objectif atteint ! Stratégie trouvée à l'itération {iterations_done}")
+                            
+                            # Save strategy
+                            strategy_id = StrategyManager.save_strategy(strategy, result)
+                            
+                            # Display results
+                            st.markdown("---")
+                            st.subheader("✅ Stratégie Gagnante")
+                            
+                            col1, col2, col3, col4 = st.columns(4)
+                            with col1:
+                                st.metric("Retour Total", f"{result.total_return:.2f}%", 
+                                         delta=f"{result.total_return - target_return:.2f}%")
+                            with col2:
+                                st.metric("Capital Final", f"{result.final_capital:.2f}€",
+                                         delta=f"{result.final_capital - initial_capital:.2f}€")
+                            with col3:
+                                st.metric("Trades", result.total_trades)
+                            with col4:
+                                st.metric("Win Rate", f"{result.win_rate:.1f}%")
+                            
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Sharpe Ratio", f"{result.sharpe_ratio:.2f}")
+                            with col2:
+                                st.metric("Max Drawdown", f"{result.max_drawdown:.2f}%")
+                            with col3:
+                                st.metric("Winning/Losing", f"{result.winning_trades}/{result.losing_trades}")
+                            
+                            # Strategy details
+                            st.markdown("---")
+                            st.markdown("**📋 Détails de la stratégie:**")
+                            st.json(strategy.to_dict())
+                            
+                            # Trades table
+                            if result.trades:
+                                st.markdown("**📈 Historique des trades:**")
+                                trades_df = pd.DataFrame(result.trades)
+                                trades_df['entry_date'] = pd.to_datetime(trades_df['entry_date'])
+                                trades_df['exit_date'] = pd.to_datetime(trades_df['exit_date'])
+                                st.dataframe(trades_df, use_container_width=True)
+                            
+                            break
+                    
+                    else:
+                        # Max iterations reached
+                        progress_bar.empty()
+                        status_text.empty()
+                        st.warning(f"⚠️ Objectif non atteint après {max_iterations} itérations")
+                        st.info(f"Meilleur résultat obtenu : {best_return:.2f}%")
+                
+                finally:
+                    db.close()
+    
+    with tab2:
+        st.subheader("💾 Stratégies Sauvegardées")
+        
+        from backend.strategy_manager import StrategyManager
+        
+        strategies = StrategyManager.get_all_strategies()
+        
+        if not strategies:
+            st.info("Aucune stratégie sauvegardée. Générez-en une dans l'onglet 'Générer Stratégie'.")
+        else:
+            for strat in strategies:
+                with st.expander(f"📊 {strat['name']} - {strat['type']}", expanded=False):
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        st.metric("Dernier retour", f"{strat['latest_return']:.2f}%" if strat['latest_return'] else "N/A")
+                    with col2:
+                        st.metric("Win Rate", f"{strat['latest_win_rate']:.1f}%" if strat['latest_win_rate'] else "N/A")
+                    with col3:
+                        st.metric("Backtests", strat['total_backtests'])
+                    with col4:
+                        st.metric("Active", "✅" if strat['is_active'] else "❌")
+                    
+                    st.markdown("**Description:**")
+                    st.write(strat['description'])
+                    
+                    st.markdown("**Paramètres:**")
+                    st.json(strat['parameters'])
+                    
+                    # Actions
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        if st.button(f"📊 Voir backtests", key=f"view_{strat['id']}"):
+                            backtests = StrategyManager.get_strategy_backtests(strat['id'])
+                            if backtests:
+                                st.dataframe(pd.DataFrame(backtests), use_container_width=True)
+                    
+                    with col_b:
+                        if st.button(f"🗑️ Supprimer", key=f"delete_{strat['id']}", type="secondary"):
+                            if StrategyManager.delete_strategy(strat['id']):
+                                st.success("Stratégie supprimée")
+                                st.rerun()
+    
+    with tab3:
+        st.subheader("🔄 Rejouer une Stratégie")
+        
+        from backend.strategy_manager import StrategyManager
+        
+        strategies = StrategyManager.get_all_strategies()
+        
+        if not strategies:
+            st.info("Aucune stratégie disponible. Générez-en une d'abord.")
+        else:
+            strategy_options = {f"{s['name']} ({s['type']})": s['id'] for s in strategies}
+            
+            selected_strategy_name = st.selectbox(
+                "Stratégie à rejouer",
+                list(strategy_options.keys())
+            )
+            
+            selected_strategy_id = strategy_options[selected_strategy_name]
+            
+            # Get tickers
+            db = SessionLocal()
+            try:
+                tickers = [t.symbol for t in db.query(TickerModel).all()]
+            finally:
+                db.close()
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                replay_ticker = st.selectbox(
+                    "Action",
+                    tickers,
+                    format_func=lambda x: FRENCH_TICKERS.get(x, x),
+                    key="replay_ticker"
+                )
+            
+            with col2:
+                replay_capital = st.number_input(
+                    "Capital initial (€)",
+                    min_value=1000.0,
+                    max_value=1000000.0,
+                    value=10000.0,
+                    step=1000.0,
+                    key="replay_capital"
+                )
+            
+            # Date range
+            db = SessionLocal()
+            try:
+                ticker_obj = db.query(TickerModel).filter(TickerModel.symbol == replay_ticker).first()
+                if ticker_obj:
+                    min_date_row = db.query(HistoricalData).filter(
+                        HistoricalData.ticker_id == ticker_obj.id
+                    ).order_by(HistoricalData.timestamp.asc()).first()
+                    
+                    max_date_row = db.query(HistoricalData).filter(
+                        HistoricalData.ticker_id == ticker_obj.id
+                    ).order_by(HistoricalData.timestamp.desc()).first()
+                    
+                    if min_date_row and max_date_row:
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            start_date = st.date_input(
+                                "Date de début",
+                                value=min_date_row.timestamp.date(),
+                                min_value=min_date_row.timestamp.date(),
+                                max_value=max_date_row.timestamp.date()
+                            )
+                        
+                        with col2:
+                            end_date = st.date_input(
+                                "Date de fin",
+                                value=max_date_row.timestamp.date(),
+                                min_value=min_date_row.timestamp.date(),
+                                max_value=max_date_row.timestamp.date()
+                            )
+            finally:
+                db.close()
+            
+            if st.button("▶️ Lancer le backtest", type="primary", use_container_width=True):
+                from datetime import datetime
+                
+                with st.spinner("Exécution du backtest..."):
+                    result = StrategyManager.replay_strategy(
+                        strategy_id=selected_strategy_id,
+                        symbol=replay_ticker,
+                        start_date=datetime.combine(start_date, datetime.min.time()),
+                        end_date=datetime.combine(end_date, datetime.max.time()),
+                        initial_capital=replay_capital
+                    )
+                    
+                    if result:
+                        st.success("✅ Backtest terminé !")
+                        
+                        # Display results
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Retour Total", f"{result.total_return:.2f}%")
+                        with col2:
+                            st.metric("Capital Final", f"{result.final_capital:.2f}€")
+                        with col3:
+                            st.metric("Trades", result.total_trades)
+                        with col4:
+                            st.metric("Win Rate", f"{result.win_rate:.1f}%")
+                        
+                        # Additional metrics
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Sharpe Ratio", f"{result.sharpe_ratio:.2f}")
+                        with col2:
+                            st.metric("Max Drawdown", f"{result.max_drawdown:.2f}%")
+                        with col3:
+                            st.metric("Winning/Losing", f"{result.winning_trades}/{result.losing_trades}")
+                        
+                        # Trades
+                        if result.trades:
+                            st.markdown("---")
+                            st.markdown("**📈 Historique des trades:**")
+                            trades_df = pd.DataFrame(result.trades)
+                            trades_df['entry_date'] = pd.to_datetime(trades_df['entry_date'])
+                            trades_df['exit_date'] = pd.to_datetime(trades_df['exit_date'])
+                            st.dataframe(trades_df, use_container_width=True)
+                    else:
+                        st.error("Erreur lors de l'exécution du backtest")
 
 
 def auto_trading_page():
