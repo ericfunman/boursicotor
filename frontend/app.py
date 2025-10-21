@@ -545,7 +545,7 @@ def data_collection_page():
     st.subheader("📈 Visualisation des données")
     
     # Get list of tickers from database or use predefined
-    from backend.models import SessionLocal, Ticker as TickerModel
+    from backend.models import SessionLocal, Ticker as TickerModel, HistoricalData
     db = SessionLocal()
     try:
         db_tickers = [t.symbol for t in db.query(TickerModel).all()]
@@ -556,70 +556,182 @@ def data_collection_page():
     finally:
         db.close()
     
-    viz_ticker = st.selectbox(
-        "Ticker à visualiser",
-        viz_ticker_options,
-        format_func=lambda x: FRENCH_TICKERS.get(x, x),
-        key="viz_ticker"
-    )
+    col_viz1, col_viz2 = st.columns([2, 1])
     
-    if st.button("📊 Afficher le graphique"):
+    with col_viz1:
+        viz_ticker = st.selectbox(
+            "Ticker à visualiser",
+            viz_ticker_options,
+            format_func=lambda x: FRENCH_TICKERS.get(x, x),
+            key="viz_ticker"
+        )
+    
+    with col_viz2:
+        # Get date range for this ticker
+        db = SessionLocal()
+        try:
+            ticker_obj = db.query(TickerModel).filter(TickerModel.symbol == viz_ticker).first()
+            if ticker_obj:
+                min_date_row = db.query(HistoricalData).filter(
+                    HistoricalData.ticker_id == ticker_obj.id
+                ).order_by(HistoricalData.timestamp.asc()).first()
+                
+                max_date_row = db.query(HistoricalData).filter(
+                    HistoricalData.ticker_id == ticker_obj.id
+                ).order_by(HistoricalData.timestamp.desc()).first()
+                
+                if min_date_row and max_date_row:
+                    min_date = min_date_row.timestamp.date()
+                    max_date = max_date_row.timestamp.date()
+                    
+                    # Quick period selector
+                    period_options = {
+                        "Tout": None,
+                        "Dernières 24h": 1,
+                        "Derniers 7 jours": 7,
+                        "Derniers 30 jours": 30,
+                        "Derniers 90 jours": 90,
+                        "Personnalisé": "custom"
+                    }
+                    
+                    selected_period = st.selectbox(
+                        "Période",
+                        list(period_options.keys()),
+                        key="viz_period"
+                    )
+                else:
+                    min_date = None
+                    max_date = None
+                    selected_period = "Tout"
+            else:
+                min_date = None
+                max_date = None
+                selected_period = "Tout"
+        finally:
+            db.close()
+    
+    # Custom date range if selected
+    use_custom_dates = False
+    if selected_period == "Personnalisé" and min_date and max_date:
+        use_custom_dates = True
+        col_date1, col_date2 = st.columns(2)
+        
+        with col_date1:
+            start_date = st.date_input(
+                "Date de début",
+                value=max_date - pd.Timedelta(days=7),
+                min_value=min_date,
+                max_value=max_date,
+                key="viz_start_date"
+            )
+        
+        with col_date2:
+            end_date = st.date_input(
+                "Date de fin",
+                value=max_date,
+                min_value=min_date,
+                max_value=max_date,
+                key="viz_end_date"
+            )
+    
+    if st.button("📊 Afficher le graphique", use_container_width=True):
         from backend.data_collector import DataCollector
         import plotly.graph_objects as go
+        from datetime import datetime, timedelta
         
-        collector = DataCollector(use_saxo=False)  # No need to connect
-        df = collector.get_latest_data(viz_ticker, limit=288)
-        
-        if df is not None and len(df) > 0:
-            # Create candlestick chart
-            fig = go.Figure(data=[go.Candlestick(
-                x=df.index,
-                open=df['open'],
-                high=df['high'],
-                low=df['low'],
-                close=df['close'],
-                name=viz_ticker
-            )])
+        # Determine date range
+        db = SessionLocal()
+        try:
+            ticker_obj = db.query(TickerModel).filter(TickerModel.symbol == viz_ticker).first()
             
-            fig.update_layout(
-                title=f"{viz_ticker} - {FRENCH_TICKERS.get(viz_ticker, viz_ticker)}",
-                xaxis_title="Date/Heure",
-                yaxis_title="Prix (EUR)",
-                height=500,
-                xaxis_rangeslider_visible=False
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Volume chart
-            fig_volume = go.Figure(data=[go.Bar(
-                x=df.index,
-                y=df['volume'],
-                name='Volume'
-            )])
-            
-            fig_volume.update_layout(
-                title="Volume",
-                xaxis_title="Date/Heure",
-                yaxis_title="Volume",
-                height=200
-            )
-            
-            st.plotly_chart(fig_volume, use_container_width=True)
-            
-            # Statistics
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Prix actuel", f"{df['close'].iloc[-1]:.2f} €")
-            with col2:
-                st.metric("Plus haut", f"{df['high'].max():.2f} €")
-            with col3:
-                st.metric("Plus bas", f"{df['low'].min():.2f} €")
-            with col4:
-                variation = ((df['close'].iloc[-1] - df['close'].iloc[0]) / df['close'].iloc[0]) * 100
-                st.metric("Variation", f"{variation:+.2f}%")
-        else:
-            st.warning("⚠️ Aucune donnée disponible pour ce ticker. Collectez d'abord les données !")
+            if not ticker_obj:
+                st.warning(f"⚠️ Aucune donnée disponible pour {viz_ticker}")
+            else:
+                # Build query
+                query = db.query(HistoricalData).filter(HistoricalData.ticker_id == ticker_obj.id)
+                
+                # Apply date filters
+                if use_custom_dates:
+                    query = query.filter(
+                        HistoricalData.timestamp >= datetime.combine(start_date, datetime.min.time()),
+                        HistoricalData.timestamp <= datetime.combine(end_date, datetime.max.time())
+                    )
+                elif period_options[selected_period] is not None:
+                    days = period_options[selected_period]
+                    cutoff_date = datetime.now() - timedelta(days=days)
+                    query = query.filter(HistoricalData.timestamp >= cutoff_date)
+                
+                # Execute query
+                data = query.order_by(HistoricalData.timestamp.asc()).all()
+                
+                if not data:
+                    st.warning(f"⚠️ Aucune donnée disponible pour la période sélectionnée")
+                else:
+                    # Convert to DataFrame
+                    df = pd.DataFrame([{
+                        'timestamp': d.timestamp,
+                        'open': d.open,
+                        'high': d.high,
+                        'low': d.low,
+                        'close': d.close,
+                        'volume': d.volume
+                    } for d in data])
+                    
+                    df.set_index('timestamp', inplace=True)
+                    
+                    st.info(f"📊 {len(df)} points de données affichés")
+                    
+                    # Create candlestick chart
+                    fig = go.Figure(data=[go.Candlestick(
+                        x=df.index,
+                        open=df['open'],
+                        high=df['high'],
+                        low=df['low'],
+                        close=df['close'],
+                        name=viz_ticker
+                    )])
+                    
+                    fig.update_layout(
+                        title=f"{viz_ticker} - {FRENCH_TICKERS.get(viz_ticker, viz_ticker)}",
+                        xaxis_title="Date/Heure",
+                        yaxis_title="Prix (EUR)",
+                        height=500,
+                        xaxis_rangeslider_visible=False,
+                        hovermode='x unified'
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Volume chart
+                    fig_volume = go.Figure(data=[go.Bar(
+                        x=df.index,
+                        y=df['volume'],
+                        name='Volume',
+                        marker_color='rgba(100, 150, 255, 0.7)'
+                    )])
+                    
+                    fig_volume.update_layout(
+                        title="Volume",
+                        xaxis_title="Date/Heure",
+                        yaxis_title="Volume",
+                        height=200
+                    )
+                    
+                    st.plotly_chart(fig_volume, use_container_width=True)
+                    
+                    # Statistics
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Prix actuel", f"{df['close'].iloc[-1]:.2f} €")
+                    with col2:
+                        st.metric("Plus haut", f"{df['high'].max():.2f} €")
+                    with col3:
+                        st.metric("Plus bas", f"{df['low'].min():.2f} €")
+                    with col4:
+                        variation = ((df['close'].iloc[-1] - df['close'].iloc[0]) / df['close'].iloc[0]) * 100
+                        st.metric("Variation", f"{variation:+.2f}%")
+        finally:
+            db.close()
 
 
 def technical_analysis_page():
