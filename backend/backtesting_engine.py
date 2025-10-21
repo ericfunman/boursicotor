@@ -2501,13 +2501,13 @@ class EnhancedMovingAverageStrategy(Strategy):
         
         if self.use_vwap and vwap is not None:
             vwap_filter = pd.Series(False, index=df.index)
-            vwap_filter[vwap.notna()] = df.loc[vwap.notna(), 'close'] > vwap[vwap.notna()]
+            vwap_filter[vwap.notna()] = (df.loc[vwap.notna(), 'close'] > vwap[vwap.notna()]).astype(bool)
             filters.append(vwap_filter)
         
         if self.use_obv and obv is not None:
             obv_filter = pd.Series(False, index=df.index)
             obv_shifted = obv.shift(1)
-            obv_filter[(obv.notna()) & (obv_shifted.notna())] = obv[(obv.notna()) & (obv_shifted.notna())] > obv_shifted[(obv.notna()) & (obv_shifted.notna())]
+            obv_filter[(obv.notna()) & (obv_shifted.notna())] = (obv[(obv.notna()) & (obv_shifted.notna())] > obv_shifted[(obv.notna()) & (obv_shifted.notna())]).astype(bool)
             filters.append(obv_filter)
         
         if self.use_cmf and cmf is not None:
