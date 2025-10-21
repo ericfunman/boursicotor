@@ -2,12 +2,20 @@
 Strategy Manager - Gestion des stratégies de trading
 """
 import json
+import sqlite3
 from typing import List, Optional, Dict
 from datetime import datetime
+from sqlalchemy import text
 
 from backend.config import logger
 from backend.models import SessionLocal, Strategy as StrategyModel, Backtest as BacktestModel, Ticker
-from backend.backtesting_engine import Strategy, BacktestResult, BacktestingEngine
+from backend.backtesting_engine import (
+    Strategy, BacktestResult, BacktestingEngine,
+    MovingAverageCrossover, RSIStrategy, MultiIndicatorStrategy,
+    AdvancedMultiIndicatorStrategy, MomentumBreakoutStrategy, MeanReversionStrategy,
+    UltraAggressiveStrategy, MegaIndicatorStrategy, HyperAggressiveStrategy, UltimateStrategy,
+    EnhancedMovingAverageStrategy, AdvancedIndicators
+)
 
 
 class StrategyManager:
@@ -25,6 +33,10 @@ class StrategyManager:
         Returns:
             ID de la stratégie sauvegardée
         """
+        logger.info(f"Saving strategy: {strategy.name}")
+        logger.info(f"Strategy type: {strategy.__class__.__name__}")
+        logger.info(f"Backtest symbol: {backtest_result.symbol}")
+        
         db = SessionLocal()
         try:
             # Check if strategy already exists
@@ -37,20 +49,61 @@ class StrategyManager:
                 strategy_db = existing
             else:
                 # Create new strategy
+                # Determine strategy type from class name
+                strategy_type = strategy.__class__.__name__
+                if strategy_type == "MovingAverageCrossover":
+                    strategy_type = "MA"
+                elif strategy_type == "RSIStrategy":
+                    strategy_type = "RSI"
+                elif strategy_type == "MultiIndicatorStrategy":
+                    strategy_type = "Multi"
+                elif strategy_type == "EnhancedMovingAverageStrategy":
+                    strategy_type = "EnhancedMA"
+                
+                logger.info(f"Creating new strategy with type: {strategy_type}")
+                
+                # Convert numpy types to native Python types for JSON serialization
+                def convert_numpy_types(obj):
+                    """Convert numpy types to Python native types"""
+                    import numpy as np
+                    if isinstance(obj, dict):
+                        return {k: convert_numpy_types(v) for k, v in obj.items()}
+                    elif isinstance(obj, (list, tuple)):
+                        return [convert_numpy_types(item) for item in obj]
+                    elif isinstance(obj, (np.integer, np.int64, np.int32, np.int16, np.int8)):
+                        return int(obj)
+                    elif isinstance(obj, (np.floating, np.float64, np.float32, np.float16)):
+                        return float(obj)
+                    elif isinstance(obj, np.ndarray):
+                        return obj.tolist()
+                    elif isinstance(obj, np.bool_):
+                        return bool(obj)
+                    else:
+                        return obj
+                
+                clean_parameters = convert_numpy_types(strategy.parameters)
+                
                 strategy_db = StrategyModel(
                     name=strategy.name,
-                    description=f"Auto-generated strategy with {backtest_result.total_return:.2f}% return",
-                    strategy_type=strategy.name,
-                    parameters=json.dumps(strategy.parameters),
+                    description=f"Strategy with {backtest_result.total_return:.2f}% return on {backtest_result.symbol}",
+                    strategy_type=strategy_type,
+                    parameters=json.dumps(clean_parameters),
                     is_active=True
                 )
                 db.add(strategy_db)
                 db.flush()  # Get the ID
+                logger.info(f"Strategy created with ID: {strategy_db.id}")
             
-            # Get ticker
-            ticker = db.query(Ticker).filter(Ticker.symbol == backtest_result.symbol).first()
+            # Get ticker - remove .PA suffix if present
+            ticker_symbol = backtest_result.symbol.replace('.PA', '')
+            logger.info(f"Looking for ticker: {ticker_symbol} (original: {backtest_result.symbol})")
+            
+            ticker = db.query(Ticker).filter(Ticker.symbol == ticker_symbol).first()
             if not ticker:
-                logger.error(f"Ticker {backtest_result.symbol} not found")
+                logger.error(f"Ticker {ticker_symbol} not found (original: {backtest_result.symbol})")
+                # List available tickers
+                available_tickers = db.query(Ticker).all()
+                logger.error(f"Available tickers: {[t.symbol for t in available_tickers]}")
                 return None
             
             # Save backtest result
@@ -105,12 +158,35 @@ class StrategyManager:
             
             # Reconstruct strategy object
             parameters = json.loads(strategy_db.parameters)
-            strategy_data = {
-                'name': strategy_db.strategy_type,
-                'parameters': parameters
-            }
+            strategy_type = strategy_db.strategy_type
             
-            strategy = Strategy.from_dict(strategy_data)
+            # Create strategy based on type
+            if strategy_type == 'MovingAverageCrossover' or strategy_type == 'MA':
+                strategy = MovingAverageCrossover(**parameters)
+            elif strategy_type == 'RSIStrategy' or strategy_type == 'RSI':
+                strategy = RSIStrategy(**parameters)
+            elif strategy_type == 'MultiIndicatorStrategy' or strategy_type == 'Multi':
+                strategy = MultiIndicatorStrategy(**parameters)
+            elif strategy_type == 'AdvancedMultiIndicatorStrategy':
+                strategy = AdvancedMultiIndicatorStrategy(**parameters)
+            elif strategy_type == 'MomentumBreakoutStrategy':
+                strategy = MomentumBreakoutStrategy(**parameters)
+            elif strategy_type == 'MeanReversionStrategy':
+                strategy = MeanReversionStrategy(**parameters)
+            elif strategy_type == 'UltraAggressiveStrategy':
+                strategy = UltraAggressiveStrategy(**parameters)
+            elif strategy_type == 'MegaIndicatorStrategy':
+                strategy = MegaIndicatorStrategy(**parameters)
+            elif strategy_type == 'HyperAggressiveStrategy':
+                strategy = HyperAggressiveStrategy(**parameters)
+            elif strategy_type == 'UltimateStrategy':
+                strategy = UltimateStrategy(**parameters)
+            elif strategy_type == 'EnhancedMA':
+                strategy = EnhancedMovingAverageStrategy(**parameters)
+            else:
+                logger.error(f"Unknown strategy type: {strategy_type}")
+                return None
+            
             logger.info(f"✅ Strategy loaded: {strategy.name}")
             return strategy
             
@@ -128,39 +204,63 @@ class StrategyManager:
         Returns:
             Liste des stratégies avec leurs statistiques
         """
-        db = SessionLocal()
+        # Use direct SQL to avoid ORM object tracking issues
+        import os
+        db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'boursicotor.db')
+        
         try:
-            strategies = db.query(StrategyModel).all()
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row  # Enable column access by name
+            cursor = conn.cursor()
             
+            # Get all strategies
+            cursor.execute("""
+                SELECT id, name, description, strategy_type, parameters, is_active, created_at
+                FROM strategies
+                ORDER BY created_at DESC
+            """)
+            
+            strategies = cursor.fetchall()
             result = []
+            
             for s in strategies:
                 # Get latest backtest
-                latest_backtest = db.query(BacktestModel).filter(
-                    BacktestModel.strategy_id == s.id
-                ).order_by(BacktestModel.created_at.desc()).first()
+                cursor.execute("""
+                    SELECT total_return, win_rate
+                    FROM backtests
+                    WHERE strategy_id = ?
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                """, (s['id'],))
+                latest = cursor.fetchone()
+                
+                # Get total backtests count
+                cursor.execute("""
+                    SELECT COUNT(*) as count
+                    FROM backtests
+                    WHERE strategy_id = ?
+                """, (s['id'],))
+                count_row = cursor.fetchone()
                 
                 result.append({
-                    'id': s.id,
-                    'name': s.name,
-                    'description': s.description,
-                    'type': s.strategy_type,
-                    'is_active': s.is_active,
-                    'parameters': json.loads(s.parameters),
-                    'latest_return': latest_backtest.total_return if latest_backtest else None,
-                    'latest_win_rate': latest_backtest.win_rate if latest_backtest else None,
-                    'total_backtests': db.query(BacktestModel).filter(
-                        BacktestModel.strategy_id == s.id
-                    ).count(),
-                    'created_at': s.created_at
+                    'id': s['id'],
+                    'name': s['name'],
+                    'description': s['description'],
+                    'type': s['strategy_type'],
+                    'is_active': bool(s['is_active']),
+                    'parameters': json.loads(s['parameters']) if s['parameters'] else {},
+                    'latest_return': latest['total_return'] if latest else None,
+                    'latest_win_rate': latest['win_rate'] if latest else None,
+                    'total_backtests': count_row['count'] if count_row else 0,
+                    'created_at': s['created_at']
                 })
             
+            conn.close()
             return result
             
         except Exception as e:
             logger.error(f"Error getting strategies: {e}")
             return []
-        finally:
-            db.close()
     
     @staticmethod
     def get_strategy_backtests(strategy_id: int) -> List[Dict]:
@@ -207,6 +307,50 @@ class StrategyManager:
             db.close()
     
     @staticmethod
+    def delete_strategy(strategy_id: int) -> bool:
+        """
+        Supprime une stratégie et tous ses backtests associés
+        
+        Args:
+            strategy_id: ID de la stratégie à supprimer
+            
+        Returns:
+            True si suppression réussie, False sinon
+        """
+        # Use subprocess to run standalone script to avoid SQLAlchemy interference
+        import subprocess
+        import sys
+        import os
+        
+        script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'delete_strategy_standalone.py')
+        python_exe = sys.executable
+        
+        try:
+            result = subprocess.run(
+                [python_exe, script_path, str(strategy_id)],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            output = result.stdout.strip()
+            
+            if result.returncode == 0 and output.startswith("SUCCESS:"):
+                logger.info(f"✅ {output.split('SUCCESS:')[1]}")
+                return True
+            else:
+                error_msg = output.split('ERROR:')[1] if 'ERROR:' in output else output
+                logger.error(f"Failed to delete strategy: {error_msg}")
+                return False
+                
+        except subprocess.TimeoutExpired:
+            logger.error(f"Timeout while deleting strategy {strategy_id}")
+            return False
+        except Exception as e:
+            logger.error(f"Error deleting strategy {strategy_id}: {e}")
+            return False
+    
+    @staticmethod
     def replay_strategy(
         strategy_id: int,
         symbol: str,
@@ -240,9 +384,11 @@ class StrategyManager:
             from backend.models import HistoricalData
             import pandas as pd
             
-            ticker = db.query(Ticker).filter(Ticker.symbol == symbol).first()
+            # Remove .PA suffix if present
+            ticker_symbol = symbol.replace('.PA', '')
+            ticker = db.query(Ticker).filter(Ticker.symbol == ticker_symbol).first()
             if not ticker:
-                logger.error(f"Ticker {symbol} not found")
+                logger.error(f"Ticker {ticker_symbol} not found (original: {symbol})")
                 return None
             
             # Query data
@@ -282,37 +428,5 @@ class StrategyManager:
         except Exception as e:
             logger.error(f"Error replaying strategy: {e}")
             return None
-        finally:
-            db.close()
-    
-    @staticmethod
-    def delete_strategy(strategy_id: int) -> bool:
-        """
-        Supprime une stratégie
-        
-        Args:
-            strategy_id: ID de la stratégie
-            
-        Returns:
-            True si succès
-        """
-        db = SessionLocal()
-        try:
-            strategy = db.query(StrategyModel).filter(StrategyModel.id == strategy_id).first()
-            
-            if not strategy:
-                logger.error(f"Strategy {strategy_id} not found")
-                return False
-            
-            db.delete(strategy)
-            db.commit()
-            
-            logger.info(f"✅ Strategy {strategy_id} deleted")
-            return True
-            
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Error deleting strategy: {e}")
-            return False
         finally:
             db.close()

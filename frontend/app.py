@@ -955,6 +955,10 @@ def backtesting_page():
     """Backtesting page"""
     st.header("🔙 Backtesting & Génération de Stratégies")
     
+    # Import necessary modules
+    from backend.models import SessionLocal, Ticker as TickerModel, HistoricalData
+    from backend.strategy_manager import StrategyManager
+    
     # Tabs for different sections
     tab1, tab2, tab3 = st.tabs(["🔍 Générer Stratégie", "💾 Stratégies Sauvegardées", "🔄 Rejouer Stratégie"])
     
@@ -963,7 +967,6 @@ def backtesting_page():
         st.info("L'algorithme va tester différentes stratégies jusqu'à trouver un gain ≥ 10% (ou arrêt après 100 itérations)")
         
         # Get available tickers
-        from backend.models import SessionLocal, Ticker as TickerModel, HistoricalData
         db = SessionLocal()
         try:
             tickers = [t.symbol for t in db.query(TickerModel).all()]
@@ -995,7 +998,7 @@ def backtesting_page():
             finally:
                 db.close()
         
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             initial_capital = st.number_input(
@@ -1016,18 +1019,35 @@ def backtesting_page():
             )
         
         with col3:
+            commission_pct = st.number_input(
+                "Commission (%)",
+                min_value=0.0,
+                max_value=5.0,
+                value=0.09,
+                step=0.01,
+                format="%.2f",
+                help="Commission par trade (achat + vente)"
+            )
+        
+        with col4:
             max_iterations = st.number_input(
                 "Max itérations",
                 min_value=10,
-                max_value=1000,
-                value=100,
-                step=10
+                max_value=5000,
+                value=2000,
+                step=100
             )
         
+        # Button to start optimization
         if st.button("🚀 Lancer la recherche", type="primary", use_container_width=True):
+            # Clear previous results
+            st.session_state.best_strategy = None
+            st.session_state.best_result = None
+            st.session_state.best_return = None
+            st.session_state.selected_ticker = None
+            st.session_state.save_status = None
+            
             from backend.backtesting_engine import StrategyGenerator, BacktestingEngine
-            from backend.strategy_manager import StrategyManager
-            import pandas as pd
             
             with st.spinner(f"Recherche en cours sur {selected_ticker}..."):
                 # Load data
@@ -1071,6 +1091,8 @@ def backtesting_page():
                     generator = StrategyGenerator(target_return=target_return)
                     
                     best_return = -np.inf
+                    best_strategy = None
+                    best_result = None
                     iterations_done = 0
                     
                     for i in range(max_iterations):
@@ -1078,8 +1100,8 @@ def backtesting_page():
                         progress = (i + 1) / max_iterations
                         progress_bar.progress(progress)
                         
-                        # Generate random strategy
-                        strategy_type = np.random.choice(['ma', 'rsi', 'multi'])
+                        # Generate random strategy - Include EnhancedMA
+                        strategy_type = np.random.choice(['ma', 'rsi', 'multi', 'enhanced'])
                         
                         if strategy_type == 'ma':
                             from backend.backtesting_engine import MovingAverageCrossover
@@ -1092,7 +1114,7 @@ def backtesting_page():
                             oversold = np.random.randint(20, 35)
                             overbought = np.random.randint(65, 80)
                             strategy = RSIStrategy(rsi_period=period, oversold=oversold, overbought=overbought)
-                        else:
+                        elif strategy_type == 'multi':
                             from backend.backtesting_engine import MultiIndicatorStrategy
                             strategy = MultiIndicatorStrategy(
                                 ma_fast=np.random.randint(5, 15),
@@ -1101,14 +1123,63 @@ def backtesting_page():
                                 rsi_oversold=np.random.randint(20, 35),
                                 rsi_overbought=np.random.randint(65, 80)
                             )
+                        else:  # enhanced
+                            from backend.backtesting_engine import EnhancedMovingAverageStrategy
+                            
+                            # Randomly decide which ultra-complex indicators to use
+                            use_supertrend = np.random.choice([True, False])
+                            use_parabolic_sar = np.random.choice([True, False])
+                            use_donchian = np.random.choice([True, False])
+                            use_vwap = np.random.choice([True, False])
+                            use_obv = np.random.choice([True, False])
+                            use_cmf = np.random.choice([True, False])
+                            use_elder_ray = np.random.choice([True, False])
+                            
+                            strategy = EnhancedMovingAverageStrategy(
+                                fast_period=np.random.randint(15, 25),
+                                slow_period=np.random.randint(35, 50),
+                                roc_period=np.random.choice([10, 14]),
+                                roc_threshold=np.random.uniform(1.0, 4.0),
+                                adx_period=np.random.choice([14, 20]),
+                                adx_threshold=np.random.randint(20, 35),
+                                volume_ratio_short=np.random.choice([3, 5, 10]),
+                                volume_ratio_long=np.random.choice([15, 20, 30]),
+                                volume_threshold=np.random.uniform(1.1, 1.5),
+                                momentum_period=np.random.choice([10, 14]),
+                                momentum_threshold=np.random.uniform(0.5, 2.0),
+                                bb_period=np.random.choice([20, 25]),
+                                bb_width_threshold=np.random.uniform(0.03, 0.08),
+                                use_supertrend=use_supertrend,
+                                supertrend_period=np.random.choice([10, 14, 20]) if use_supertrend else 10,
+                                supertrend_multiplier=np.random.uniform(2.0, 4.0) if use_supertrend else 3.0,
+                                use_parabolic_sar=use_parabolic_sar,
+                                use_donchian=use_donchian,
+                                donchian_period=np.random.choice([20, 30, 40]) if use_donchian else 20,
+                                donchian_threshold=np.random.uniform(0.02, 0.06) if use_donchian else 0.04,
+                                use_vwap=use_vwap,
+                                use_obv=use_obv,
+                                use_cmf=use_cmf,
+                                cmf_period=np.random.choice([14, 20, 21]) if use_cmf else 20,
+                                cmf_threshold=np.random.uniform(0.0, 0.15) if use_cmf else 0.05,
+                                use_elder_ray=use_elder_ray,
+                                elder_ray_period=np.random.choice([13, 21, 34]) if use_elder_ray else 13,
+                                min_signals=np.random.randint(2, 6)
+                            )
                         
-                        # Run backtest
-                        engine = BacktestingEngine(initial_capital=initial_capital)
+                        # Run backtest with custom commission
+                        commission_decimal = commission_pct / 100  # Convert % to decimal (0.09% → 0.0009)
+                        engine = BacktestingEngine(
+                            initial_capital=initial_capital,
+                            commission=commission_decimal,
+                            allow_short=True
+                        )
                         result = engine.run_backtest(df, strategy, selected_ticker)
                         
-                        # Update best
+                        # Update best if this result is better
                         if result.total_return > best_return:
                             best_return = result.total_return
+                            best_strategy = strategy
+                            best_result = result
                             
                             with results_container.container():
                                 col_a, col_b, col_c = st.columns(3)
@@ -1117,77 +1188,164 @@ def backtesting_page():
                                 with col_b:
                                     st.metric("Itération", f"{iterations_done}/{max_iterations}")
                                 with col_c:
-                                    st.metric("Win Rate", f"{result.win_rate:.1f}%")
+                                    st.metric("Win Rate", f"{best_result.win_rate:.1f}%")
                         
-                        status_text.text(f"⏳ Itération {iterations_done}/{max_iterations} | Meilleur: {best_return:.2f}%")
-                        
-                        # Check if target reached
-                        if result.total_return >= target_return:
-                            progress_bar.progress(1.0)
-                            st.success(f"🎯 Objectif atteint ! Stratégie trouvée à l'itération {iterations_done}")
-                            
-                            # Save strategy
-                            strategy_id = StrategyManager.save_strategy(strategy, result)
-                            
-                            # Display results
-                            st.markdown("---")
-                            st.subheader("✅ Stratégie Gagnante")
-                            
-                            col1, col2, col3, col4 = st.columns(4)
-                            with col1:
-                                st.metric("Retour Total", f"{result.total_return:.2f}%", 
-                                         delta=f"{result.total_return - target_return:.2f}%")
-                            with col2:
-                                st.metric("Capital Final", f"{result.final_capital:.2f}€",
-                                         delta=f"{result.final_capital - initial_capital:.2f}€")
-                            with col3:
-                                st.metric("Trades", result.total_trades)
-                            with col4:
-                                st.metric("Win Rate", f"{result.win_rate:.1f}%")
-                            
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.metric("Sharpe Ratio", f"{result.sharpe_ratio:.2f}")
-                            with col2:
-                                st.metric("Max Drawdown", f"{result.max_drawdown:.2f}%")
-                            with col3:
-                                st.metric("Winning/Losing", f"{result.winning_trades}/{result.losing_trades}")
-                            
-                            # Strategy details
-                            st.markdown("---")
-                            st.markdown("**📋 Détails de la stratégie:**")
-                            st.json(strategy.to_dict())
-                            
-                            # Trades table
-                            if result.trades:
-                                st.markdown("**📈 Historique des trades:**")
-                                trades_df = pd.DataFrame(result.trades)
-                                trades_df['entry_date'] = pd.to_datetime(trades_df['entry_date'])
-                                trades_df['exit_date'] = pd.to_datetime(trades_df['exit_date'])
-                                st.dataframe(trades_df, use_container_width=True)
-                            
-                            break
+                        # Show progress (continue through all iterations)
+                        objective_status = "🎯 Objectif atteint!" if best_return >= target_return else "⏳ Recherche en cours..."
+                        status_text.text(f"{objective_status} | Itération {iterations_done}/{max_iterations} | Meilleur: {best_return:.2f}%")
                     
+                    # All iterations complete - display best result
+                    progress_bar.progress(1.0)
+                    status_text.empty()
+                    
+                    if best_result and best_strategy:
+                        # Save to session state for persistence across reruns
+                        st.session_state.best_strategy = best_strategy
+                        st.session_state.best_result = best_result
+                        st.session_state.best_return = best_return
+                        st.session_state.selected_ticker = selected_ticker
+                        
+                        if best_return >= target_return:
+                            st.success(f"🎯 Objectif atteint ! Meilleure stratégie : {best_return:.2f}%")
+                        else:
+                            st.warning(f"⚠️ Objectif non atteint après {max_iterations} itérations")
+                            st.info(f"Meilleur résultat obtenu : {best_return:.2f}%")
+                        
+                        st.info("� Résultats affichés ci-dessous")
                     else:
-                        # Max iterations reached
-                        progress_bar.empty()
-                        status_text.empty()
-                        st.warning(f"⚠️ Objectif non atteint après {max_iterations} itérations")
-                        st.info(f"Meilleur résultat obtenu : {best_return:.2f}%")
+                        st.error("Aucune stratégie n'a pu être générée")
                 
                 finally:
                     db.close()
+        
+        # Display results if they exist in session state (outside button block)
+        if 'best_strategy' in st.session_state and st.session_state.best_strategy is not None:
+            best_strategy = st.session_state.best_strategy
+            best_result = st.session_state.best_result
+            best_return = st.session_state.best_return
+            selected_ticker = st.session_state.selected_ticker
+            
+            st.markdown("---")
+            st.subheader("✅ Meilleure Stratégie Trouvée")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Retour Total", f"{best_result.total_return:.2f}%", 
+                         delta=f"{best_result.total_return - target_return:.2f}%")
+            with col2:
+                st.metric("Capital Final", f"{best_result.final_capital:.2f}€",
+                         delta=f"{best_result.final_capital - initial_capital:.2f}€")
+            with col3:
+                st.metric("Trades", best_result.total_trades)
+            with col4:
+                st.metric("Win Rate", f"{best_result.win_rate:.1f}%")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Sharpe Ratio", f"{best_result.sharpe_ratio:.2f}")
+            with col2:
+                st.metric("Max Drawdown", f"{best_result.max_drawdown:.2f}%")
+            with col3:
+                st.metric("Winning/Losing", f"{best_result.winning_trades}/{best_result.losing_trades}")
+            
+            # Strategy details
+            st.markdown("---")
+            st.markdown("**📋 Détails de la stratégie:**")
+            st.json(best_strategy.to_dict())
+            
+            # Save strategy button
+            st.markdown("---")
+            ticker_name = selected_ticker.replace('.PA', '')  # Remove .PA suffix
+            suggested_name = f"{ticker_name}_{best_return:.2f}%"
+            
+            # Initialize session state for save status
+            if 'save_status' not in st.session_state:
+                st.session_state.save_status = None
+            
+            strategy_name = st.text_input(
+                "Nom de la stratégie à sauvegarder",
+                value=suggested_name,
+                key="strategy_save_name"
+            )
+            
+            # Debug info
+            st.caption(f"📝 Nom actuel : {strategy_name}")
+            
+            if st.button("💾 Sauvegarder la stratégie", type="primary", key="save_strategy_btn", use_container_width=True):
+                # Log button click
+                logger.info(f"Save button clicked for strategy: {strategy_name}")
+                
+                # Update strategy name before saving
+                best_strategy.name = strategy_name
+                try:
+                    with st.spinner(f"Sauvegarde de '{strategy_name}'..."):
+                        logger.info(f"Calling StrategyManager.save_strategy...")
+                        strategy_id = StrategyManager.save_strategy(best_strategy, best_result)
+                        logger.info(f"Save returned ID: {strategy_id}")
+                    
+                    if strategy_id:
+                        st.session_state.save_status = ('success', strategy_name, strategy_id)
+                        st.rerun()  # Rerun to show success message
+                    else:
+                        st.session_state.save_status = ('error', strategy_name, None)
+                except Exception as e:
+                    import traceback
+                    logger.error(f"Exception during save: {e}")
+                    logger.error(traceback.format_exc())
+                    st.session_state.save_status = ('exception', strategy_name, str(e), traceback.format_exc())
+            
+            # Display save status
+            if st.session_state.save_status:
+                status = st.session_state.save_status
+                if status[0] == 'success':
+                    st.success(f"✅ Stratégie '{status[1]}' sauvegardée avec succès ! (ID: {status[2]})")
+                    st.info("👉 Consultez l'onglet 'Stratégies Sauvegardées' pour la retrouver")
+                    if st.button("🔄 Nouvelle optimisation", key="reset_opt"):
+                        st.session_state.best_strategy = None
+                        st.session_state.best_result = None
+                        st.session_state.best_return = None
+                        st.session_state.selected_ticker = None
+                        st.session_state.save_status = None
+                        st.rerun()
+                elif status[0] == 'error':
+                    st.error(f"❌ Erreur lors de la sauvegarde de '{status[1]}' (ID None)")
+                    st.error("Vérifiez les logs pour plus de détails")
+                elif status[0] == 'exception':
+                    st.error(f"❌ Exception lors de la sauvegarde de '{status[1]}' : {status[2]}")
+                    with st.expander("Voir le détail de l'erreur"):
+                        st.code(status[3])
+            
+            # Trades table
+            if best_result.trades:
+                st.markdown("**📈 Historique des trades:**")
+                trades_df = pd.DataFrame(best_result.trades)
+                trades_df['entry_date'] = pd.to_datetime(trades_df['entry_date'])
+                trades_df['exit_date'] = pd.to_datetime(trades_df['exit_date'])
+                st.dataframe(trades_df, use_container_width=True)
     
     with tab2:
         st.subheader("💾 Stratégies Sauvegardées")
         
+        # Add refresh button
+        col_refresh1, col_refresh2 = st.columns([1, 5])
+        with col_refresh1:
+            if st.button("🔄 Rafraîchir", key="refresh_strategies"):
+                st.rerun()
+        
         from backend.strategy_manager import StrategyManager
         
-        strategies = StrategyManager.get_all_strategies()
+        try:
+            strategies = StrategyManager.get_all_strategies()
+        except Exception as e:
+            st.error(f"Erreur lors du chargement des stratégies : {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
+            strategies = []
         
         if not strategies:
             st.info("Aucune stratégie sauvegardée. Générez-en une dans l'onglet 'Générer Stratégie'.")
         else:
+            st.write(f"**{len(strategies)} stratégie(s) trouvée(s)**")
             for strat in strategies:
                 with st.expander(f"📊 {strat['name']} - {strat['type']}", expanded=False):
                     col1, col2, col3, col4 = st.columns(4)
@@ -1217,9 +1375,14 @@ def backtesting_page():
                     
                     with col_b:
                         if st.button(f"🗑️ Supprimer", key=f"delete_{strat['id']}", type="secondary"):
-                            if StrategyManager.delete_strategy(strat['id']):
-                                st.success("Stratégie supprimée")
-                                st.rerun()
+                            try:
+                                if StrategyManager.delete_strategy(strat['id']):
+                                    st.success(f"✅ Stratégie '{strat['name']}' supprimée avec succès")
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Erreur lors de la suppression")
+                            except Exception as e:
+                                st.error(f"❌ Erreur : {str(e)}")
     
     with tab3:
         st.subheader("🔄 Rejouer une Stratégie")
