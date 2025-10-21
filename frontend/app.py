@@ -1573,12 +1573,13 @@ def backtesting_page():
 - Max Drawdown: {result.max_drawdown:.2f}%"""
 
                                         # Create new strategy with same parameters but new name and description
-                                        new_strategy = type(original_strategy)(
+                                        # Use the original strategy class and copy all attributes
+                                        new_strategy = original_strategy.__class__(
                                             name=new_strategy_name,
-                                            description=new_description
+                                            description=new_description,
+                                            **original_strategy.__dict__
                                         )
-                                        # Copy parameters from original
-                                        new_strategy.__dict__.update(original_strategy.__dict__)
+                                        # Ensure name and description are set correctly
                                         new_strategy.name = new_strategy_name
                                         new_strategy.description = new_description
                                         
