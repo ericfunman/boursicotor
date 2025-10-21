@@ -761,12 +761,12 @@ def settings_page():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.number_input("Délai entre requêtes (secondes)", value=1, min_value=0, max_value=10, help="Délai pour éviter le rate limiting")
-        st.number_input("Limite de points par requête", value=1200, min_value=100, max_value=5000, step=100)
+        st.number_input("Délai entre requêtes (secondes)", value=1, min_value=0, max_value=10, help="Délai pour éviter le rate limiting de l'API Saxo Bank")
     
     with col2:
-        st.checkbox("Utiliser données simulées si API échoue", value=True)
-        st.checkbox("Stocker les données brutes", value=True)
+        st.checkbox("Utiliser données simulées si API échoue", value=True, help="Génère des données réalistes si l'API Chart n'est pas disponible")
+    
+    st.info("ℹ️ **Limite API Saxo Bank** : Maximum 1200 points par requête (contrainte de l'API)")
     
     if st.button("💾 Sauvegarder les paramètres"):
         st.success("✅ Paramètres sauvegardés")

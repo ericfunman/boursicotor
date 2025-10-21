@@ -443,6 +443,8 @@ class SaxoClient:
         }.get(bar_size, 60)
         
         # Calculate count (limit to max 1200 for most Saxo endpoints)
+        # Note: This is a Saxo Bank API limitation, not configurable
+        # Attempting to request more than 1200 bars will result in API errors
         count = min(int(duration_minutes / bar_minutes), 1200)
         
         return max(count, 10)  # Minimum 10 bars
