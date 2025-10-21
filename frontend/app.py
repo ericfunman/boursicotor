@@ -181,66 +181,89 @@ def dashboard_page():
 
 def data_collection_page():
     """Data collection page"""
-    st.header("💾 Collecte de Données Saxo Bank")
+    st.header("💾 Collecte de Données")
     
-    # Search section
-    st.subheader("🔍 Recherche d'actions françaises")
+    # Data source selection
+    st.subheader("📡 Source de Données")
     
-    col_search1, col_search2 = st.columns([3, 1])
+    col_source1, col_source2 = st.columns(2)
     
-    with col_search1:
-        search_query = st.text_input(
-            "Rechercher une action (ticker ou nom)",
-            placeholder="Ex: GLE, Société Générale, LVMH, MC...",
-            help="Entrez le ticker (ex: GLE) ou le nom de la société (ex: Société Générale)"
+    with col_source1:
+        data_source = st.radio(
+            "Choisir la source",
+            ["🏦 Saxo Bank (Temps Réel)", "📊 Yahoo Finance (Historique)"],
+            help="Saxo Bank: Prix temps réel simulés | Yahoo Finance: Historique massif réel (jusqu'à 26+ ans)"
         )
     
-    with col_search2:
-        search_button = st.button("🔍 Rechercher", type="secondary", use_container_width=True)
+    with col_source2:
+        if data_source == "🏦 Saxo Bank (Temps Réel)":
+            st.info("**Saxo Bank**\n- ✅ Prix temps réel\n- ⚠️ Données simulées (mode démo)\n- 📊 Limite: 1,200 points")
+        else:
+            st.success("**Yahoo Finance**\n- ✅ Données réelles\n- ✅ Historique massif (26+ ans)\n- 📊 Aucune limite stricte")
     
-    # Initialize session state for search results
-    if 'search_results' not in st.session_state:
-        st.session_state.search_results = []
-    if 'selected_stock' not in st.session_state:
-        st.session_state.selected_stock = None
-    
-    # Perform search
-    if search_button and search_query:
-        with st.spinner(f"Recherche de '{search_query}'..."):
-            try:
-                from backend.saxo_search import SaxoInstrumentSearch
-                searcher = SaxoInstrumentSearch()
-                st.session_state.search_results = searcher.search_french_stocks(search_query, limit=10)
-                
-                if st.session_state.search_results:
-                    st.success(f"✅ {len(st.session_state.search_results)} résultat(s) trouvé(s)")
-                else:
-                    st.warning("⚠️ Aucune action française trouvée pour cette recherche")
-            except Exception as e:
-                st.error(f"❌ Erreur lors de la recherche: {e}")
-                logger.error(f"Search error: {e}")
-    
-    # Display search results
-    if st.session_state.search_results:
-        st.markdown("---")
-        st.markdown("**📋 Résultats de recherche:**")
-        
-        # Create a selection list
-        for i, stock in enumerate(st.session_state.search_results):
-            col_result1, col_result2 = st.columns([4, 1])
-            
-            with col_result1:
-                st.markdown(f"""
-                **{stock['ticker']}** - {stock['name']}  
-                <small>Exchange: {stock['exchange']} | Currency: {stock['currency']} | UIC: {stock['uic']}</small>
-                """, unsafe_allow_html=True)
-            
-            with col_result2:
-                if st.button("Sélectionner", key=f"select_{i}", use_container_width=True):
-                    st.session_state.selected_stock = stock
-                    st.rerun()
+    use_yahoo = data_source == "📊 Yahoo Finance (Historique)"
     
     st.markdown("---")
+    
+    # Search section (only for Saxo Bank)
+    if not use_yahoo:
+        st.subheader("🔍 Recherche d'actions françaises")
+        
+        col_search1, col_search2 = st.columns([3, 1])
+        
+        with col_search1:
+            search_query = st.text_input(
+                "Rechercher une action (ticker ou nom)",
+                placeholder="Ex: GLE, Société Générale, LVMH, MC...",
+                help="Entrez le ticker (ex: GLE) ou le nom de la société (ex: Société Générale)"
+            )
+        
+        with col_search2:
+            search_button = st.button("🔍 Rechercher", type="secondary", use_container_width=True)
+        
+        # Initialize session state for search results
+        if 'search_results' not in st.session_state:
+            st.session_state.search_results = []
+        if 'selected_stock' not in st.session_state:
+            st.session_state.selected_stock = None
+        
+        # Perform search
+        if search_button and search_query:
+            with st.spinner(f"Recherche de '{search_query}'..."):
+                try:
+                    from backend.saxo_search import SaxoInstrumentSearch
+                    searcher = SaxoInstrumentSearch()
+                    st.session_state.search_results = searcher.search_french_stocks(search_query, limit=10)
+                    
+                    if st.session_state.search_results:
+                        st.success(f"✅ {len(st.session_state.search_results)} résultat(s) trouvé(s)")
+                    else:
+                        st.warning("⚠️ Aucune action française trouvée pour cette recherche")
+                except Exception as e:
+                    st.error(f"❌ Erreur lors de la recherche: {e}")
+                    logger.error(f"Search error: {e}")
+        
+        # Display search results
+        if st.session_state.search_results:
+            st.markdown("---")
+            st.markdown("**📋 Résultats de recherche:**")
+            
+            # Create a selection list
+            for i, stock in enumerate(st.session_state.search_results):
+                col_result1, col_result2 = st.columns([4, 1])
+                
+                with col_result1:
+                    st.markdown(f"""
+                    **{stock['ticker']}** - {stock['name']}  
+                    <small>Exchange: {stock['exchange']} | Currency: {stock['currency']} | UIC: {stock['uic']}</small>
+                    """, unsafe_allow_html=True)
+                
+                with col_result2:
+                    if st.button("Sélectionner", key=f"select_{i}", use_container_width=True):
+                        st.session_state.selected_stock = stock
+                        st.rerun()
+        
+        st.markdown("---")
     
     col1, col2 = st.columns(2)
     
@@ -248,7 +271,7 @@ def data_collection_page():
         st.subheader("📥 Récupération de données historiques")
         
         # Ticker selection - either from search or predefined list
-        if st.session_state.selected_stock:
+        if not use_yahoo and st.session_state.selected_stock:
             st.info(f"🎯 **Action sélectionnée:** {st.session_state.selected_stock['ticker']} - {st.session_state.selected_stock['name']}")
             selected_ticker = st.session_state.selected_stock['ticker']
             selected_name = st.session_state.selected_stock['name']
@@ -261,77 +284,152 @@ def data_collection_page():
             # Fallback to predefined list
             ticker_options = list(FRENCH_TICKERS.keys())
             selected_ticker = st.selectbox(
-                "Ou choisir dans la liste prédéfinie",
+                "Ticker" if use_yahoo else "Ou choisir dans la liste prédéfinie",
                 ticker_options,
                 format_func=lambda x: f"{x} - {FRENCH_TICKERS[x]}"
             )
             selected_name = FRENCH_TICKERS[selected_ticker]
         
-        # Duration
-        duration_options = {
-            "1 heure": "1H",
-            "4 heures": "4H",
-            "1 jour": "1D",
-            "2 jours": "2D",
-            "3 jours": "3D",
-            "5 jours": "5D",
-            "1 semaine": "1W",
-            "2 semaines": "2W",
-            "1 mois": "1M",
-            "2 mois": "2M",
-            "3 mois": "3M",
-            "6 mois": "6M",
-            "1 an": "1Y"
-        }
-        selected_duration = st.selectbox(
-            "Durée",
-            list(duration_options.keys()),
-            index=4  # Default: 3 jours
-        )
-        duration = duration_options[selected_duration]
+        # Duration and interval options depend on source
+        if use_yahoo:
+            # Yahoo Finance options
+            st.markdown("**Yahoo Finance** - Périodes et intervalles")
+            
+            duration_options = {
+                "1 jour": "1d",
+                "5 jours": "5d",
+                "1 mois": "1mo",
+                "3 mois": "3mo",
+                "6 mois": "6mo",
+                "1 an": "1y",
+                "2 ans": "2y",
+                "5 ans": "5y",
+                "10 ans": "10y",
+                "Maximum": "max"
+            }
+            selected_duration = st.selectbox(
+                "Période",
+                list(duration_options.keys()),
+                index=7,  # Default: 5 ans
+                help="Yahoo Finance: 1d à max (26+ ans disponibles)"
+            )
+            period = duration_options[selected_duration]
+            
+            # Interval options for Yahoo
+            interval_options = {
+                "1 minute": "1m",
+                "2 minutes": "2m",
+                "5 minutes": "5m",
+                "15 minutes": "15m",
+                "30 minutes": "30m",
+                "1 heure": "1h",
+                "1 jour": "1d",
+                "1 semaine": "1wk",
+                "1 mois": "1mo"
+            }
+            selected_interval = st.selectbox(
+                "Intervalle",
+                list(interval_options.keys()),
+                index=6,  # Default: 1 jour
+                help="Intraday (<1d): max 60 jours | Daily+: illimité"
+            )
+            interval = interval_options[selected_interval]
+            
+            # Warning for intraday
+            if interval in ["1m", "2m", "5m", "15m", "30m", "1h"] and selected_duration not in ["1 jour", "5 jours"]:
+                st.warning("⚠️ Les intervalles intraday sont limités à 60 jours par Yahoo Finance")
         
-        # Bar size
-        bar_size_options = {
-            "1 seconde": "1sec",
-            "5 secondes": "5sec",
-            "10 secondes": "10sec",
-            "30 secondes": "30sec",
-            "1 minute": "1min",
-            "2 minutes": "2min",
-            "3 minutes": "3min",
-            "5 minutes": "5min",
-            "10 minutes": "10min",
-            "15 minutes": "15min",
-            "30 minutes": "30min",
-            "1 heure": "1hour",
-            "2 heures": "2hour",
-            "4 heures": "4hour",
-            "1 jour": "1day",
-            "1 semaine": "1week"
-        }
-        selected_bar_size = st.selectbox(
-            "Intervalle",
-            list(bar_size_options.keys()),
-            index=4  # Default: 1 minute
-        )
-        bar_size = bar_size_options[selected_bar_size]
+        else:
+            # Saxo Bank options
+            st.markdown("**Saxo Bank** - Durées et intervalles")
+            
+            duration_options = {
+                "1 heure": "1H",
+                "4 heures": "4H",
+                "1 jour": "1D",
+                "2 jours": "2D",
+                "3 jours": "3D",
+                "5 jours": "5D",
+                "1 semaine": "1W",
+                "2 semaines": "2W",
+                "1 mois": "1M",
+                "2 mois": "2M",
+                "3 mois": "3M",
+                "6 mois": "6M",
+                "1 an": "1Y"
+            }
+            selected_duration = st.selectbox(
+                "Durée",
+                list(duration_options.keys()),
+                index=4  # Default: 3 jours
+            )
+            duration = duration_options[selected_duration]
+            
+            # Bar size
+            bar_size_options = {
+                "1 seconde": "1sec",
+                "5 secondes": "5sec",
+                "10 secondes": "10sec",
+                "30 secondes": "30sec",
+                "1 minute": "1min",
+                "2 minutes": "2min",
+                "3 minutes": "3min",
+                "5 minutes": "5min",
+                "10 minutes": "10min",
+                "15 minutes": "15min",
+                "30 minutes": "30min",
+                "1 heure": "1hour",
+                "2 heures": "2hour",
+                "4 heures": "4hour",
+                "1 jour": "1day",
+                "1 semaine": "1week"
+            }
+            selected_bar_size = st.selectbox(
+                "Intervalle",
+                list(bar_size_options.keys()),
+                index=4  # Default: 1 minute
+            )
+            bar_size = bar_size_options[selected_bar_size]
         
-        if st.button("📊 Collecter les données", type="primary"):
+        # Collect button
+        if st.button("📊 Collecter les données", type="primary", use_container_width=True):
             with st.spinner(f"Collecte en cours pour {selected_ticker}..."):
-                from backend.data_collector import DataCollector
                 
-                collector = DataCollector(use_saxo=True)
-                inserted = collector.collect_historical_data(
-                    symbol=selected_ticker,
-                    name=selected_name,
-                    duration=duration,
-                    bar_size=bar_size
-                )
+                if use_yahoo:
+                    # Yahoo Finance collection
+                    from backend.yahoo_finance_collector import YahooFinanceCollector
+                    
+                    collector = YahooFinanceCollector()
+                    inserted = collector.collect_and_store(
+                        symbol=selected_ticker,
+                        name=selected_name,
+                        period=period,
+                        interval=interval
+                    )
+                    
+                    if inserted > 0:
+                        st.success(f"✅ {inserted} nouveaux enregistrements ajoutés depuis Yahoo Finance !")
+                        st.info(f"📊 Source: Yahoo Finance | Période: {selected_duration} | Intervalle: {selected_interval}")
+                    else:
+                        st.info("ℹ️ Données déjà en base ou aucune donnée disponible")
                 
-                if inserted > 0:
-                    st.success(f"✅ {inserted} nouveaux enregistrements ajoutés !")
                 else:
-                    st.info("ℹ️ Données déjà en base ou aucune donnée disponible")
+                    # Saxo Bank collection
+                    from backend.data_collector import DataCollector
+                    
+                    collector = DataCollector(use_saxo=True)
+                    inserted = collector.collect_historical_data(
+                        symbol=selected_ticker,
+                        name=selected_name,
+                        duration=duration,
+                        bar_size=bar_size
+                    )
+                    
+                    if inserted > 0:
+                        st.success(f"✅ {inserted} nouveaux enregistrements ajoutés depuis Saxo Bank !")
+                        st.info(f"📊 Source: Saxo Bank (simulé) | Durée: {selected_duration} | Intervalle: {selected_bar_size}")
+                    else:
+                        st.info("ℹ️ Données déjà en base ou aucune donnée disponible")
     
     with col2:
         st.subheader("📊 Données en base")
