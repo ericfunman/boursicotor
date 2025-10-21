@@ -1537,6 +1537,67 @@ def backtesting_page():
                             trades_df['entry_date'] = pd.to_datetime(trades_df['entry_date'])
                             trades_df['exit_date'] = pd.to_datetime(trades_df['exit_date'])
                             st.dataframe(trades_df, use_container_width=True)
+                        
+                        # Save replayed strategy option
+                        st.markdown("---")
+                        st.markdown("**💾 Sauvegarder cette stratégie appliquée à une nouvelle action**")
+                        
+                        col1, col2 = st.columns([2, 1])
+                        with col1:
+                            new_strategy_name = st.text_input(
+                                "Nom de la nouvelle stratégie",
+                                value=f"{selected_strategy_name}_{replay_ticker}_{result.total_return:.1f}%",
+                                help="Donnez un nom descriptif à cette stratégie appliquée à une nouvelle action"
+                            )
+                        
+                        with col2:
+                            if st.button("💾 Sauvegarder", type="primary", use_container_width=True):
+                                try:
+                                    # Get original strategy
+                                    from backend.strategy_manager import StrategyManager
+                                    original_strategy = StrategyManager.get_strategy_by_id(selected_strategy_id)
+                                    
+                                    if original_strategy:
+                                        # Create new strategy with updated description
+                                        new_description = f"""Stratégie dérivée de '{selected_strategy_name}'
+                                        
+📊 Résultats originaux ({original_strategy.description.split('(')[1].split(')')[0] if '(' in original_strategy.description else 'N/A'}):
+{original_strategy.description}
+
+🔄 Appliquée à {replay_ticker} - {available_tickers.get(replay_ticker, replay_ticker)}:
+- Retour Total: {result.total_return:.2f}%
+- Capital Final: {result.final_capital:.2f}€
+- Nombre de trades: {result.total_trades}
+- Win Rate: {result.win_rate:.1f}%
+- Sharpe Ratio: {result.sharpe_ratio:.2f}
+- Max Drawdown: {result.max_drawdown:.2f}%"""
+
+                                        # Create new strategy with same parameters but new name and description
+                                        new_strategy = type(original_strategy)(
+                                            name=new_strategy_name,
+                                            description=new_description
+                                        )
+                                        # Copy parameters from original
+                                        new_strategy.__dict__.update(original_strategy.__dict__)
+                                        new_strategy.name = new_strategy_name
+                                        new_strategy.description = new_description
+                                        
+                                        # Save the new strategy
+                                        saved_id = StrategyManager.save_strategy(new_strategy, result)
+                                        
+                                        if saved_id:
+                                            st.success(f"✅ Stratégie '{new_strategy_name}' sauvegardée avec succès ! (ID: {saved_id})")
+                                            st.info("👉 Consultez l'onglet 'Stratégies Sauvegardées' pour la retrouver")
+                                            st.balloons()
+                                        else:
+                                            st.error("❌ Erreur lors de la sauvegarde")
+                                    else:
+                                        st.error("❌ Stratégie originale introuvable")
+                                        
+                                except Exception as e:
+                                    st.error(f"❌ Erreur: {str(e)}")
+                                    logger.error(f"Error saving replayed strategy: {e}")
+                        
                     else:
                         st.error("Erreur lors de l'exécution du backtest")
 

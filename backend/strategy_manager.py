@@ -197,6 +197,56 @@ class StrategyManager:
             db.close()
     
     @staticmethod
+    def get_strategy_by_id(strategy_id: int):
+        """
+        Récupère une stratégie par son ID
+        
+        Args:
+            strategy_id: ID de la stratégie
+            
+        Returns:
+            Objet stratégie ou None si non trouvée
+        """
+        db = SessionLocal()
+        try:
+            strategy_db = db.query(StrategyModel).filter(StrategyModel.id == strategy_id).first()
+            if strategy_db:
+                # Convert to strategy object
+                parameters = json.loads(strategy_db.parameters)
+                
+                # Map strategy type back to class
+                if strategy_db.strategy_type == 'MA':
+                    strategy = MovingAverageCrossover(**parameters)
+                elif strategy_db.strategy_type == 'RSI':
+                    strategy = RSIStrategy(**parameters)
+                elif strategy_db.strategy_type == 'Multi':
+                    strategy = MultiIndicatorStrategy(**parameters)
+                elif strategy_db.strategy_type == 'EnhancedMA':
+                    strategy = EnhancedMovingAverageStrategy(**parameters)
+                elif strategy_db.strategy_type == 'HyperAggressive':
+                    strategy = HyperAggressiveStrategy(**parameters)
+                elif strategy_db.strategy_type == 'Ultimate':
+                    strategy = UltimateStrategy(**parameters)
+                else:
+                    logger.error(f"Unknown strategy type: {strategy_db.strategy_type}")
+                    return None
+                
+                # Set name and description from database
+                strategy.name = strategy_db.name
+                strategy.description = strategy_db.description
+                
+                return strategy
+            else:
+                logger.error(f"Strategy with ID {strategy_id} not found")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error getting strategy by ID: {e}")
+            return None
+        finally:
+            db.close()
+    
+    @staticmethod
     def get_all_strategies() -> List[Dict]:
         """
         Récupère toutes les stratégies
