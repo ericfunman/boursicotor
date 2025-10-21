@@ -2348,8 +2348,12 @@ class EnhancedMovingAverageStrategy(Strategy):
                  use_elder_ray: bool = False,
                  elder_ray_period: int = 13,
                  # Filtres
-                 min_signals: int = 2):
-        self.name = "EnhancedMA"
+                 min_signals: int = 2,
+                 # Optional custom name
+                 name: str = "EnhancedMA",
+                 description: str = ""):
+        self.name = name
+        self.description = description
         self.parameters = {
             'fast_period': fast_period,
             'slow_period': slow_period,

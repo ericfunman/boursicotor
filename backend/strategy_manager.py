@@ -83,16 +83,19 @@ class StrategyManager:
                 
                 clean_parameters = convert_numpy_types(strategy.parameters)
                 
+                # Use custom description if provided, otherwise create default one
+                description = strategy.description if hasattr(strategy, 'description') and strategy.description else f"Strategy with {backtest_result.total_return:.2f}% return on {backtest_result.symbol}"
+                
                 strategy_db = StrategyModel(
                     name=strategy.name,
-                    description=f"Strategy with {backtest_result.total_return:.2f}% return on {backtest_result.symbol}",
+                    description=description,
                     strategy_type=strategy_type,
                     parameters=json.dumps(clean_parameters),
                     is_active=True
                 )
                 db.add(strategy_db)
                 db.flush()  # Get the ID
-                logger.info(f"Strategy created with ID: {strategy_db.id}")
+                logger.info(f"Strategy created with ID: {strategy_db.id}, name: {strategy.name}")
             
             # Get ticker - remove .PA suffix if present
             ticker_symbol = backtest_result.symbol.replace('.PA', '')
