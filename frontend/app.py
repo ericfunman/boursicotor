@@ -17,10 +17,31 @@ sys.path.append(str(Path(__file__).parent.parent))
 from backend.config import logger, FRENCH_TICKERS
 from backend.data_collector import DataCollector
 from backend.technical_indicators import calculate_and_update_indicators
+from backend.database import SessionLocal, TickerModel
+from sqlalchemy import func
 
 # IBKR client is optional - loaded lazily to avoid event loop warnings
 IBKR_AVAILABLE = False
 ibkr_client = None
+
+def get_available_tickers():
+    """Get only tickers that have collected data in the database"""
+    db = SessionLocal()
+    try:
+        # Get tickers that have data in historical_data table
+        from backend.database import HistoricalDataModel
+        tickers_with_data = db.query(TickerModel.symbol, TickerModel.name).join(
+            HistoricalDataModel,
+            TickerModel.id == HistoricalDataModel.ticker_id
+        ).distinct().all()
+        
+        # Return as dict {symbol: name}
+        return {ticker.symbol: ticker.name for ticker in tickers_with_data}
+    except Exception as e:
+        logger.error(f"Error getting available tickers: {e}")
+        return {}
+    finally:
+        db.close()
 
 # Saxo Bank client is optional
 SAXO_AVAILABLE = False
@@ -542,25 +563,20 @@ def data_collection_page():
     # Visualisation des données collectées
     st.subheader("📈 Visualisation des données")
     
-    # Get list of tickers from database or use predefined
-    from backend.models import SessionLocal, Ticker as TickerModel, HistoricalData
-    db = SessionLocal()
-    try:
-        db_tickers = [t.symbol for t in db.query(TickerModel).all()]
-        if db_tickers:
-            viz_ticker_options = db_tickers
-        else:
-            viz_ticker_options = list(FRENCH_TICKERS.keys())
-    finally:
-        db.close()
+    # Get tickers with collected data
+    available_tickers = get_available_tickers()
+    
+    if not available_tickers:
+        st.warning("⚠️ Aucune donnée disponible. Collectez des données d'abord dans l'onglet 'Collecte de Données'.")
+        return
     
     col_viz1, col_viz2 = st.columns([2, 1])
     
     with col_viz1:
         viz_ticker = st.selectbox(
             "Ticker à visualiser",
-            viz_ticker_options,
-            format_func=lambda x: FRENCH_TICKERS.get(x, x),
+            list(available_tickers.keys()),
+            format_func=lambda x: f"{x} - {available_tickers[x]}",
             key="viz_ticker"
         )
     
@@ -690,7 +706,7 @@ def data_collection_page():
                     )])
                     
                     fig.update_layout(
-                        title=f"{viz_ticker} - {FRENCH_TICKERS.get(viz_ticker, viz_ticker)}",
+                        title=f"{viz_ticker} - {available_tickers.get(viz_ticker, viz_ticker)}",
                         xaxis_title="Date/Heure",
                         yaxis_title="Prix (EUR)",
                         height=500,
@@ -741,13 +757,25 @@ def technical_analysis_page():
     with col1:
         st.subheader("Récupération de données historiques")
         
+        # Get tickers with collected data  
+        available_tickers = get_available_tickers()
+        
+        if not available_tickers:
+            st.warning("⚠️ Aucune donnée disponible. Collectez des données d'abord dans l'onglet 'Collecte de Données'.")
+            ticker_options = []
+        else:
+            ticker_options = list(available_tickers.keys())
+        
         # Ticker selection
-        ticker_options = list(FRENCH_TICKERS.keys())
-        selected_ticker = st.selectbox(
-            "Sélectionner un ticker",
-            ticker_options,
-            format_func=lambda x: f"{x} - {FRENCH_TICKERS[x]}"
-        )
+        if ticker_options:
+            selected_ticker = st.selectbox(
+                "Sélectionner un ticker",
+                ticker_options,
+                format_func=lambda x: f"{x} - {available_tickers[x]}"
+            )
+        else:
+            st.info("Aucun ticker disponible")
+            return
         
         # Duration
         duration_options = {
@@ -781,7 +809,7 @@ def technical_analysis_page():
                 collector = DataCollector()
                 count = collector.collect_historical_data(
                     symbol=selected_ticker,
-                    name=FRENCH_TICKERS[selected_ticker],
+                    name=available_tickers[selected_ticker],
                     duration=duration_options[duration],
                     bar_size=bar_size_options[bar_size]
                 )
@@ -794,11 +822,14 @@ def technical_analysis_page():
     with col2:
         st.subheader("Collecte multiple")
         
-        selected_tickers = st.multiselect(
-            "Sélectionner plusieurs tickers",
-            ticker_options,
-            format_func=lambda x: f"{x} - {FRENCH_TICKERS[x]}"
-        )
+        if ticker_options:
+            selected_tickers = st.multiselect(
+                "Sélectionner plusieurs tickers",
+                ticker_options,
+                format_func=lambda x: f"{x} - {available_tickers[x]}"
+            )
+        else:
+            selected_tickers = []
         
         if st.button("📥 Télécharger tous les tickers sélectionnés"):
             if not selected_tickers:
@@ -806,7 +837,7 @@ def technical_analysis_page():
             else:
                 with st.spinner("Téléchargement en cours..."):
                     collector = DataCollector()
-                    tickers_list = [(t, FRENCH_TICKERS[t]) for t in selected_tickers]
+                    tickers_list = [(t, available_tickers[t]) for t in selected_tickers]
                     collector.collect_multiple_tickers(
                         tickers_list,
                         duration=duration_options[duration],
@@ -819,7 +850,7 @@ def technical_analysis_page():
     # Display recent data
     st.subheader("📊 Aperçu des données récentes")
     
-    if selected_ticker:
+    if selected_ticker and available_tickers:
         collector = DataCollector()
         df = collector.get_latest_data(selected_ticker, limit=100)
         
@@ -835,7 +866,7 @@ def technical_analysis_page():
             )])
             
             fig.update_layout(
-                title=f"{selected_ticker} - {FRENCH_TICKERS[selected_ticker]}",
+                title=f"{selected_ticker} - {available_tickers[selected_ticker]}",
                 yaxis_title="Prix (€)",
                 xaxis_title="Date",
                 height=500
@@ -853,12 +884,19 @@ def technical_analysis_page():
     """Technical analysis page"""
     st.header("📈 Analyse Technique")
     
+    # Get tickers with collected data
+    available_tickers = get_available_tickers()
+    
+    if not available_tickers:
+        st.warning("⚠️ Aucune donnée disponible. Collectez des données d'abord dans l'onglet 'Collecte de Données'.")
+        return
+    
     # Ticker selection
-    ticker_options = list(FRENCH_TICKERS.keys())
+    ticker_options = list(available_tickers.keys())
     selected_ticker = st.selectbox(
         "Sélectionner un ticker",
         ticker_options,
-        format_func=lambda x: f"{x} - {FRENCH_TICKERS[x]}"
+        format_func=lambda x: f"{x} - {available_tickers[x]}"
     )
     
     # Get data
@@ -963,15 +1001,11 @@ def backtesting_page():
         st.subheader("🔍 Recherche de Stratégie Profitable")
         st.info("L'algorithme va tester différentes stratégies jusqu'à trouver un gain ≥ 10% (ou arrêt après 100 itérations)")
         
-        # Get available tickers
-        db = SessionLocal()
-        try:
-            tickers = [t.symbol for t in db.query(TickerModel).all()]
-        finally:
-            db.close()
+        # Get tickers with collected data
+        available_tickers = get_available_tickers()
         
-        if not tickers:
-            st.warning("⚠️ Aucune donnée disponible. Collectez d'abord des données historiques.")
+        if not available_tickers:
+            st.warning("⚠️ Aucune donnée disponible. Collectez d'abord des données historiques dans l'onglet 'Collecte de Données'.")
             return
         
         col1, col2 = st.columns(2)
@@ -979,8 +1013,8 @@ def backtesting_page():
         with col1:
             selected_ticker = st.selectbox(
                 "Action",
-                tickers,
-                format_func=lambda x: FRENCH_TICKERS.get(x, x),
+                list(available_tickers.keys()),
+                format_func=lambda x: f"{x} - {available_tickers[x]}",
                 key="backtest_ticker"
             )
         
@@ -1400,20 +1434,20 @@ def backtesting_page():
             
             selected_strategy_id = strategy_options[selected_strategy_name]
             
-            # Get tickers
-            db = SessionLocal()
-            try:
-                tickers = [t.symbol for t in db.query(TickerModel).all()]
-            finally:
-                db.close()
+            # Get tickers with collected data
+            available_tickers = get_available_tickers()
+            
+            if not available_tickers:
+                st.warning("⚠️ Aucune donnée disponible. Collectez d'abord des données historiques dans l'onglet 'Collecte de Données'.")
+                return
             
             col1, col2 = st.columns(2)
             
             with col1:
                 replay_ticker = st.selectbox(
                     "Action",
-                    tickers,
-                    format_func=lambda x: FRENCH_TICKERS.get(x, x),
+                    list(available_tickers.keys()),
+                    format_func=lambda x: f"{x} - {available_tickers[x]}",
                     key="replay_ticker"
                 )
             
