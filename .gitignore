@@ -27,6 +27,9 @@ wheels/
 .env
 .env.local
 
+# Saxo Bank tokens (IMPORTANT - contains sensitive tokens)
+.saxo_tokens
+
 # IDE
 .vscode/
 .idea/
