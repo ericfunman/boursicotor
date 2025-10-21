@@ -18,22 +18,13 @@ from backend.config import logger, FRENCH_TICKERS
 from backend.data_collector import DataCollector
 from backend.technical_indicators import calculate_and_update_indicators
 
-# IBKR client is optional
-try:
-    from brokers.ibkr_client import ibkr_client
-    IBKR_AVAILABLE = True
-except Exception as e:
-    logger.warning(f"IBKR not available: {e}")
-    IBKR_AVAILABLE = False
-    ibkr_client = None
+# IBKR client is optional - loaded lazily to avoid event loop warnings
+IBKR_AVAILABLE = False
+ibkr_client = None
 
-# Saxo Bank client
-try:
-    from brokers.saxo_client import SaxoClient
-    SAXO_AVAILABLE = True
-except Exception as e:
-    logger.warning(f"Saxo Bank not available: {e}")
-    SAXO_AVAILABLE = False
+# Saxo Bank client is optional
+SAXO_AVAILABLE = False
+saxo_client = None
 
 # Page configuration
 st.set_page_config(
@@ -67,20 +58,26 @@ def main():
     if 'saxo_client' not in st.session_state:
         st.session_state.saxo_client = None
         st.session_state.saxo_connected = False
-        # Try to load existing tokens
-        if SAXO_AVAILABLE:
-            try:
-                with open('.saxo_tokens', 'r') as f:
-                    lines = f.readlines()
-                    if lines:
+        # Try to load existing tokens (lazy loading)
+        try:
+            with open('.saxo_tokens', 'r') as f:
+                lines = f.readlines()
+                if lines:
+                    # Import SaxoClient only when needed
+                    try:
+                        from brokers.saxo_client import SaxoClient
                         st.session_state.saxo_client = SaxoClient()
                         access_token = lines[0].split('=')[1].strip()
                         st.session_state.saxo_client.access_token = access_token
                         st.session_state.saxo_client.connected = True
                         st.session_state.saxo_connected = True
                         logger.info("✅ Saxo tokens loaded from file")
-            except Exception as e:
-                logger.warning(f"No existing Saxo tokens: {e}")
+                    except ImportError as ie:
+                        logger.debug(f"Saxo client not available: {ie}")
+        except FileNotFoundError:
+            pass  # No tokens file, normal on first run
+        except Exception as e:
+            logger.debug(f"Could not load Saxo tokens: {e}")
     
     # Sidebar
     with st.sidebar:
