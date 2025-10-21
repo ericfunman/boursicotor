@@ -2463,60 +2463,60 @@ class EnhancedMovingAverageStrategy(Strategy):
         # Filtres avancés de base
         filters = []
 
-        roc_filter = pd.Series(False, index=df.index)
+        roc_filter = pd.Series(False, index=df.index, dtype=bool)
         roc_filter[roc.notna()] = roc[roc.notna()] > self.roc_threshold
         filters.append(roc_filter)
 
-        adx_filter = pd.Series(False, index=df.index)
+        adx_filter = pd.Series(False, index=df.index, dtype=bool)
         adx_filter[adx.notna()] = adx[adx.notna()] > self.adx_threshold
         filters.append(adx_filter)
 
-        volume_filter = pd.Series(False, index=df.index)
+        volume_filter = pd.Series(False, index=df.index, dtype=bool)
         volume_filter[volume_ratio.notna()] = volume_ratio[volume_ratio.notna()] > self.volume_threshold
         filters.append(volume_filter)
 
-        momentum_filter = pd.Series(False, index=df.index)
+        momentum_filter = pd.Series(False, index=df.index, dtype=bool)
         momentum_filter[momentum.notna()] = momentum[momentum.notna()] > self.momentum_threshold
         filters.append(momentum_filter)
 
-        volatility_filter = pd.Series(False, index=df.index)
+        volatility_filter = pd.Series(False, index=df.index, dtype=bool)
         volatility_filter[bb_width.notna()] = bb_width[bb_width.notna()] > self.bb_width_threshold
         filters.append(volatility_filter)
 
         # Filtres ultra-complexes
         if self.use_supertrend and supertrend is not None:
-            supertrend_filter = pd.Series(False, index=df.index)
+            supertrend_filter = pd.Series(False, index=df.index, dtype=bool)
             supertrend_filter[supertrend.notna()] = supertrend[supertrend.notna()] == 1
             filters.append(supertrend_filter)
         
         if self.use_parabolic_sar and parabolic_sar is not None:
-            sar_filter = pd.Series(False, index=df.index)
+            sar_filter = pd.Series(False, index=df.index, dtype=bool)
             sar_filter[parabolic_sar.notna()] = df.loc[parabolic_sar.notna(), 'close'] > parabolic_sar[parabolic_sar.notna()]
             filters.append(sar_filter)
         
         if self.use_donchian and donchian_width is not None:
-            donchian_filter = pd.Series(False, index=df.index)
+            donchian_filter = pd.Series(False, index=df.index, dtype=bool)
             donchian_filter[donchian_width.notna()] = donchian_width[donchian_width.notna()] > self.donchian_threshold
             filters.append(donchian_filter)
         
         if self.use_vwap and vwap is not None:
-            vwap_filter = pd.Series(False, index=df.index)
-            vwap_filter[vwap.notna()] = (df.loc[vwap.notna(), 'close'] > vwap[vwap.notna()]).astype(bool)
+            vwap_filter = pd.Series(False, index=df.index, dtype=bool)
+            vwap_filter[vwap.notna()] = df.loc[vwap.notna(), 'close'] > vwap[vwap.notna()]
             filters.append(vwap_filter)
         
         if self.use_obv and obv is not None:
-            obv_filter = pd.Series(False, index=df.index)
+            obv_filter = pd.Series(False, index=df.index, dtype=bool)
             obv_shifted = obv.shift(1)
-            obv_filter[(obv.notna()) & (obv_shifted.notna())] = (obv[(obv.notna()) & (obv_shifted.notna())] > obv_shifted[(obv.notna()) & (obv_shifted.notna())]).astype(bool)
+            obv_filter[(obv.notna()) & (obv_shifted.notna())] = obv[(obv.notna()) & (obv_shifted.notna())] > obv_shifted[(obv.notna()) & (obv_shifted.notna())]
             filters.append(obv_filter)
         
         if self.use_cmf and cmf is not None:
-            cmf_filter = pd.Series(False, index=df.index)
+            cmf_filter = pd.Series(False, index=df.index, dtype=bool)
             cmf_filter[cmf.notna()] = cmf[cmf.notna()] > self.cmf_threshold
             filters.append(cmf_filter)
         
         if self.use_elder_ray and elder_ray is not None:
-            elder_filter = pd.Series(False, index=df.index)
+            elder_filter = pd.Series(False, index=df.index, dtype=bool)
             elder_filter[elder_ray.notna()] = elder_ray[elder_ray.notna()] > 0
             filters.append(elder_filter)
 
