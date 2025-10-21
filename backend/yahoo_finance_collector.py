@@ -180,6 +180,165 @@ class YahooFinanceCollector:
         finally:
             db.close()
     
+    def collect_and_store_chunked(
+        self,
+        symbol: str,
+        name: str,
+        period: str = "1y",
+        interval: str = "1d",
+        progress_callback=None
+    ) -> int:
+        """
+        Fetch and store historical data with automatic chunking for intraday intervals
+        
+        Args:
+            symbol: French ticker symbol
+            name: Company name
+            period: Data period
+            interval: Data interval
+            progress_callback: Optional callback(current, total, message) for progress updates
+            
+        Returns:
+            Number of records inserted
+        """
+        # Determine if we need chunking based on interval
+        needs_chunking = False
+        chunk_days = 1
+        
+        # Yahoo Finance limitations
+        if interval == "1m":
+            needs_chunking = True
+            chunk_days = 7  # Max 7 days for 1 minute
+        elif interval in ["2m", "5m", "15m", "30m"]:
+            needs_chunking = True
+            chunk_days = 59  # Max ~60 days for these intervals
+        elif interval in ["1h", "90m"]:
+            needs_chunking = True
+            chunk_days = 729  # Max ~2 years for hourly
+        
+        # Parse period to days
+        period_days = self._parse_period_to_days(period)
+        
+        # If no chunking needed or period is short enough, use regular method
+        if not needs_chunking or period_days <= chunk_days:
+            logger.info(f"📥 Single request for {symbol}: {period} @ {interval}")
+            df = self.fetch_historical_data(symbol, period, interval)
+            if df is not None:
+                return self.store_to_database(symbol, name, df)
+            return 0
+        
+        # Chunking required
+        logger.info(f"🔄 Chunking required for {symbol}: {period} @ {interval}")
+        logger.info(f"   Period: {period_days} days, Chunk size: {chunk_days} days")
+        
+        # Calculate number of chunks
+        num_chunks = (period_days + chunk_days - 1) // chunk_days
+        logger.info(f"   Total chunks: {num_chunks}")
+        
+        # Get end date (today)
+        end_date = datetime.now()
+        
+        total_inserted = 0
+        
+        for chunk_idx in range(num_chunks):
+            # Calculate date range for this chunk
+            chunk_end = end_date - timedelta(days=chunk_idx * chunk_days)
+            chunk_start = chunk_end - timedelta(days=chunk_days)
+            
+            # Make sure we don't go before the requested period
+            actual_start = max(chunk_start, end_date - timedelta(days=period_days))
+            
+            # Progress callback
+            if progress_callback:
+                progress_callback(
+                    chunk_idx + 1,
+                    num_chunks,
+                    f"Collecte chunk {chunk_idx + 1}/{num_chunks}: {actual_start.strftime('%Y-%m-%d')} → {chunk_end.strftime('%Y-%m-%d')}"
+                )
+            
+            logger.info(f"   Chunk {chunk_idx + 1}/{num_chunks}: {actual_start.strftime('%Y-%m-%d')} → {chunk_end.strftime('%Y-%m-%d')}")
+            
+            # Fetch data for this chunk using start/end dates
+            df = self._fetch_with_dates(symbol, actual_start, chunk_end, interval)
+            
+            if df is not None and not df.empty:
+                inserted = self.store_to_database(symbol, name, df)
+                total_inserted += inserted
+                logger.info(f"   ✅ Chunk {chunk_idx + 1}: {inserted} records inserted")
+            else:
+                logger.warning(f"   ⚠️ Chunk {chunk_idx + 1}: No data received")
+        
+        logger.info(f"✅ Chunked collection complete: {total_inserted} total records inserted")
+        return total_inserted
+    
+    def _parse_period_to_days(self, period: str) -> int:
+        """Convert period string to number of days"""
+        period_map = {
+            "1d": 1,
+            "5d": 5,
+            "1mo": 30,
+            "3mo": 90,
+            "6mo": 180,
+            "1y": 365,
+            "2y": 730,
+            "5y": 1825,
+            "10y": 3650,
+            "max": 9999  # Large number for max
+        }
+        return period_map.get(period, 365)
+    
+    def _fetch_with_dates(
+        self,
+        symbol: str,
+        start_date: datetime,
+        end_date: datetime,
+        interval: str
+    ) -> Optional[pd.DataFrame]:
+        """
+        Fetch data using specific start and end dates
+        
+        Args:
+            symbol: Ticker symbol
+            start_date: Start datetime
+            end_date: End datetime
+            interval: Data interval
+            
+        Returns:
+            DataFrame with OHLCV data or None
+        """
+        # Convert to Yahoo Finance ticker
+        yahoo_symbol = self.FRENCH_TICKER_MAPPING.get(symbol, f"{symbol}.PA")
+        
+        try:
+            ticker = yf.Ticker(yahoo_symbol)
+            df = ticker.history(
+                start=start_date,
+                end=end_date,
+                interval=interval,
+                auto_adjust=False
+            )
+            
+            if df.empty:
+                return None
+            
+            # Rename columns
+            df = df.rename(columns={
+                'Open': 'open',
+                'High': 'high',
+                'Low': 'low',
+                'Close': 'close',
+                'Volume': 'volume'
+            })
+            
+            # Keep only necessary columns
+            df = df[['open', 'high', 'low', 'close', 'volume']]
+            
+            return df
+            
+        except Exception as e:
+            logger.error(f"❌ Error fetching data: {e}")
+            return None
+    
     def collect_and_store(
         self,
         symbol: str,
@@ -203,6 +362,64 @@ class YahooFinanceCollector:
         if df is not None:
             return self.store_to_database(symbol, name, df)
         return 0
+    
+    @staticmethod
+    def delete_ticker_data(symbol: str) -> dict:
+        """
+        Delete all historical data for a specific ticker
+        
+        Args:
+            symbol: Ticker symbol to delete
+            
+        Returns:
+            Dictionary with deletion info: {'success': bool, 'deleted_records': int, 'message': str}
+        """
+        db = SessionLocal()
+        try:
+            # Find the ticker
+            ticker_obj = db.query(Ticker).filter(Ticker.symbol == symbol).first()
+            
+            if not ticker_obj:
+                logger.warning(f"⚠️ Ticker {symbol} not found in database")
+                return {
+                    'success': False,
+                    'deleted_records': 0,
+                    'message': f"Le ticker {symbol} n'existe pas en base"
+                }
+            
+            # Count records before deletion
+            record_count = db.query(HistoricalData).filter(
+                HistoricalData.ticker_id == ticker_obj.id
+            ).count()
+            
+            # Delete all historical data for this ticker
+            db.query(HistoricalData).filter(
+                HistoricalData.ticker_id == ticker_obj.id
+            ).delete()
+            
+            # Delete the ticker itself
+            db.delete(ticker_obj)
+            
+            db.commit()
+            
+            logger.info(f"✅ Deleted {record_count} records for ticker {symbol}")
+            
+            return {
+                'success': True,
+                'deleted_records': record_count,
+                'message': f"Suppression réussie : {record_count} enregistrements supprimés pour {symbol}"
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"❌ Error deleting ticker data: {e}")
+            return {
+                'success': False,
+                'deleted_records': 0,
+                'message': f"Erreur lors de la suppression : {str(e)}"
+            }
+        finally:
+            db.close()
 
 
 def demo_yahoo_finance():

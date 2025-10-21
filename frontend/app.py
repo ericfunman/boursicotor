@@ -401,40 +401,57 @@ def data_collection_page():
         
         # Collect button
         if st.button("📊 Collecter les données", type="primary", use_container_width=True):
-            with st.spinner(f"Collecte en cours pour {selected_ticker}..."):
+            
+            if use_yahoo:
+                # Yahoo Finance collection with chunking and progress
+                from backend.yahoo_finance_collector import YahooFinanceCollector
                 
-                if use_yahoo:
-                    # Yahoo Finance collection
-                    from backend.yahoo_finance_collector import YahooFinanceCollector
-                    
-                    collector = YahooFinanceCollector()
-                    inserted = collector.collect_and_store(
-                        symbol=selected_ticker,
-                        name=selected_name,
-                        period=period,
-                        interval=interval
-                    )
-                    
-                    if inserted > 0:
-                        st.success(f"✅ {inserted} nouveaux enregistrements ajoutés depuis Yahoo Finance !")
-                        st.info(f"📊 Source: Yahoo Finance | Période: {selected_duration} | Intervalle: {selected_interval}")
-                    else:
-                        # Check if ticker exists in database
-                        from backend.models import SessionLocal, Ticker, HistoricalData
-                        db = SessionLocal()
-                        try:
-                            ticker_obj = db.query(Ticker).filter(Ticker.symbol == selected_ticker).first()
-                            if ticker_obj:
-                                count = db.query(HistoricalData).filter(HistoricalData.ticker_id == ticker_obj.id).count()
-                                st.info(f"ℹ️ Aucune nouvelle donnée. {count} enregistrements déjà présents en base pour {selected_ticker}")
-                            else:
-                                st.warning(f"⚠️ Aucune donnée disponible pour {selected_ticker}. Vérifiez le ticker ou les paramètres de période/intervalle.")
-                        finally:
-                            db.close()
-
+                collector = YahooFinanceCollector()
                 
+                # Create progress bar and status text
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                # Progress callback
+                def update_progress(current, total, message):
+                    progress = current / total
+                    progress_bar.progress(progress)
+                    status_text.text(f"⏳ {message} ({int(progress * 100)}%)")
+                
+                # Use chunked collection with progress
+                inserted = collector.collect_and_store_chunked(
+                    symbol=selected_ticker,
+                    name=selected_name,
+                    period=period,
+                    interval=interval,
+                    progress_callback=update_progress
+                )
+                
+                # Clear progress indicators
+                progress_bar.empty()
+                status_text.empty()
+                
+                if inserted > 0:
+                    st.success(f"✅ {inserted} nouveaux enregistrements ajoutés depuis Yahoo Finance !")
+                    st.info(f"📊 Source: Yahoo Finance | Période: {selected_duration} | Intervalle: {selected_interval}")
                 else:
-                    # Saxo Bank collection
+                    # Check if ticker exists in database
+                    from backend.models import SessionLocal, Ticker, HistoricalData
+                    db = SessionLocal()
+                    try:
+                        ticker_obj = db.query(Ticker).filter(Ticker.symbol == selected_ticker).first()
+                        if ticker_obj:
+                            count = db.query(HistoricalData).filter(HistoricalData.ticker_id == ticker_obj.id).count()
+                            st.info(f"ℹ️ Aucune nouvelle donnée. {count} enregistrements déjà présents en base pour {selected_ticker}")
+                        else:
+                            st.warning(f"⚠️ Aucune donnée disponible pour {selected_ticker}. Vérifiez le ticker ou les paramètres de période/intervalle.")
+                    finally:
+                        db.close()
+
+            
+            else:
+                # Saxo Bank collection
+                with st.spinner(f"Collecte en cours pour {selected_ticker}..."):
                     from backend.data_collector import DataCollector
                     
                     collector = DataCollector(use_saxo=True)
@@ -485,7 +502,39 @@ def data_collection_page():
                 count = db.query(HistoricalData).filter(
                     HistoricalData.ticker_id == ticker.id
                 ).count()
-                st.text(f"{ticker.symbol}: {count:,} points")
+                
+                col_ticker, col_delete = st.columns([3, 1])
+                with col_ticker:
+                    st.text(f"{ticker.symbol}: {count:,} points")
+                with col_delete:
+                    if st.button("🗑️", key=f"delete_{ticker.symbol}", help=f"Supprimer {ticker.symbol}"):
+                        # Confirmation dialog
+                        if f"confirm_delete_{ticker.symbol}" not in st.session_state:
+                            st.session_state[f"confirm_delete_{ticker.symbol}"] = True
+                            st.rerun()
+            
+            # Handle deletion confirmations
+            for ticker in db.query(Ticker).all():
+                if st.session_state.get(f"confirm_delete_{ticker.symbol}", False):
+                    st.warning(f"⚠️ Confirmer la suppression de **{ticker.symbol}** ?")
+                    col_yes, col_no = st.columns(2)
+                    
+                    with col_yes:
+                        if st.button("✅ Oui", key=f"yes_{ticker.symbol}", type="primary"):
+                            from backend.yahoo_finance_collector import YahooFinanceCollector
+                            result = YahooFinanceCollector.delete_ticker_data(ticker.symbol)
+                            
+                            if result['success']:
+                                st.success(result['message'])
+                                del st.session_state[f"confirm_delete_{ticker.symbol}"]
+                                st.rerun()
+                            else:
+                                st.error(result['message'])
+                    
+                    with col_no:
+                        if st.button("❌ Non", key=f"no_{ticker.symbol}"):
+                            del st.session_state[f"confirm_delete_{ticker.symbol}"]
+                            st.rerun()
         
         finally:
             db.close()
