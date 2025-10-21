@@ -182,18 +182,89 @@ def data_collection_page():
     """Data collection page"""
     st.header("💾 Collecte de Données Saxo Bank")
     
+    # Search section
+    st.subheader("🔍 Recherche d'actions françaises")
+    
+    col_search1, col_search2 = st.columns([3, 1])
+    
+    with col_search1:
+        search_query = st.text_input(
+            "Rechercher une action (ticker ou nom)",
+            placeholder="Ex: GLE, Société Générale, LVMH, MC...",
+            help="Entrez le ticker (ex: GLE) ou le nom de la société (ex: Société Générale)"
+        )
+    
+    with col_search2:
+        search_button = st.button("🔍 Rechercher", type="secondary", use_container_width=True)
+    
+    # Initialize session state for search results
+    if 'search_results' not in st.session_state:
+        st.session_state.search_results = []
+    if 'selected_stock' not in st.session_state:
+        st.session_state.selected_stock = None
+    
+    # Perform search
+    if search_button and search_query:
+        with st.spinner(f"Recherche de '{search_query}'..."):
+            try:
+                from backend.saxo_search import SaxoInstrumentSearch
+                searcher = SaxoInstrumentSearch()
+                st.session_state.search_results = searcher.search_french_stocks(search_query, limit=10)
+                
+                if st.session_state.search_results:
+                    st.success(f"✅ {len(st.session_state.search_results)} résultat(s) trouvé(s)")
+                else:
+                    st.warning("⚠️ Aucune action française trouvée pour cette recherche")
+            except Exception as e:
+                st.error(f"❌ Erreur lors de la recherche: {e}")
+                logger.error(f"Search error: {e}")
+    
+    # Display search results
+    if st.session_state.search_results:
+        st.markdown("---")
+        st.markdown("**📋 Résultats de recherche:**")
+        
+        # Create a selection list
+        for i, stock in enumerate(st.session_state.search_results):
+            col_result1, col_result2 = st.columns([4, 1])
+            
+            with col_result1:
+                st.markdown(f"""
+                **{stock['ticker']}** - {stock['name']}  
+                <small>Exchange: {stock['exchange']} | Currency: {stock['currency']} | UIC: {stock['uic']}</small>
+                """, unsafe_allow_html=True)
+            
+            with col_result2:
+                if st.button("Sélectionner", key=f"select_{i}", use_container_width=True):
+                    st.session_state.selected_stock = stock
+                    st.rerun()
+    
+    st.markdown("---")
+    
     col1, col2 = st.columns(2)
     
     with col1:
         st.subheader("📥 Récupération de données historiques")
         
-        # Ticker selection
-        ticker_options = list(FRENCH_TICKERS.keys())
-        selected_ticker = st.selectbox(
-            "Sélectionner un ticker",
-            ticker_options,
-            format_func=lambda x: f"{x} - {FRENCH_TICKERS[x]}"
-        )
+        # Ticker selection - either from search or predefined list
+        if st.session_state.selected_stock:
+            st.info(f"🎯 **Action sélectionnée:** {st.session_state.selected_stock['ticker']} - {st.session_state.selected_stock['name']}")
+            selected_ticker = st.session_state.selected_stock['ticker']
+            selected_name = st.session_state.selected_stock['name']
+            
+            if st.button("❌ Effacer la sélection"):
+                st.session_state.selected_stock = None
+                st.session_state.search_results = []
+                st.rerun()
+        else:
+            # Fallback to predefined list
+            ticker_options = list(FRENCH_TICKERS.keys())
+            selected_ticker = st.selectbox(
+                "Ou choisir dans la liste prédéfinie",
+                ticker_options,
+                format_func=lambda x: f"{x} - {FRENCH_TICKERS[x]}"
+            )
+            selected_name = FRENCH_TICKERS[selected_ticker]
         
         # Duration
         duration_options = {
@@ -227,7 +298,7 @@ def data_collection_page():
                 collector = DataCollector(use_saxo=True)
                 inserted = collector.collect_historical_data(
                     symbol=selected_ticker,
-                    name=FRENCH_TICKERS[selected_ticker],
+                    name=selected_name,
                     duration=duration,
                     bar_size=bar_size
                 )
@@ -269,10 +340,22 @@ def data_collection_page():
     # Visualisation des données collectées
     st.subheader("📈 Visualisation des données")
     
+    # Get list of tickers from database or use predefined
+    from backend.models import SessionLocal, Ticker as TickerModel
+    db = SessionLocal()
+    try:
+        db_tickers = [t.symbol for t in db.query(TickerModel).all()]
+        if db_tickers:
+            viz_ticker_options = db_tickers
+        else:
+            viz_ticker_options = list(FRENCH_TICKERS.keys())
+    finally:
+        db.close()
+    
     viz_ticker = st.selectbox(
         "Ticker à visualiser",
-        ticker_options,
-        format_func=lambda x: f"{x} - {FRENCH_TICKERS[x]}",
+        viz_ticker_options,
+        format_func=lambda x: FRENCH_TICKERS.get(x, x),
         key="viz_ticker"
     )
     
