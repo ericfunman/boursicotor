@@ -17,7 +17,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from backend.config import logger, FRENCH_TICKERS
 from backend.data_collector import DataCollector
 from backend.technical_indicators import calculate_and_update_indicators
-from backend.database import SessionLocal, TickerModel
+from backend.models import SessionLocal, Ticker as TickerModel, HistoricalData
 from sqlalchemy import func
 
 # IBKR client is optional - loaded lazily to avoid event loop warnings
@@ -29,10 +29,9 @@ def get_available_tickers():
     db = SessionLocal()
     try:
         # Get tickers that have data in historical_data table
-        from backend.database import HistoricalDataModel
         tickers_with_data = db.query(TickerModel.symbol, TickerModel.name).join(
-            HistoricalDataModel,
-            TickerModel.id == HistoricalDataModel.ticker_id
+            HistoricalData,
+            TickerModel.id == HistoricalData.ticker_id
         ).distinct().all()
         
         # Return as dict {symbol: name}
