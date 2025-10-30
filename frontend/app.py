@@ -709,18 +709,18 @@ def data_collection_page():
                         xaxis_title="Date/Heure",
                         yaxis_title="Prix (EUR)",
                         height=500,
-                        xaxis_rangeslider_visible=False,
-                        hovermode='x unified'
+                        xaxis=dict(rangeslider=dict(visible=False)),
+                        hovermode='x'
                     )
                     
-                    st.plotly_chart(fig, width='stretch')
+                    st.plotly_chart(fig, use_container_width=True)
                     
                     # Volume chart
                     fig_volume = go.Figure(data=[go.Bar(
                         x=df.index,
                         y=df['volume'],
                         name='Volume',
-                        marker_color='rgba(100, 150, 255, 0.7)'
+                        marker=dict(color='rgba(100, 150, 255, 0.7)')
                     )])
                     
                     fig_volume.update_layout(
@@ -730,7 +730,7 @@ def data_collection_page():
                         height=200
                     )
                     
-                    st.plotly_chart(fig_volume, width='stretch')
+                    st.plotly_chart(fig_volume, use_container_width=True)
                     
                     # Statistics
                     col1, col2, col3, col4 = st.columns(4)
@@ -871,7 +871,7 @@ def technical_analysis_page():
                 height=500
             )
             
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
             
             # Data table
             st.dataframe(df.tail(20), width='stretch')
@@ -898,9 +898,24 @@ def technical_analysis_page():
         format_func=lambda x: f"{x} - {available_tickers[x]}"
     )
     
+    # Period selection
+    period_options = {
+        "100 points": 100,
+        "200 points": 200,
+        "500 points": 500,
+        "1000 points": 1000,
+        "2000 points": 2000
+    }
+    selected_period = st.selectbox(
+        "Période d'analyse",
+        list(period_options.keys()),
+        index=2  # Default to 500 points
+    )
+    limit = period_options[selected_period]
+    
     # Get data
     collector = DataCollector()
-    df = collector.get_latest_data(selected_ticker, limit=500)
+    df = collector.get_latest_data(selected_ticker, limit=limit)
     
     if df.empty:
         st.warning("⚠️ Aucune donnée disponible. Collectez des données d'abord.")
@@ -943,8 +958,8 @@ def technical_analysis_page():
     # RSI
     if 'rsi_14' in df.columns:
         fig.add_trace(go.Scatter(x=df.index, y=df['rsi_14'], name='RSI', line=dict(color='purple')), row=2, col=1)
-        fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
-        fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
+        fig.add_hline(y=70, line=dict(dash="dash", color="red"), row=2, col=1)
+        fig.add_hline(y=30, line=dict(dash="dash", color="green"), row=2, col=1)
     
     # MACD
     if 'macd' in df.columns:
@@ -955,8 +970,8 @@ def technical_analysis_page():
     # Volume
     fig.add_trace(go.Bar(x=df.index, y=df['volume'], name='Volume'), row=4, col=1)
     
-    fig.update_layout(height=1000, showlegend=True, xaxis_rangeslider_visible=False)
-    st.plotly_chart(fig, width='stretch')
+    fig.update_layout(height=1000, showlegend=True, xaxis=dict(rangeslider=dict(visible=False)))
+    st.plotly_chart(fig, use_container_width=True)
     
     # Indicator values
     st.subheader("📊 Valeurs actuelles des indicateurs")
