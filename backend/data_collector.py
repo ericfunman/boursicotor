@@ -568,18 +568,32 @@ class DataCollector:
             end_date = datetime.now()
             start_date = end_date - timedelta(days=days)
             
-            # For European stocks, use different symbol format
-            polygon_symbol = f"{symbol}.PA"
+            # For European stocks, try different formats
+            # Polygon.io may not have all European stocks, so try multiple formats
+            polygon_symbols = [
+                f"{symbol}.PA",  # Euronext Paris
+                symbol,          # Direct symbol (if available)
+                f"{symbol}.AS",  # Amsterdam
+                f"{symbol}.BR"   # Brussels
+            ]
             
-            # Get aggregates (bars)
-            aggs = self.polygon_client.get_aggs(
-                ticker=polygon_symbol,
-                multiplier=multiplier,
-                timespan=timespan,
-                from_=start_date.strftime('%Y-%m-%d'),
-                to=end_date.strftime('%Y-%m-%d'),
-                limit=50000
-            )
+            aggs = None
+            for polygon_symbol in polygon_symbols:
+                try:
+                    aggs = self.polygon_client.get_aggs(
+                        ticker=polygon_symbol,
+                        multiplier=multiplier,
+                        timespan=timespan,
+                        from_=start_date.strftime('%Y-%m-%d'),
+                        to=end_date.strftime('%Y-%m-%d'),
+                        limit=50000
+                    )
+                    if aggs:
+                        logger.info(f"✅ Found data for {symbol} using {polygon_symbol}")
+                        break
+                except Exception as e:
+                    logger.debug(f"Symbol {polygon_symbol} not found: {e}")
+                    continue
             
             if not aggs:
                 return None
