@@ -72,6 +72,49 @@ cp .env.example .env
 # Éditer .env avec vos paramètres
 ```
 
+## 🔑 APIs de Données
+
+Boursicotor supporte plusieurs sources de données gratuites pour récupérer des données financières :
+
+### Sources Disponibles (par ordre de priorité)
+
+1. **🏦 Saxo Bank** (recommandé pour données temps réel)
+   - Données intraday précises
+   - Nécessite un compte Saxo Bank
+
+2. **📈 Yahoo Finance** (gratuit, pas de clé API)
+   - Données historiques fiables
+   - Support des marchés européens (.PA pour Paris)
+   - Limites : pas de données temps réel
+
+3. **📊 Alpha Vantage** (gratuit avec clé API)
+   - Clé API gratuite (5 appels/minute, 500/jour)
+   - Données temps réel et historiques
+   - [Obtenir une clé gratuite](https://www.alphavantage.co/support/#api-key)
+
+4. **🔷 Polygon.io** (gratuit avec clé API)
+   - Clé API gratuite (5 appels/minute, 2M/jour)
+   - Données temps réel et historiques
+   - Excellente documentation
+   - [Obtenir une clé gratuite](https://polygon.io/)
+
+### Configuration des APIs
+
+Ajoutez vos clés API dans le fichier `.env` :
+
+```bash
+# APIs externes (optionnel)
+ALPHA_VANTAGE_API_KEY=votre_clé_alpha_vantage
+POLYGON_API_KEY=votre_clé_polygon
+```
+
+### Test des Sources
+
+```bash
+# Tester toutes les sources disponibles
+python test_new_data_sources.py
+```
+
 ## 🎯 Utilisation
 
 ### Lancer l'application

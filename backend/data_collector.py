@@ -7,7 +7,7 @@ import pandas as pd
 from sqlalchemy.orm import Session
 
 from backend.models import Ticker, HistoricalData, SessionLocal
-from backend.config import logger, DATA_CONFIG
+from backend.config import logger, DATA_CONFIG, ALPHA_VANTAGE_API_KEY, POLYGON_API_KEY
 
 # IBKR client is optional - will use mock data if not available
 IBKR_AVAILABLE = False
@@ -22,6 +22,33 @@ try:
 except Exception as e:
     logger.warning(f"⚠️ Saxo Bank not available: {e}")
 
+# Yahoo Finance client
+YAHOO_AVAILABLE = False
+try:
+    import yfinance as yf
+    YAHOO_AVAILABLE = True
+    logger.info("✅ Yahoo Finance client available")
+except Exception as e:
+    logger.warning(f"⚠️ Yahoo Finance not available: {e}")
+
+# Alpha Vantage client
+ALPHA_VANTAGE_AVAILABLE = False
+try:
+    from alpha_vantage.timeseries import TimeSeries
+    ALPHA_VANTAGE_AVAILABLE = True
+    logger.info("✅ Alpha Vantage client available")
+except Exception as e:
+    logger.warning(f"⚠️ Alpha Vantage not available: {e}")
+
+# Polygon.io client
+POLYGON_AVAILABLE = False
+try:
+    from polygon import RESTClient
+    POLYGON_AVAILABLE = True
+    logger.info("✅ Polygon.io client available")
+except Exception as e:
+    logger.warning(f"⚠️ Polygon.io not available: {e}")
+
 
 class DataCollector:
     """Service for collecting and storing market data"""
@@ -29,6 +56,8 @@ class DataCollector:
     def __init__(self, use_saxo: bool = True):
         self.db: Session = SessionLocal()
         self.saxo_client = None
+        self.alpha_vantage_client = None
+        self.polygon_client = None
         
         # Initialize Saxo client if available and requested
         if use_saxo and SAXO_AVAILABLE:
@@ -38,6 +67,28 @@ class DataCollector:
             else:
                 logger.warning("⚠️ Saxo Bank authentication failed")
                 self.saxo_client = None
+        
+        # Initialize Alpha Vantage client if API key is available
+        if ALPHA_VANTAGE_AVAILABLE and ALPHA_VANTAGE_API_KEY:
+            try:
+                self.alpha_vantage_client = TimeSeries(key=ALPHA_VANTAGE_API_KEY, output_format='pandas')
+                logger.info("✅ Alpha Vantage client initialized")
+            except Exception as e:
+                logger.warning(f"⚠️ Alpha Vantage initialization failed: {e}")
+                self.alpha_vantage_client = None
+        elif ALPHA_VANTAGE_AVAILABLE:
+            logger.warning("⚠️ Alpha Vantage available but no API key provided")
+        
+        # Initialize Polygon.io client if API key is available
+        if POLYGON_AVAILABLE and POLYGON_API_KEY:
+            try:
+                self.polygon_client = RESTClient(api_key=POLYGON_API_KEY)
+                logger.info("✅ Polygon.io client initialized")
+            except Exception as e:
+                logger.warning(f"⚠️ Polygon.io initialization failed: {e}")
+                self.polygon_client = None
+        elif POLYGON_AVAILABLE:
+            logger.warning("⚠️ Polygon.io available but no API key provided")
         
     def __del__(self):
         self.db.close()
@@ -116,8 +167,35 @@ class DataCollector:
                 if bars:
                     return self._store_bars(bars, ticker, bar_size)
             
+            # Fallback to Yahoo Finance if available
+            if YAHOO_AVAILABLE:
+                logger.info(f"📊 Fetching data from Yahoo Finance for {symbol}")
+                df = self._get_yahoo_data(symbol, duration, bar_size)
+                if df is not None and len(df) > 0:
+                    return self._store_dataframe(df, ticker, bar_size)
+                else:
+                    logger.warning(f"⚠️ No data from Yahoo Finance for {symbol}")
+            
+            # Fallback to Alpha Vantage if available
+            if self.alpha_vantage_client:
+                logger.info(f"📊 Fetching data from Alpha Vantage for {symbol}")
+                df = self._get_alpha_vantage_data(symbol, duration, bar_size)
+                if df is not None and len(df) > 0:
+                    return self._store_dataframe(df, ticker, bar_size)
+                else:
+                    logger.warning(f"⚠️ No data from Alpha Vantage for {symbol}")
+            
+            # Fallback to Polygon.io if available
+            if self.polygon_client:
+                logger.info(f"📊 Fetching data from Polygon.io for {symbol}")
+                df = self._get_polygon_data(symbol, duration, bar_size)
+                if df is not None and len(df) > 0:
+                    return self._store_dataframe(df, ticker, bar_size)
+                else:
+                    logger.warning(f"⚠️ No data from Polygon.io for {symbol}")
+            
             # Last resort: generate mock data
-            logger.warning(f"⚠️ No broker available, generating mock data for {symbol}")
+            logger.warning(f"⚠️ No data source available, generating mock data for {symbol}")
             return self._generate_mock_data(symbol, duration, bar_size, ticker)
             
         except Exception as e:
@@ -367,6 +445,165 @@ class DataCollector:
         self.db.commit()
         logger.info(f"Generated {records_created} mock records for {symbol}")
         return records_created
+    
+    def _get_yahoo_data(self, symbol: str, duration: str, bar_size: str) -> Optional[pd.DataFrame]:
+        """Get data from Yahoo Finance"""
+        try:
+            # Convert duration to Yahoo format
+            duration_map = {
+                "1D": "1d", "5D": "5d", "1W": "1wk", "1M": "1mo", "3M": "3mo", "6M": "6mo", "1Y": "1y"
+            }
+            yahoo_duration = duration_map.get(duration, "1mo")
+            
+            # Convert bar_size to Yahoo interval
+            interval_map = {
+                "1min": "1m", "5min": "5m", "15min": "15m", "30min": "30m", "1hour": "1h", "1day": "1d"
+            }
+            yahoo_interval = interval_map.get(bar_size, "1d")
+            
+            # For European stocks, add .PA suffix for Paris exchange
+            yahoo_symbol = f"{symbol}.PA"
+            
+            ticker = yf.Ticker(yahoo_symbol)
+            df = ticker.history(period=yahoo_duration, interval=yahoo_interval)
+            
+            if df.empty:
+                return None
+            
+            # Rename columns to match our format
+            df = df.rename(columns={
+                'Open': 'open',
+                'High': 'high', 
+                'Low': 'low',
+                'Close': 'close',
+                'Volume': 'volume'
+            })
+            
+            # Convert timezone to UTC if needed
+            if df.index.tz is not None:
+                df.index = df.index.tz_convert('UTC')
+            else:
+                df.index = df.index.tz_localize('UTC')
+            
+            return df[['open', 'high', 'low', 'close', 'volume']]
+            
+        except Exception as e:
+            logger.error(f"Error fetching Yahoo Finance data for {symbol}: {e}")
+            return None
+    
+    def _get_alpha_vantage_data(self, symbol: str, duration: str, bar_size: str) -> Optional[pd.DataFrame]:
+        """Get data from Alpha Vantage"""
+        try:
+            # Convert bar_size to Alpha Vantage function
+            if bar_size in ["1min", "5min", "15min", "30min", "60min"]:
+                function = "TIME_SERIES_INTRADAY"
+                interval = bar_size.replace("60min", "60min")
+            else:
+                function = "TIME_SERIES_DAILY"
+                interval = None
+            
+            # For European stocks, use different symbol format
+            av_symbol = f"{symbol}.PAR"  # Paris exchange
+            
+            if function == "TIME_SERIES_INTRADAY":
+                data, meta_data = self.alpha_vantage_client.get_intraday(
+                    symbol=av_symbol, 
+                    interval=interval, 
+                    outputsize='full'
+                )
+            else:
+                data, meta_data = self.alpha_vantage_client.get_daily(
+                    symbol=av_symbol, 
+                    outputsize='full'
+                )
+            
+            if data.empty:
+                return None
+            
+            # Rename columns
+            data = data.rename(columns={
+                '1. open': 'open',
+                '2. high': 'high',
+                '3. low': 'low', 
+                '4. close': 'close',
+                '5. volume': 'volume'
+            })
+            
+            # Convert to numeric
+            for col in ['open', 'high', 'low', 'close', 'volume']:
+                data[col] = pd.to_numeric(data[col], errors='coerce')
+            
+            # Convert index to datetime and UTC
+            data.index = pd.to_datetime(data.index)
+            if data.index.tz is None:
+                data.index = data.index.tz_localize('UTC')
+            
+            return data[['open', 'high', 'low', 'close', 'volume']]
+            
+        except Exception as e:
+            logger.error(f"Error fetching Alpha Vantage data for {symbol}: {e}")
+            return None
+    
+    def _get_polygon_data(self, symbol: str, duration: str, bar_size: str) -> Optional[pd.DataFrame]:
+        """Get data from Polygon.io"""
+        try:
+            # Convert bar_size to Polygon timespan
+            timespan_map = {
+                "1min": "minute", "5min": "minute", "15min": "minute", "30min": "minute", 
+                "1hour": "hour", "1day": "day"
+            }
+            multiplier_map = {
+                "1min": 1, "5min": 5, "15min": 15, "30min": 30, "1hour": 1, "1day": 1
+            }
+            
+            timespan = timespan_map.get(bar_size, "day")
+            multiplier = multiplier_map.get(bar_size, 1)
+            
+            # Convert duration to date range
+            duration_map = {
+                "1D": 1, "5D": 5, "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365
+            }
+            days = duration_map.get(duration, 30)
+            
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=days)
+            
+            # For European stocks, use different symbol format
+            polygon_symbol = f"{symbol}.PA"
+            
+            # Get aggregates (bars)
+            aggs = self.polygon_client.get_aggs(
+                ticker=polygon_symbol,
+                multiplier=multiplier,
+                timespan=timespan,
+                from_=start_date.strftime('%Y-%m-%d'),
+                to=end_date.strftime('%Y-%m-%d'),
+                limit=50000
+            )
+            
+            if not aggs:
+                return None
+            
+            # Convert to DataFrame
+            data = []
+            for agg in aggs:
+                data.append({
+                    'timestamp': pd.to_datetime(agg.timestamp, unit='ms', utc=True),
+                    'open': agg.open,
+                    'high': agg.high,
+                    'low': agg.low,
+                    'close': agg.close,
+                    'volume': agg.volume
+                })
+            
+            df = pd.DataFrame(data)
+            df.set_index('timestamp', inplace=True)
+            
+            return df[['open', 'high', 'low', 'close', 'volume']]
+            
+        except Exception as e:
+            logger.error(f"Error fetching Polygon.io data for {symbol}: {e}")
+            return None
 
 
 if __name__ == "__main__":

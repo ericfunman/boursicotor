@@ -82,6 +82,10 @@ API_CONFIG = {
     "port": int(os.getenv("API_PORT", 8000)),
 }
 
+# External API Keys
+ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY", "")
+POLYGON_API_KEY = os.getenv("POLYGON_API_KEY", "")
+
 # Supported intervals for data collection
 SUPPORTED_INTERVALS = [
     "1sec", "5secs", "10secs", "15secs", "30secs",
