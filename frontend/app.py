@@ -7,6 +7,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
+import time as time_module  # Alias to avoid conflict with 'time' column name
 import sys
 import os
 from pathlib import Path
@@ -1789,6 +1790,66 @@ def live_prices_page():
         # Create ticker selection
         ticker_options = {ticker.symbol: f"{ticker.symbol} - {ticker.name}" for ticker in tickers}
         
+        # Strategy selection
+        from backend.models import Strategy
+        from backend.strategy_adapter import StrategyAdapter
+        import json
+        
+        strategies = db.query(Strategy).all()
+        strategy_options = ["Aucune stratégie"] + [s.name for s in strategies]
+        
+        selected_strategy_name = st.selectbox(
+            "🎯 Stratégie de trading",
+            strategy_options,
+            help="Sélectionnez une stratégie pour afficher les signaux d'achat/vente. Toutes les stratégies (simples et complexes) sont supportées !"
+        )
+        
+        selected_strategy = None
+        if selected_strategy_name != "Aucune stratégie":
+            selected_strategy = db.query(Strategy).filter(Strategy.name == selected_strategy_name).first()
+            
+            # Display strategy info using adapter
+            if selected_strategy:
+                try:
+                    strategy_info = StrategyAdapter.format_strategy_info(selected_strategy)
+                    
+                    with st.expander("📊 Détails de la stratégie", expanded=False):
+                        st.write(f"**Type:** {strategy_info['type']}")
+                        st.write(f"**Description:** {strategy_info['description']}")
+                        
+                        if strategy_info['indicators']:
+                            st.write(f"**Indicateurs utilisés:** {', '.join(strategy_info['indicators'])}")
+                        
+                        # Affichage spécifique pour EnhancedMA
+                        if strategy_info['is_enhanced']:
+                            st.markdown("#### 🔧 Paramètres de la stratégie")
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("MA Rapide", strategy_info.get('fast_period', 'N/A'))
+                            with col2:
+                                st.metric("MA Lente", strategy_info.get('slow_period', 'N/A'))
+                            with col3:
+                                st.metric("Signaux min", strategy_info.get('min_signals', 'N/A'))
+                            
+                            if strategy_info.get('active_advanced_indicators'):
+                                st.markdown("**Indicateurs avancés actifs:**")
+                                st.write(", ".join(strategy_info['active_advanced_indicators']))
+                        
+                        # Affichage pour stratégies simples
+                        elif strategy_info['is_simple']:
+                            col_buy, col_sell = st.columns(2)
+                            with col_buy:
+                                st.markdown("**🟢 Conditions d'achat:**")
+                                st.code(strategy_info.get('buy_conditions', 'N/A'), language='python')
+                            
+                            with col_sell:
+                                st.markdown("**🔴 Conditions de vente:**")
+                                st.code(strategy_info.get('sell_conditions', 'N/A'), language='python')
+                
+                except Exception as e:
+                    st.warning(f"⚠️ Impossible d'afficher les détails de la stratégie: {e}")
+
+        
         # Create ticker selection and time scale
         col1, col2, col3 = st.columns([2, 1, 1])
         
@@ -1851,12 +1912,51 @@ def live_prices_page():
         if 'live_data' not in st.session_state:
             st.session_state.live_data = {'time': [], 'price': []}
         
+        # Check if we need to reload historical data (ticker or time scale changed)
+        reload_needed = (
+            st.session_state.get('last_ticker') != selected_symbol or
+            st.session_state.get('last_time_scale') != time_scale
+        )
+        
+        if reload_needed:
+            st.session_state.last_ticker = selected_symbol
+            st.session_state.last_time_scale = time_scale
+            
+            # Load historical data from database
+            from backend.models import HistoricalData
+            ticker_obj = db.query(Ticker).filter(Ticker.symbol == selected_symbol).first()
+            
+            historical_records = db.query(HistoricalData).filter(
+                HistoricalData.ticker_id == ticker_obj.id,
+                HistoricalData.interval == time_scale
+            ).order_by(HistoricalData.timestamp.asc()).all()
+            
+            if historical_records:
+                st.session_state.live_data = {
+                    'time': [rec.timestamp for rec in historical_records],
+                    'price': [rec.close for rec in historical_records],
+                    'open': [rec.open for rec in historical_records],
+                    'high': [rec.high for rec in historical_records],
+                    'low': [rec.low for rec in historical_records],
+                    'volume': [rec.volume for rec in historical_records]
+                }
+                st.success(f"✅ {len(historical_records)} données historiques chargées depuis la base de données")
+            else:
+                st.session_state.live_data = {
+                    'time': [], 
+                    'price': [],
+                    'open': [],
+                    'high': [],
+                    'low': [],
+                    'volume': []
+                }
+                st.info("ℹ️ Aucune donnée historique. Les données seront collectées en temps réel.")
+        
         # Live update loop
         if st.session_state.live_running:
             import yfinance as yf
             import plotly.graph_objects as go
             from datetime import datetime
-            import time
             import pandas as pd
             from backend.models import HistoricalData
             
@@ -1931,14 +2031,22 @@ def live_prices_page():
                             db.add(new_record)
                             db.commit()
                         
-                        # Add to live data for chart
+                        # Add to live data for chart (with OHLCV)
                         st.session_state.live_data['time'].append(current_time)
                         st.session_state.live_data['price'].append(current_price)
+                        st.session_state.live_data['open'].append(float(latest_bar['Open']))
+                        st.session_state.live_data['high'].append(float(latest_bar['High']))
+                        st.session_state.live_data['low'].append(float(latest_bar['Low']))
+                        st.session_state.live_data['volume'].append(int(latest_bar['Volume']))
                         
                         # Keep only last max_points
                         if len(st.session_state.live_data['time']) > max_points:
                             st.session_state.live_data['time'] = st.session_state.live_data['time'][-max_points:]
                             st.session_state.live_data['price'] = st.session_state.live_data['price'][-max_points:]
+                            st.session_state.live_data['open'] = st.session_state.live_data['open'][-max_points:]
+                            st.session_state.live_data['high'] = st.session_state.live_data['high'][-max_points:]
+                            st.session_state.live_data['low'] = st.session_state.live_data['low'][-max_points:]
+                            st.session_state.live_data['volume'] = st.session_state.live_data['volume'][-max_points:]
                     else:
                         # Fallback to info if history not available
                         info = ticker_data.info
@@ -1952,10 +2060,18 @@ def live_prices_page():
                         
                         st.session_state.live_data['time'].append(current_time)
                         st.session_state.live_data['price'].append(current_price)
+                        st.session_state.live_data['open'].append(current_price)
+                        st.session_state.live_data['high'].append(current_price)
+                        st.session_state.live_data['low'].append(current_price)
+                        st.session_state.live_data['volume'].append(current_volume)
                         
                         if len(st.session_state.live_data['time']) > max_points:
                             st.session_state.live_data['time'] = st.session_state.live_data['time'][-max_points:]
                             st.session_state.live_data['price'] = st.session_state.live_data['price'][-max_points:]
+                            st.session_state.live_data['open'] = st.session_state.live_data['open'][-max_points:]
+                            st.session_state.live_data['high'] = st.session_state.live_data['high'][-max_points:]
+                            st.session_state.live_data['low'] = st.session_state.live_data['low'][-max_points:]
+                            st.session_state.live_data['volume'] = st.session_state.live_data['volume'][-max_points:]
                     
                     # Update metrics
                     price_placeholder.metric(
@@ -1981,22 +2097,37 @@ def live_prices_page():
                     )
                     
                     # Calculate indicators for live data if enough points
+                    buy_signals = []
+                    sell_signals = []
+                    signal_times = []
+                    signal_prices = []
+                    signal_types = []
+                    
                     if len(st.session_state.live_data['price']) >= 50:
                         # Create DataFrame for indicator calculation
                         live_df = pd.DataFrame({
                             'close': st.session_state.live_data['price'],
                             'time': st.session_state.live_data['time']
                         })
-                        live_df['high'] = live_df['close']  # Approximation for line chart
-                        live_df['low'] = live_df['close']
-                        live_df['open'] = live_df['close']
-                        live_df['volume'] = 0
+                        
+                        # Add OHLCV data if available (from historical data)
+                        if 'open' in st.session_state.live_data and len(st.session_state.live_data['open']) > 0:
+                            live_df['high'] = st.session_state.live_data.get('high', live_df['close'])
+                            live_df['low'] = st.session_state.live_data.get('low', live_df['close'])
+                            live_df['open'] = st.session_state.live_data.get('open', live_df['close'])
+                            live_df['volume'] = st.session_state.live_data.get('volume', [0] * len(live_df))
+                        else:
+                            # Approximation for line chart if no OHLCV data
+                            live_df['high'] = live_df['close']
+                            live_df['low'] = live_df['close']
+                            live_df['open'] = live_df['close']
+                            live_df['volume'] = 0
                         
                         # Calculate indicators
                         from backend.technical_indicators import calculate_and_update_indicators
                         live_df = calculate_and_update_indicators(live_df, save_to_db=False)
                         
-                        # Determine buy/sell signals
+                        # Determine buy/sell signals based on selected strategy
                         latest_rsi = live_df['rsi_14'].iloc[-1] if 'rsi_14' in live_df.columns else None
                         latest_macd = live_df['macd'].iloc[-1] if 'macd' in live_df.columns else None
                         latest_macd_signal = live_df['macd_signal'].iloc[-1] if 'macd_signal' in live_df.columns else None
@@ -2004,14 +2135,38 @@ def live_prices_page():
                         signal = "NEUTRE"
                         signal_color = "gray"
                         
-                        # Simple strategy logic
-                        if latest_rsi and latest_macd and latest_macd_signal:
-                            if latest_rsi < 30 and latest_macd > latest_macd_signal:
-                                signal = "ACHAT 🟢"
-                                signal_color = "green"
-                            elif latest_rsi > 70 and latest_macd < latest_macd_signal:
-                                signal = "VENTE 🔴"
-                                signal_color = "red"
+                        # Apply strategy if selected - using StrategyAdapter for ALL strategy types
+                        if selected_strategy:
+                            try:
+                                from backend.strategy_adapter import StrategyAdapter
+                                
+                                # Generate signals using the adapter (works for simple AND complex strategies)
+                                signal_times, signal_prices, signal_types = StrategyAdapter.generate_signals(live_df, selected_strategy)
+                                
+                                # Get current signal
+                                signal, signal_color = StrategyAdapter.get_current_signal(live_df, selected_strategy)
+                                
+                            except Exception as e:
+                                st.warning(f"⚠️ Erreur lors de l'évaluation de la stratégie: {e}")
+                                import traceback
+                                st.code(traceback.format_exc())
+                                # Fallback to simple strategy
+                                if latest_rsi and latest_macd and latest_macd_signal:
+                                    if latest_rsi < 30 and latest_macd > latest_macd_signal:
+                                        signal = "ACHAT 🟢"
+                                        signal_color = "green"
+                                    elif latest_rsi > 70 and latest_macd < latest_macd_signal:
+                                        signal = "VENTE 🔴"
+                                        signal_color = "red"
+                        else:
+                            # Simple default strategy logic if no strategy selected
+                            if latest_rsi and latest_macd and latest_macd_signal:
+                                if latest_rsi < 30 and latest_macd > latest_macd_signal:
+                                    signal = "ACHAT 🟢"
+                                    signal_color = "green"
+                                elif latest_rsi > 70 and latest_macd < latest_macd_signal:
+                                    signal = "VENTE 🔴"
+                                    signal_color = "red"
                     else:
                         signal = f"Calcul... ({len(st.session_state.live_data['price'])}/50 points)"
                         signal_color = "orange"
@@ -2033,22 +2188,51 @@ def live_prices_page():
                         fillcolor='rgba(0, 217, 255, 0.1)'
                     ))
                     
-                    # Add buy/sell markers if signal is present
-                    if signal == "ACHAT 🟢":
+                    # Add historical buy/sell markers if strategy is selected
+                    if signal_times and signal_prices and signal_types:
+                        buy_times = [t for t, typ in zip(signal_times, signal_types) if typ == 'buy']
+                        buy_prices = [p for p, typ in zip(signal_prices, signal_types) if typ == 'buy']
+                        sell_times = [t for t, typ in zip(signal_times, signal_types) if typ == 'sell']
+                        sell_prices = [p for p, typ in zip(signal_prices, signal_types) if typ == 'sell']
+                        
+                        if buy_times:
+                            fig.add_trace(go.Scatter(
+                                x=buy_times,
+                                y=buy_prices,
+                                mode='markers',
+                                name='Signaux Achat (Historique)',
+                                marker=dict(size=12, color='green', symbol='triangle-up', line=dict(width=1, color='darkgreen'))
+                            ))
+                        
+                        if sell_times:
+                            fig.add_trace(go.Scatter(
+                                x=sell_times,
+                                y=sell_prices,
+                                mode='markers',
+                                name='Signaux Vente (Historique)',
+                                marker=dict(size=12, color='red', symbol='triangle-down', line=dict(width=1, color='darkred'))
+                            ))
+                        
+                        # Show count of signals
+                        total_signals = len(buy_times) + len(sell_times)
+                        st.info(f"📊 {total_signals} signaux détectés : {len(buy_times)} achats, {len(sell_times)} ventes")
+                    
+                    # Add current signal marker if signal is present
+                    if signal.startswith("ACHAT"):
                         fig.add_trace(go.Scatter(
                             x=[st.session_state.live_data['time'][-1]],
                             y=[st.session_state.live_data['price'][-1]],
                             mode='markers',
-                            name='Signal Achat',
-                            marker=dict(size=15, color='green', symbol='triangle-up')
+                            name='Signal Achat (Actuel)',
+                            marker=dict(size=18, color='lime', symbol='triangle-up', line=dict(width=2, color='green'))
                         ))
-                    elif signal == "VENTE 🔴":
+                    elif signal.startswith("VENTE"):
                         fig.add_trace(go.Scatter(
                             x=[st.session_state.live_data['time'][-1]],
                             y=[st.session_state.live_data['price'][-1]],
                             mode='markers',
-                            name='Signal Vente',
-                            marker=dict(size=15, color='red', symbol='triangle-down')
+                            name='Signal Vente (Actuel)',
+                            marker=dict(size=18, color='orangered', symbol='triangle-down', line=dict(width=2, color='red'))
                         ))
                     
                     fig.update_layout(
@@ -2092,9 +2276,84 @@ def live_prices_page():
                         
                         with ind_col3:
                             st.markdown(f"### Signal: :{signal_color}[{signal}]")
+                        
+                        # Display strategy analysis if strategy selected and signals found
+                        if selected_strategy and signal_times and signal_prices and signal_types:
+                            st.markdown("---")
+                            st.subheader(f"🎯 Analyse de la stratégie: {selected_strategy_name}")
+                            
+                            # Simulate trades based on signals
+                            position = None  # None = no position, 'long' = bought
+                            trades = []
+                            
+                            for i, (time, price, typ) in enumerate(zip(signal_times, signal_prices, signal_types)):
+                                if typ == 'buy' and position is None:
+                                    # Open long position
+                                    position = {'entry_time': time, 'entry_price': price}
+                                elif typ == 'sell' and position is not None:
+                                    # Close long position
+                                    profit = price - position['entry_price']
+                                    profit_pct = (profit / position['entry_price']) * 100
+                                    trades.append({
+                                        'entry_time': position['entry_time'],
+                                        'entry_price': position['entry_price'],
+                                        'exit_time': time,
+                                        'exit_price': price,
+                                        'profit': profit,
+                                        'profit_pct': profit_pct
+                                    })
+                                    position = None
+                            
+                            # Display trade summary
+                            if trades:
+                                trade_col1, trade_col2, trade_col3, trade_col4 = st.columns(4)
+                                
+                                total_trades = len(trades)
+                                winning_trades = len([t for t in trades if t['profit'] > 0])
+                                losing_trades = len([t for t in trades if t['profit'] < 0])
+                                win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
+                                
+                                total_profit = sum([t['profit'] for t in trades])
+                                avg_profit = total_profit / total_trades if total_trades > 0 else 0
+                                avg_profit_pct = sum([t['profit_pct'] for t in trades]) / total_trades if total_trades > 0 else 0
+                                
+                                with trade_col1:
+                                    st.metric("Nombre de trades", f"{total_trades}")
+                                
+                                with trade_col2:
+                                    st.metric("Taux de réussite", f"{win_rate:.1f}%", f"{winning_trades}W / {losing_trades}L")
+                                
+                                with trade_col3:
+                                    delta_color = "normal" if total_profit >= 0 else "inverse"
+                                    st.metric("Profit total", f"{total_profit:.2f} €", f"{sum([t['profit_pct'] for t in trades]):.2f}%", delta_color=delta_color)
+                                
+                                with trade_col4:
+                                    st.metric("Profit moyen", f"{avg_profit:.2f} €", f"{avg_profit_pct:.2f}%")
+                                
+                                # Display recent trades table
+                                st.markdown("#### 📋 Derniers trades")
+                                recent_trades = trades[-10:]  # Last 10 trades
+                                trade_data = []
+                                for t in reversed(recent_trades):
+                                    trade_data.append({
+                                        'Entrée': t['entry_time'].strftime("%Y-%m-%d %H:%M:%S"),
+                                        'Prix Entrée': f"{t['entry_price']:.2f} €",
+                                        'Sortie': t['exit_time'].strftime("%Y-%m-%d %H:%M:%S"),
+                                        'Prix Sortie': f"{t['exit_price']:.2f} €",
+                                        'Profit': f"{t['profit']:.2f} €",
+                                        'Profit %': f"{t['profit_pct']:.2f}%"
+                                    })
+                                
+                                st.dataframe(pd.DataFrame(trade_data), use_container_width=True)
+                            else:
+                                st.info("ℹ️ Aucun trade complet détecté avec cette stratégie (signaux d'achat sans vente correspondante).")
+
+                        
+                        with ind_col3:
+                            st.markdown(f"### Signal: :{signal_color}[{signal}]")
                     
                     # Wait 1 second before next update
-                    time.sleep(1)
+                    time_module.sleep(1)
                     
                 except Exception as e:
                     st.error(f"❌ Erreur lors de la récupération des données: {e}")
