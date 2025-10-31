@@ -1789,7 +1789,8 @@ def live_prices_page():
         # Create ticker selection
         ticker_options = {ticker.symbol: f"{ticker.symbol} - {ticker.name}" for ticker in tickers}
         
-        col1, col2 = st.columns([2, 1])
+        # Create ticker selection and time scale
+        col1, col2, col3 = st.columns([2, 1, 1])
         
         with col1:
             selected_symbol = st.selectbox(
@@ -1799,6 +1800,16 @@ def live_prices_page():
             )
         
         with col2:
+            # Time scale selector
+            time_scale = st.selectbox(
+                "Échelle de temps",
+                options=["1s", "1min", "5min", "15min", "30min", "1h", "1jour"],
+                index=0,
+                help="Période d'agrégation des données",
+                disabled=st.session_state.get('live_running', False)
+            )
+        
+        with col3:
             # Control buttons
             if 'live_running' not in st.session_state:
                 st.session_state.live_running = False
@@ -1830,6 +1841,9 @@ def live_prices_page():
         # Chart placeholder
         chart_placeholder = st.empty()
         
+        # Indicators placeholder
+        indicators_placeholder = st.empty()
+        
         # Info message
         st.info("ℹ️ Les données proviennent de Yahoo Finance avec un délai d'environ 15 minutes. Le graphique se rafraîchit toutes les secondes.")
         
@@ -1843,39 +1857,105 @@ def live_prices_page():
             import plotly.graph_objects as go
             from datetime import datetime
             import time
+            import pandas as pd
+            from backend.models import HistoricalData
+            
+            # Get ticker object for database storage
+            ticker_obj = db.query(Ticker).filter(Ticker.symbol == selected_symbol).first()
             
             # Get Yahoo Finance symbol (add .PA for Paris exchange)
             yf_symbol = f"{selected_symbol}.PA"
             
+            # Map time scale to Yahoo Finance interval
+            interval_map = {
+                "1s": "1m",  # Yahoo Finance n'a pas de 1s, on utilise 1m
+                "1min": "1m",
+                "5min": "5m",
+                "15min": "15m",
+                "30min": "30m",
+                "1h": "1h",
+                "1jour": "1d"
+            }
+            yf_interval = interval_map.get(time_scale, "1m")
+            
             # Continuous update loop
-            max_points = 100  # Keep last 100 points
+            max_points = 200  # Keep last 200 points for better visualization
             
             while st.session_state.live_running:
                 try:
-                    # Fetch latest data from Yahoo Finance
+                    # Fetch latest data from Yahoo Finance based on time scale
                     ticker_data = yf.Ticker(yf_symbol)
                     
-                    # Get real-time quote
-                    info = ticker_data.info
-                    current_price = info.get('currentPrice') or info.get('regularMarketPrice', 0)
-                    prev_close = info.get('previousClose', current_price)
-                    volume = info.get('volume', 0)
+                    # Get intraday data for the selected interval
+                    if time_scale == "1jour":
+                        hist_data = ticker_data.history(period="5d", interval=yf_interval)
+                    else:
+                        hist_data = ticker_data.history(period="1d", interval=yf_interval)
                     
-                    # Calculate change
-                    price_change = current_price - prev_close
-                    price_change_pct = (price_change / prev_close * 100) if prev_close else 0
-                    
-                    # Current time
-                    current_time = datetime.now()
-                    
-                    # Add to live data
-                    st.session_state.live_data['time'].append(current_time)
-                    st.session_state.live_data['price'].append(current_price)
-                    
-                    # Keep only last max_points
-                    if len(st.session_state.live_data['time']) > max_points:
-                        st.session_state.live_data['time'] = st.session_state.live_data['time'][-max_points:]
-                        st.session_state.live_data['price'] = st.session_state.live_data['price'][-max_points:]
+                    if not hist_data.empty:
+                        # Get the latest bar
+                        latest_bar = hist_data.iloc[-1]
+                        current_price = latest_bar['Close']
+                        current_volume = latest_bar['Volume']
+                        data_time = hist_data.index[-1]  # Timestamp from Yahoo
+                        current_time = datetime.now()  # Current timestamp for display
+                        
+                        # Get previous close for change calculation
+                        if len(hist_data) > 1:
+                            prev_close = hist_data.iloc[-2]['Close']
+                        else:
+                            prev_close = current_price
+                        
+                        # Calculate change
+                        price_change = current_price - prev_close
+                        price_change_pct = (price_change / prev_close * 100) if prev_close else 0
+                        
+                        # Save to database (avoid duplicates by checking timestamp)
+                        existing_record = db.query(HistoricalData).filter(
+                            HistoricalData.ticker_id == ticker_obj.id,
+                            HistoricalData.timestamp == data_time,
+                            HistoricalData.interval == time_scale
+                        ).first()
+                        
+                        if not existing_record:
+                            new_record = HistoricalData(
+                                ticker_id=ticker_obj.id,
+                                timestamp=data_time,
+                                open=float(latest_bar['Open']),
+                                high=float(latest_bar['High']),
+                                low=float(latest_bar['Low']),
+                                close=float(latest_bar['Close']),
+                                volume=int(latest_bar['Volume']),
+                                interval=time_scale
+                            )
+                            db.add(new_record)
+                            db.commit()
+                        
+                        # Add to live data for chart
+                        st.session_state.live_data['time'].append(current_time)
+                        st.session_state.live_data['price'].append(current_price)
+                        
+                        # Keep only last max_points
+                        if len(st.session_state.live_data['time']) > max_points:
+                            st.session_state.live_data['time'] = st.session_state.live_data['time'][-max_points:]
+                            st.session_state.live_data['price'] = st.session_state.live_data['price'][-max_points:]
+                    else:
+                        # Fallback to info if history not available
+                        info = ticker_data.info
+                        current_price = info.get('currentPrice') or info.get('regularMarketPrice', 0)
+                        prev_close = info.get('previousClose', current_price)
+                        current_volume = info.get('volume', 0)
+                        current_time = datetime.now()
+                        
+                        price_change = current_price - prev_close
+                        price_change_pct = (price_change / prev_close * 100) if prev_close else 0
+                        
+                        st.session_state.live_data['time'].append(current_time)
+                        st.session_state.live_data['price'].append(current_price)
+                        
+                        if len(st.session_state.live_data['time']) > max_points:
+                            st.session_state.live_data['time'] = st.session_state.live_data['time'][-max_points:]
+                            st.session_state.live_data['price'] = st.session_state.live_data['price'][-max_points:]
                     
                     # Update metrics
                     price_placeholder.metric(
@@ -1892,7 +1972,7 @@ def live_prices_page():
                     
                     volume_placeholder.metric(
                         "Volume",
-                        f"{volume:,}"
+                        f"{current_volume:,}"
                     )
                     
                     time_placeholder.metric(
@@ -1900,9 +1980,49 @@ def live_prices_page():
                         current_time.strftime("%H:%M:%S")
                     )
                     
-                    # Create line chart
+                    # Calculate indicators for live data if enough points
+                    if len(st.session_state.live_data['price']) >= 50:
+                        # Create DataFrame for indicator calculation
+                        live_df = pd.DataFrame({
+                            'close': st.session_state.live_data['price'],
+                            'time': st.session_state.live_data['time']
+                        })
+                        live_df['high'] = live_df['close']  # Approximation for line chart
+                        live_df['low'] = live_df['close']
+                        live_df['open'] = live_df['close']
+                        live_df['volume'] = 0
+                        
+                        # Calculate indicators
+                        from backend.technical_indicators import calculate_and_update_indicators
+                        live_df = calculate_and_update_indicators(live_df, save_to_db=False)
+                        
+                        # Determine buy/sell signals
+                        latest_rsi = live_df['rsi_14'].iloc[-1] if 'rsi_14' in live_df.columns else None
+                        latest_macd = live_df['macd'].iloc[-1] if 'macd' in live_df.columns else None
+                        latest_macd_signal = live_df['macd_signal'].iloc[-1] if 'macd_signal' in live_df.columns else None
+                        
+                        signal = "NEUTRE"
+                        signal_color = "gray"
+                        
+                        # Simple strategy logic
+                        if latest_rsi and latest_macd and latest_macd_signal:
+                            if latest_rsi < 30 and latest_macd > latest_macd_signal:
+                                signal = "ACHAT 🟢"
+                                signal_color = "green"
+                            elif latest_rsi > 70 and latest_macd < latest_macd_signal:
+                                signal = "VENTE 🔴"
+                                signal_color = "red"
+                    else:
+                        signal = f"Calcul... ({len(st.session_state.live_data['price'])}/50 points)"
+                        signal_color = "orange"
+                        latest_rsi = None
+                        latest_macd = None
+                        latest_macd_signal = None
+                    
+                    # Create line chart with indicators
                     fig = go.Figure()
                     
+                    # Main price line
                     fig.add_trace(go.Scatter(
                         x=st.session_state.live_data['time'],
                         y=st.session_state.live_data['price'],
@@ -1913,18 +2033,65 @@ def live_prices_page():
                         fillcolor='rgba(0, 217, 255, 0.1)'
                     ))
                     
+                    # Add buy/sell markers if signal is present
+                    if signal == "ACHAT 🟢":
+                        fig.add_trace(go.Scatter(
+                            x=[st.session_state.live_data['time'][-1]],
+                            y=[st.session_state.live_data['price'][-1]],
+                            mode='markers',
+                            name='Signal Achat',
+                            marker=dict(size=15, color='green', symbol='triangle-up')
+                        ))
+                    elif signal == "VENTE 🔴":
+                        fig.add_trace(go.Scatter(
+                            x=[st.session_state.live_data['time'][-1]],
+                            y=[st.session_state.live_data['price'][-1]],
+                            mode='markers',
+                            name='Signal Vente',
+                            marker=dict(size=15, color='red', symbol='triangle-down')
+                        ))
+                    
                     fig.update_layout(
-                        title=f"{selected_symbol} - Cours en temps réel",
+                        title=f"{selected_symbol} - Cours en temps réel ({time_scale}) - Signal: {signal}",
                         xaxis_title="Heure",
                         yaxis_title="Prix (€)",
+                        xaxis=dict(
+                            tickformat='%H:%M:%S',  # Format avec les secondes
+                            tickmode='auto',
+                            nticks=10
+                        ),
                         height=500,
                         hovermode='x unified',
-                        showlegend=False,
+                        showlegend=True,
                         margin=dict(l=50, r=50, t=50, b=50)
                     )
                     
-                    # Update chart
-                    chart_placeholder.plotly_chart(fig, use_container_width=True)
+                    # Update chart without key to prevent scroll
+                    with chart_placeholder.container():
+                        st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Display indicators below chart - always show the panel
+                    with indicators_placeholder.container():
+                        st.markdown("---")
+                        st.subheader("📊 Indicateurs Techniques")
+                        
+                        ind_col1, ind_col2, ind_col3 = st.columns(3)
+                        
+                        with ind_col1:
+                            if latest_rsi:
+                                rsi_delta = "Suracheté" if latest_rsi > 70 else "Survendu" if latest_rsi < 30 else "Normal"
+                                st.metric("RSI (14)", f"{latest_rsi:.2f}", rsi_delta)
+                            else:
+                                st.metric("RSI (14)", "---", "En attente...")
+                        
+                        with ind_col2:
+                            if latest_macd:
+                                st.metric("MACD", f"{latest_macd:.4f}")
+                            else:
+                                st.metric("MACD", "---", "En attente...")
+                        
+                        with ind_col3:
+                            st.markdown(f"### Signal: :{signal_color}[{signal}]")
                     
                     # Wait 1 second before next update
                     time.sleep(1)
