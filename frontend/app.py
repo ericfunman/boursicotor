@@ -107,7 +107,7 @@ def main():
         page = st.radio(
             "Navigation",
             ["📊 Dashboard", "💾 Collecte de Données", "📈 Analyse Technique", 
-             "🔙 Backtesting", "🤖 Trading Automatique", "⚙️ Paramètres"]
+             "� Cours Live", "�🔙 Backtesting", "🤖 Trading Automatique", "⚙️ Paramètres"]
         )
         
         st.markdown("---")
@@ -155,7 +155,9 @@ def main():
         data_collection_page()
     elif page == "📈 Analyse Technique":
         technical_analysis_page()
-    elif page == "🔙 Backtesting":
+    elif page == "� Cours Live":
+        live_prices_page()
+    elif page == "�🔙 Backtesting":
         backtesting_page()
     elif page == "🤖 Trading Automatique":
         auto_trading_page()
@@ -1767,6 +1769,177 @@ def auto_trading_page():
     - Alertes et notifications
     - Historique des trades automatiques
     """)
+
+
+def live_prices_page():
+    """Live prices page with real-time chart updates"""
+    st.header("📊 Cours Live")
+    
+    # Get tickers with collected data
+    from backend.models import SessionLocal, Ticker
+    db = SessionLocal()
+    
+    try:
+        tickers = db.query(Ticker).all()
+        
+        if not tickers:
+            st.warning("⚠️ Aucune action disponible. Collectez des données d'abord dans l'onglet 'Collecte de Données'.")
+            return
+        
+        # Create ticker selection
+        ticker_options = {ticker.symbol: f"{ticker.symbol} - {ticker.name}" for ticker in tickers}
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            selected_symbol = st.selectbox(
+                "Sélectionner une action",
+                options=list(ticker_options.keys()),
+                format_func=lambda x: ticker_options[x]
+            )
+        
+        with col2:
+            # Control buttons
+            if 'live_running' not in st.session_state:
+                st.session_state.live_running = False
+            
+            if st.session_state.live_running:
+                if st.button("⏸️ Pause", type="primary"):
+                    st.session_state.live_running = False
+                    st.rerun()
+            else:
+                if st.button("▶️ Démarrer", type="primary"):
+                    st.session_state.live_running = True
+                    st.rerun()
+        
+        st.markdown("---")
+        
+        # Display area for metrics
+        metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+        
+        # Placeholders for dynamic updates
+        with metric_col1:
+            price_placeholder = st.empty()
+        with metric_col2:
+            change_placeholder = st.empty()
+        with metric_col3:
+            volume_placeholder = st.empty()
+        with metric_col4:
+            time_placeholder = st.empty()
+        
+        # Chart placeholder
+        chart_placeholder = st.empty()
+        
+        # Info message
+        st.info("ℹ️ Les données proviennent de Yahoo Finance avec un délai d'environ 15 minutes. Le graphique se rafraîchit toutes les secondes.")
+        
+        # Initialize data storage
+        if 'live_data' not in st.session_state:
+            st.session_state.live_data = {'time': [], 'price': []}
+        
+        # Live update loop
+        if st.session_state.live_running:
+            import yfinance as yf
+            import plotly.graph_objects as go
+            from datetime import datetime
+            import time
+            
+            # Get Yahoo Finance symbol (add .PA for Paris exchange)
+            yf_symbol = f"{selected_symbol}.PA"
+            
+            # Continuous update loop
+            max_points = 100  # Keep last 100 points
+            
+            while st.session_state.live_running:
+                try:
+                    # Fetch latest data from Yahoo Finance
+                    ticker_data = yf.Ticker(yf_symbol)
+                    
+                    # Get real-time quote
+                    info = ticker_data.info
+                    current_price = info.get('currentPrice') or info.get('regularMarketPrice', 0)
+                    prev_close = info.get('previousClose', current_price)
+                    volume = info.get('volume', 0)
+                    
+                    # Calculate change
+                    price_change = current_price - prev_close
+                    price_change_pct = (price_change / prev_close * 100) if prev_close else 0
+                    
+                    # Current time
+                    current_time = datetime.now()
+                    
+                    # Add to live data
+                    st.session_state.live_data['time'].append(current_time)
+                    st.session_state.live_data['price'].append(current_price)
+                    
+                    # Keep only last max_points
+                    if len(st.session_state.live_data['time']) > max_points:
+                        st.session_state.live_data['time'] = st.session_state.live_data['time'][-max_points:]
+                        st.session_state.live_data['price'] = st.session_state.live_data['price'][-max_points:]
+                    
+                    # Update metrics
+                    price_placeholder.metric(
+                        "Prix Actuel",
+                        f"{current_price:.2f} €",
+                        f"{price_change:+.2f} ({price_change_pct:+.2f}%)"
+                    )
+                    
+                    change_placeholder.metric(
+                        "Variation",
+                        f"{price_change_pct:+.2f}%",
+                        f"{price_change:+.2f} €"
+                    )
+                    
+                    volume_placeholder.metric(
+                        "Volume",
+                        f"{volume:,}"
+                    )
+                    
+                    time_placeholder.metric(
+                        "Dernière MAJ",
+                        current_time.strftime("%H:%M:%S")
+                    )
+                    
+                    # Create line chart
+                    fig = go.Figure()
+                    
+                    fig.add_trace(go.Scatter(
+                        x=st.session_state.live_data['time'],
+                        y=st.session_state.live_data['price'],
+                        mode='lines',
+                        name='Prix',
+                        line=dict(color='#00D9FF', width=2),
+                        fill='tozeroy',
+                        fillcolor='rgba(0, 217, 255, 0.1)'
+                    ))
+                    
+                    fig.update_layout(
+                        title=f"{selected_symbol} - Cours en temps réel",
+                        xaxis_title="Heure",
+                        yaxis_title="Prix (€)",
+                        height=500,
+                        hovermode='x unified',
+                        showlegend=False,
+                        margin=dict(l=50, r=50, t=50, b=50)
+                    )
+                    
+                    # Update chart
+                    chart_placeholder.plotly_chart(fig, use_container_width=True)
+                    
+                    # Wait 1 second before next update
+                    time.sleep(1)
+                    
+                except Exception as e:
+                    st.error(f"❌ Erreur lors de la récupération des données: {e}")
+                    st.session_state.live_running = False
+                    break
+        
+        else:
+            # Not running - show static message
+            st.info("👆 Cliquez sur 'Démarrer' pour afficher les cours en temps réel")
+            
+    finally:
+        db.close()
 
 
 def settings_page():
