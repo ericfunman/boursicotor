@@ -687,6 +687,176 @@ def data_collection_page():
     
     st.markdown("---")
     
+    # Data Interpolation Section
+    st.subheader("🔬 Interpolation de Données")
+    st.info("📊 Générez des données haute fréquence à partir de données basse fréquence existantes (ex: créer des points à la seconde à partir de données minute)")
+    
+    col_interp1, col_interp2 = st.columns(2)
+    
+    with col_interp1:
+        # Get available tickers
+        db_interp = SessionLocal()
+        try:
+            from backend.models import Ticker as TickerModel, HistoricalData
+            from sqlalchemy import func, distinct
+            
+            # Get tickers with data
+            tickers_with_data = db_interp.query(
+                TickerModel.symbol,
+                TickerModel.name
+            ).join(
+                HistoricalData,
+                TickerModel.id == HistoricalData.ticker_id
+            ).distinct().all()
+            
+            if tickers_with_data:
+                ticker_options_interp = {t.symbol: f"{t.symbol} - {t.name}" for t in tickers_with_data}
+                selected_ticker_interp = st.selectbox(
+                    "Sélectionner le ticker",
+                    list(ticker_options_interp.keys()),
+                    format_func=lambda x: ticker_options_interp[x],
+                    key="interp_ticker"
+                )
+                
+                # Get available intervals for this ticker
+                ticker_obj = db_interp.query(TickerModel).filter(TickerModel.symbol == selected_ticker_interp).first()
+                
+                if ticker_obj:
+                    available_intervals = db_interp.query(
+                        distinct(HistoricalData.interval),
+                        func.count(HistoricalData.id)
+                    ).filter(
+                        HistoricalData.ticker_id == ticker_obj.id
+                    ).group_by(
+                        HistoricalData.interval
+                    ).all()
+                    
+                    if available_intervals:
+                        interval_info = {interval: f"{interval} ({count:,} points)" for interval, count in available_intervals}
+                        source_interval_interp = st.selectbox(
+                            "Intervalle source",
+                            [interval for interval, _ in available_intervals],
+                            format_func=lambda x: interval_info[x],
+                            key="source_interval"
+                        )
+                        
+                        # Get available target intervals
+                        from backend.data_interpolator import DataInterpolator
+                        
+                        possible_targets = []
+                        all_targets = ['1s', '5s', '10s', '30s', '1min', '5min', '15min', '30min', '1h']
+                        
+                        for target in all_targets:
+                            if DataInterpolator.can_interpolate(source_interval_interp, target):
+                                multiplier = DataInterpolator.INTERVAL_MULTIPLIERS[(source_interval_interp, target)]
+                                possible_targets.append((target, multiplier))
+                        
+                        if possible_targets:
+                            target_labels = {t: f"{t} (×{m} points)" for t, m in possible_targets}
+                            target_interval_interp = st.selectbox(
+                                "Intervalle cible",
+                                [t for t, _ in possible_targets],
+                                format_func=lambda x: target_labels[x],
+                                key="target_interval"
+                            )
+                            
+                            # Interpolation method
+                            methods = DataInterpolator.get_interpolation_methods()
+                            selected_method = st.selectbox(
+                                "Méthode d'interpolation",
+                                list(methods.keys()),
+                                format_func=lambda x: methods[x],
+                                key="interp_method"
+                            )
+                            
+                            # Limit records
+                            source_count = next(count for interval, count in available_intervals if interval == source_interval_interp)
+                            max_limit = min(source_count, 10000)  # Limit to 10k source records max
+                            
+                            limit_records = st.number_input(
+                                "Limiter le nombre d'enregistrements source",
+                                min_value=10,
+                                max_value=max_limit,
+                                value=min(1000, max_limit),
+                                step=100,
+                                help=f"Pour éviter la surcharge, limitez le nombre d'enregistrements à traiter ({source_count:,} disponibles)"
+                            )
+                            
+                            # Calculate expected output
+                            multiplier = next(m for t, m in possible_targets if t == target_interval_interp)
+                            expected_records = limit_records * multiplier
+                            
+                            st.info(f"📊 **Estimation**: {limit_records:,} enregistrements source → ~{expected_records:,} enregistrements générés")
+                            
+                        else:
+                            st.warning(f"⚠️ Aucune interpolation possible depuis {source_interval_interp}")
+                            target_interval_interp = None
+                    else:
+                        st.warning("⚠️ Aucune donnée disponible pour ce ticker")
+                        target_interval_interp = None
+            else:
+                st.warning("⚠️ Aucun ticker avec données historiques")
+                target_interval_interp = None
+        
+        finally:
+            db_interp.close()
+    
+    with col_interp2:
+        st.markdown("### 📋 Comment ça marche ?")
+        st.markdown("""
+        **Méthodes d'interpolation** :
+        
+        - **Linéaire** : Interpolation simple entre deux points
+        - **Cubique** : Interpolation lisse avec spline cubique
+        - **Temporel** : Ajoute une variance aléatoire réaliste
+        - **OHLC** : Préserve les patterns Open-High-Low-Close
+        
+        **Exemple** :
+        - Source: 1,000 points à 1min
+        - Cible: 1s (×60)
+        - Résultat: ~60,000 points
+        
+        ⚠️ **Attention** : Les données interpolées sont des approximations, pas des données réelles.
+        """)
+    
+    # Interpolation button
+    if target_interval_interp:
+        if st.button("🚀 Démarrer l'interpolation", type="primary", use_container_width=True):
+            with st.spinner(f"Interpolation de {selected_ticker_interp} de {source_interval_interp} vers {target_interval_interp}..."):
+                try:
+                    from backend.data_interpolator import DataInterpolator
+                    
+                    result = DataInterpolator.interpolate_and_save(
+                        ticker_symbol=selected_ticker_interp,
+                        source_interval=source_interval_interp,
+                        target_interval=target_interval_interp,
+                        method=selected_method,
+                        limit=limit_records
+                    )
+                    
+                    if result['success']:
+                        st.success(f"✅ {result['message']}")
+                        
+                        # Display stats
+                        col_stat1, col_stat2, col_stat3 = st.columns(3)
+                        with col_stat1:
+                            st.metric("Records source", f"{result['source_records']:,}")
+                        with col_stat2:
+                            st.metric("Records générés", f"{result['generated_records']:,}")
+                        with col_stat3:
+                            st.metric("Nouveaux", f"{result['new_records']:,}")
+                        
+                        if result['duplicates'] > 0:
+                            st.info(f"ℹ️ {result['duplicates']:,} enregistrements déjà existants ignorés")
+                    else:
+                        st.error(f"❌ {result['message']}")
+                        
+                except Exception as e:
+                    st.error(f"❌ Erreur lors de l'interpolation: {e}")
+                    logger.error(f"Interpolation error: {e}")
+    
+    st.markdown("---")
+    
     # Visualisation des données collectées
     st.subheader("📈 Visualisation des données")
     
