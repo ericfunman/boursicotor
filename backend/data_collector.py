@@ -495,6 +495,7 @@ class DataCollector:
         """Get data from Alpha Vantage"""
         try:
             # Convert bar_size to Alpha Vantage function
+            # Note: Alpha Vantage doesn't use duration parameter - it returns all available data
             if bar_size in ["1min", "5min", "15min", "30min", "60min"]:
                 function = "TIME_SERIES_INTRADAY"
                 interval = bar_size.replace("60min", "60min")
@@ -502,20 +503,41 @@ class DataCollector:
                 function = "TIME_SERIES_DAILY"
                 interval = None
             
-            # For European stocks, use different symbol format
-            av_symbol = f"{symbol}.PAR"  # Paris exchange
+            # For European stocks, try different symbol formats
+            # Alpha Vantage may use different formats for European exchanges
+            av_symbols = [
+                symbol,          # Direct symbol (may work for some European stocks)
+                f"{symbol}.PAR", # Paris exchange
+                f"{symbol}.AS",  # Amsterdam
+                f"{symbol}.BR",  # Brussels
+                f"{symbol}.L"    # London (if available)
+            ]
             
-            if function == "TIME_SERIES_INTRADAY":
-                data, meta_data = self.alpha_vantage_client.get_intraday(
-                    symbol=av_symbol, 
-                    interval=interval, 
-                    outputsize='full'
-                )
-            else:
-                data, meta_data = self.alpha_vantage_client.get_daily(
-                    symbol=av_symbol, 
-                    outputsize='full'
-                )
+            data = None
+            meta_data = None
+            
+            for av_symbol in av_symbols:
+                try:
+                    if function == "TIME_SERIES_INTRADAY":
+                        data, meta_data = self.alpha_vantage_client.get_intraday(
+                            symbol=av_symbol, 
+                            interval=interval, 
+                            outputsize='full'
+                        )
+                    else:
+                        data, meta_data = self.alpha_vantage_client.get_daily(
+                            symbol=av_symbol, 
+                            outputsize='full'
+                        )
+                    
+                    # If we got data, break the loop
+                    if data is not None and not data.empty:
+                        logger.info(f"✅ Found data for {symbol} using {av_symbol}")
+                        break
+                        
+                except Exception as e:
+                    logger.debug(f"Symbol {av_symbol} not found: {e}")
+                    continue
             
             if data.empty:
                 return None

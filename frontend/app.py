@@ -194,7 +194,7 @@ def dashboard_page():
         "Status": ["✅ Fermé", "✅ Fermé", "✅ Fermé"]
     }
     
-    st.dataframe(trades_data, width='stretch')
+    st.dataframe(trades_data, use_container_width=True)
 
 
 def data_collection_page():
@@ -209,17 +209,23 @@ def data_collection_page():
     with col_source1:
         data_source = st.radio(
             "Choisir la source",
-            ["🏦 Saxo Bank (Temps Réel)", "📊 Yahoo Finance (Historique)"],
-            help="Saxo Bank: Prix temps réel simulés | Yahoo Finance: Historique massif réel (jusqu'à 26+ ans)"
+            ["🏦 Saxo Bank (Temps Réel)", "📊 Yahoo Finance (Historique)", "📈 Alpha Vantage (Historique)", "🔷 Polygon.io (Temps Réel)"],
+            help="Saxo Bank: Prix temps réel simulés | Yahoo Finance: Historique massif réel | Alpha Vantage: Historique détaillé | Polygon.io: Données temps réel"
         )
     
     with col_source2:
         if data_source == "🏦 Saxo Bank (Temps Réel)":
             st.info("**Saxo Bank**\n- ✅ Prix temps réel\n- ⚠️ Données simulées (mode démo)\n- 📊 Limite: 1,200 points")
-        else:
+        elif data_source == "📊 Yahoo Finance (Historique)":
             st.success("**Yahoo Finance**\n- ✅ Données réelles\n- ✅ Historique massif (26+ ans)\n- 📊 Aucune limite stricte")
+        elif data_source == "📈 Alpha Vantage (Historique)":
+            st.success("**Alpha Vantage**\n- ✅ Données réelles\n- ✅ Historique détaillé (20+ ans)\n- 📊 Limite: 5 appels/min, 500/jour")
+        else:  # Polygon.io
+            st.success("**Polygon.io**\n- ✅ Données temps réel\n- ✅ API moderne et rapide\n- 📊 Limite: 5 appels/min, 2M/jour")
     
     use_yahoo = data_source == "📊 Yahoo Finance (Historique)"
+    use_alpha_vantage = data_source == "📈 Alpha Vantage (Historique)"
+    use_polygon = data_source == "🔷 Polygon.io (Temps Réel)"
     
     st.markdown("---")
     
@@ -236,7 +242,7 @@ def data_collection_page():
         )
     
     with col_search2:
-        search_button = st.button("🔍 Rechercher", type="secondary", width='stretch')
+        search_button = st.button("🔍 Rechercher", type="secondary", use_container_width=True)
     
     # Initialize session state for search results
     if 'search_results' not in st.session_state:
@@ -276,7 +282,7 @@ def data_collection_page():
                     """, unsafe_allow_html=True)
                 
                 with col_result2:
-                    if st.button("Sélectionner", key=f"select_{i}", width='stretch'):
+                    if st.button("Sélectionner", key=f"select_{i}", use_container_width=True):
                         st.session_state.selected_stock = stock
                         st.rerun()
         
@@ -363,6 +369,88 @@ def data_collection_page():
             elif interval == "1h":
                 if selected_duration in ["2 ans", "5 ans", "10 ans", "Maximum"]:
                     st.warning("⚠️ Intervalle 1 heure: données limitées au-delà de quelques mois")
+                    
+        elif use_alpha_vantage:
+            # Alpha Vantage options
+            st.markdown("**Alpha Vantage** - Périodes et intervalles")
+            st.info("📈 Alpha Vantage fournit des données historiques détaillées avec limite de 5 appels/minute.")
+            
+            duration_options = {
+                "1 mois": "1M",
+                "3 mois": "3M", 
+                "6 mois": "6M",
+                "1 an": "1Y",
+                "2 ans": "2Y",
+                "5 ans": "5Y",
+                "10 ans": "10Y",
+                "20 ans": "20Y"
+            }
+            selected_duration = st.selectbox(
+                "Période",
+                list(duration_options.keys()),
+                index=3,  # Default: 1 an
+                help="Alpha Vantage: historique disponible selon le ticker"
+            )
+            period = duration_options[selected_duration]
+            
+            # Interval options for Alpha Vantage
+            interval_options = {
+                "1 minute": "1min",
+                "5 minutes": "5min",
+                "15 minutes": "15min",
+                "30 minutes": "30min",
+                "1 heure": "60min",
+                "1 jour": "1day"
+            }
+            selected_interval = st.selectbox(
+                "Intervalle",
+                list(interval_options.keys()),
+                index=4,  # Default: 1 heure
+                help="Alpha Vantage: données intraday limitées aux 1-2 derniers mois"
+            )
+            interval = interval_options[selected_interval]
+            
+            if interval != "1day" and selected_duration not in ["1 mois", "3 mois"]:
+                st.warning("⚠️ Données intraday limitées aux 1-2 derniers mois par Alpha Vantage")
+                
+        elif use_polygon:
+            # Polygon.io options
+            st.markdown("**Polygon.io** - Périodes et intervalles")
+            st.info("🔷 Polygon.io fournit des données temps réel avec limite de 5 appels/minute.")
+            
+            duration_options = {
+                "1 jour": "1D",
+                "3 jours": "3D",
+                "1 semaine": "1W", 
+                "2 semaines": "2W",
+                "1 mois": "1M",
+                "3 mois": "3M",
+                "6 mois": "6M"
+            }
+            selected_duration = st.selectbox(
+                "Période",
+                list(duration_options.keys()),
+                index=2,  # Default: 1 semaine
+                help="Polygon.io: données récentes avec historique limité"
+            )
+            period = duration_options[selected_duration]
+            
+            # Interval options for Polygon
+            interval_options = {
+                "1 minute": "1min",
+                "5 minutes": "5min",
+                "15 minutes": "15min",
+                "30 minutes": "30min",
+                "1 heure": "1hour",
+                "1 jour": "1day"
+            }
+            selected_interval = st.selectbox(
+                "Intervalle",
+                list(interval_options.keys()),
+                index=0,  # Default: 1 minute
+                help="Polygon.io: support complet des intervalles"
+            )
+            interval = interval_options[selected_interval]
         
         else:
             # Saxo Bank options
@@ -418,7 +506,7 @@ def data_collection_page():
             bar_size = bar_size_options[selected_bar_size]
         
         # Collect button
-        if st.button("📊 Collecter les données", type="primary", width='stretch'):
+        if st.button("📊 Collecter les données", type="primary", use_container_width=True):
             
             if use_yahoo:
                 # Yahoo Finance collection with chunking and progress
@@ -465,7 +553,44 @@ def data_collection_page():
                             st.warning(f"⚠️ Aucune donnée disponible pour {selected_ticker}. Vérifiez le ticker ou les paramètres de période/intervalle.")
                     finally:
                         db.close()
-
+                        
+            elif use_alpha_vantage:
+                # Alpha Vantage collection
+                with st.spinner(f"Collecte depuis Alpha Vantage pour {selected_ticker}..."):
+                    from backend.data_collector import DataCollector
+                    
+                    collector = DataCollector(use_saxo=False)  # Don't use Saxo for Alpha Vantage
+                    inserted = collector.collect_historical_data(
+                        symbol=selected_ticker,
+                        name=selected_name,
+                        duration=period,
+                        bar_size=interval
+                    )
+                    
+                    if inserted > 0:
+                        st.success(f"✅ {inserted} nouveaux enregistrements ajoutés depuis Alpha Vantage !")
+                        st.info(f"📈 Source: Alpha Vantage | Période: {selected_duration} | Intervalle: {selected_interval}")
+                    else:
+                        st.warning(f"⚠️ Aucune donnée récupérée depuis Alpha Vantage pour {selected_ticker}")
+                        
+            elif use_polygon:
+                # Polygon.io collection
+                with st.spinner(f"Collecte depuis Polygon.io pour {selected_ticker}..."):
+                    from backend.data_collector import DataCollector
+                    
+                    collector = DataCollector(use_saxo=False)  # Don't use Saxo for Polygon
+                    inserted = collector.collect_historical_data(
+                        symbol=selected_ticker,
+                        name=selected_name,
+                        duration=period,
+                        bar_size=interval
+                    )
+                    
+                    if inserted > 0:
+                        st.success(f"✅ {inserted} nouveaux enregistrements ajoutés depuis Polygon.io !")
+                        st.info(f"🔷 Source: Polygon.io | Période: {selected_duration} | Intervalle: {selected_interval}")
+                    else:
+                        st.warning(f"⚠️ Aucune donnée récupérée depuis Polygon.io pour {selected_ticker}")
             
             else:
                 # Saxo Bank collection
@@ -647,7 +772,7 @@ def data_collection_page():
                 key="viz_end_date"
             )
     
-    if st.button("📊 Afficher le graphique", width='stretch'):
+    if st.button("📊 Afficher le graphique", use_container_width=True):
         from backend.data_collector import DataCollector
         import plotly.graph_objects as go
         from datetime import datetime, timedelta
@@ -874,7 +999,7 @@ def technical_analysis_page():
             st.plotly_chart(fig, use_container_width=True)
             
             # Data table
-            st.dataframe(df.tail(20), width='stretch')
+            st.dataframe(df.tail(20), use_container_width=True)
         else:
             st.info("Aucune donnée disponible pour ce ticker. Téléchargez des données d'abord.")
 
@@ -1084,7 +1209,7 @@ def backtesting_page():
             )
         
         # Button to start optimization
-        if st.button("🚀 Lancer la recherche", type="primary", width='stretch'):
+        if st.button("🚀 Lancer la recherche", type="primary", use_container_width=True):
             # Clear previous results
             st.session_state.best_strategy = None
             st.session_state.best_result = None
@@ -1316,7 +1441,7 @@ def backtesting_page():
             # Debug info
             st.caption(f"📝 Nom actuel : {strategy_name}")
             
-            if st.button("💾 Sauvegarder la stratégie", type="primary", key="save_strategy_btn", width='stretch'):
+            if st.button("💾 Sauvegarder la stratégie", type="primary", key="save_strategy_btn", use_container_width=True):
                 # Log button click
                 logger.info(f"Save button clicked for strategy: {strategy_name}")
                 
@@ -1366,7 +1491,7 @@ def backtesting_page():
                 trades_df = pd.DataFrame(best_result.trades)
                 trades_df['entry_date'] = pd.to_datetime(trades_df['entry_date'])
                 trades_df['exit_date'] = pd.to_datetime(trades_df['exit_date'])
-                st.dataframe(trades_df, width='stretch')
+                st.dataframe(trades_df, use_container_width=True)
     
     with tab2:
         st.subheader("💾 Stratégies Sauvegardées")
@@ -1416,7 +1541,7 @@ def backtesting_page():
                         if st.button(f"📊 Voir backtests", key=f"view_{strat['id']}"):
                             backtests = StrategyManager.get_strategy_backtests(strat['id'])
                             if backtests:
-                                st.dataframe(pd.DataFrame(backtests), width='stretch')
+                                st.dataframe(pd.DataFrame(backtests), use_container_width=True)
                     
                     with col_b:
                         if st.button(f"🗑️ Supprimer", key=f"delete_{strat['id']}", type="secondary"):
@@ -1509,7 +1634,7 @@ def backtesting_page():
             finally:
                 db.close()
             
-            if st.button("▶️ Lancer le backtest", type="primary", width='stretch'):
+            if st.button("▶️ Lancer le backtest", type="primary", use_container_width=True):
                 from datetime import datetime
                 
                 with st.spinner("Exécution du backtest..."):
@@ -1551,7 +1676,7 @@ def backtesting_page():
                             trades_df = pd.DataFrame(result.trades)
                             trades_df['entry_date'] = pd.to_datetime(trades_df['entry_date'])
                             trades_df['exit_date'] = pd.to_datetime(trades_df['exit_date'])
-                            st.dataframe(trades_df, width='stretch')
+                            st.dataframe(trades_df, use_container_width=True)
                         
                         # Save replayed strategy option
                         st.markdown("---")
@@ -1566,7 +1691,7 @@ def backtesting_page():
                             )
                         
                         with col2:
-                            if st.button("💾 Sauvegarder", type="primary", width='stretch'):
+                            if st.button("💾 Sauvegarder", type="primary", use_container_width=True):
                                 try:
                                     # Get original strategy
                                     from backend.strategy_manager import StrategyManager
