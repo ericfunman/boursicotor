@@ -149,36 +149,36 @@ def main():
         try:
             active_jobs = get_cached_active_jobs()
         
-        if active_jobs:
-            with st.container():
-                st.markdown("""
-                    <div style='background-color: #d1ecf1; color: #0c5460; padding: 10px; border-radius: 5px; border: 1px solid #bee5eb; margin-bottom: 10px;'>
-                        <strong>🔄 Collectes en cours</strong>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                for job in active_jobs[:3]:  # Show max 3 active jobs
-                    col1, col2, col3 = st.columns([2, 3, 1])
+            if active_jobs:
+                with st.container():
+                    st.markdown("""
+                        <div style='background-color: #d1ecf1; color: #0c5460; padding: 10px; border-radius: 5px; border: 1px solid #bee5eb; margin-bottom: 10px;'>
+                            <strong>🔄 Collectes en cours</strong>
+                        </div>
+                    """, unsafe_allow_html=True)
                     
-                    with col1:
-                        st.text(f"{job.ticker_symbol} ({job.source})")
+                    for job in active_jobs[:3]:  # Show max 3 active jobs
+                        col1, col2, col3 = st.columns([2, 3, 1])
+                        
+                        with col1:
+                            st.text(f"{job.ticker_symbol} ({job.source})")
+                        
+                        with col2:
+                            progress = job.progress or 0
+                            st.progress(progress / 100.0)
+                            st.caption(f"{progress}% - {job.current_step or 'En cours...'}")
+                        
+                        with col3:
+                            if st.button("📋 Détails", key=f"banner_job_{job.id}"):
+                                st.session_state.page = "📋 Historique des collectes"
+                                st.rerun()
                     
-                    with col2:
-                        progress = job.progress or 0
-                        st.progress(progress / 100.0)
-                        st.caption(f"{progress}% - {job.current_step or 'En cours...'}")
+                    if len(active_jobs) > 3:
+                        st.caption(f"... et {len(active_jobs) - 3} autre(s) job(s)")
                     
-                    with col3:
-                        if st.button("📋 Détails", key=f"banner_job_{job.id}"):
-                            st.session_state.page = "📋 Historique des collectes"
-                            st.rerun()
-                
-                if len(active_jobs) > 3:
-                    st.caption(f"... et {len(active_jobs) - 3} autre(s) job(s)")
-                
-                st.markdown("---")
-    except:
-        pass  # Silently fail if Celery not configured
+                    st.markdown("---")
+        except:
+            pass  # Silently fail if Celery not configured
     
     st.markdown("---")
     
