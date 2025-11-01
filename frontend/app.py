@@ -707,9 +707,7 @@ def data_collection_page():
                     st.success(f"✅ Job de collecte créé pour {selected_ticker} depuis Yahoo Finance!")
                     st.info(f"📊 Source: Yahoo Finance | Période: {selected_duration} | Intervalle: {selected_interval}")
                     st.info("🔄 La collecte s'exécute en arrière-plan. Consultez la page **Historique des collectes** pour suivre la progression.")
-                    
-                    # Rerun to refresh UI and allow navigation
-                    st.rerun()
+                    # Note: Pas de st.rerun() ici - laisse l'utilisateur naviguer librement
                 
                 elif use_ibkr:
                     # Check IBKR connection
@@ -770,9 +768,7 @@ def data_collection_page():
                         st.success(f"✅ Job de collecte créé pour {selected_ticker} depuis IBKR!")
                         st.info(f"📊 Source: IBKR | Période: {selected_duration} | Intervalle: {selected_interval}")
                         st.info("🔄 La collecte s'exécute en arrière-plan. Consultez la page **Historique des collectes** pour suivre la progression.")
-                        
-                        # Rerun to refresh UI and allow navigation
-                        st.rerun()
+                        # Note: Pas de st.rerun() ici - laisse l'utilisateur naviguer librement
             
             except ImportError as e:
                 st.error("❌ Celery n'est pas installé ou configuré correctement")
