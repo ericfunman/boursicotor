@@ -85,13 +85,8 @@ def get_global_ibkr():
     init_global_ibkr_connection()
     
     if st.session_state.global_ibkr_connected and st.session_state.global_ibkr is not None:
-        # Check if still connected
-        if st.session_state.global_ibkr.ib.isConnected():
-            return st.session_state.global_ibkr
-        else:
-            # Connection lost, reset
-            st.session_state.global_ibkr = None
-            st.session_state.global_ibkr_connected = False
+        # Trust the connection flag - don't check isConnected() as it can block
+        return st.session_state.global_ibkr
     
     return None
 
@@ -143,42 +138,40 @@ def main():
     """Main application"""
     st.title("🚀 Boursicotor - Plateforme de Trading Algorithmique")
     
-    # Global progress banner for active jobs - TEMPORARILY DISABLED FOR DEBUGGING
-    # TODO: Re-enable once navigation issue is fixed
-    if False:  # Disabled for debugging
-        try:
-            active_jobs = get_cached_active_jobs()
+    # Global progress banner for active jobs
+    try:
+        active_jobs = get_cached_active_jobs()
         
-            if active_jobs:
-                with st.container():
-                    st.markdown("""
-                        <div style='background-color: #d1ecf1; color: #0c5460; padding: 10px; border-radius: 5px; border: 1px solid #bee5eb; margin-bottom: 10px;'>
-                            <strong>🔄 Collectes en cours</strong>
-                        </div>
-                    """, unsafe_allow_html=True)
+        if active_jobs:
+            with st.container():
+                st.markdown("""
+                    <div style='background-color: #d1ecf1; color: #0c5460; padding: 10px; border-radius: 5px; border: 1px solid #bee5eb; margin-bottom: 10px;'>
+                        <strong>🔄 Collectes en cours</strong>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                for job in active_jobs[:3]:  # Show max 3 active jobs
+                    col1, col2, col3 = st.columns([2, 3, 1])
                     
-                    for job in active_jobs[:3]:  # Show max 3 active jobs
-                        col1, col2, col3 = st.columns([2, 3, 1])
-                        
-                        with col1:
-                            st.text(f"{job.ticker_symbol} ({job.source})")
-                        
-                        with col2:
-                            progress = job.progress or 0
-                            st.progress(progress / 100.0)
-                            st.caption(f"{progress}% - {job.current_step or 'En cours...'}")
-                        
-                        with col3:
-                            if st.button("📋 Détails", key=f"banner_job_{job.id}"):
-                                st.session_state.page = "📋 Historique des collectes"
-                                st.rerun()
+                    with col1:
+                        st.text(f"{job.ticker_symbol} ({job.source})")
                     
-                    if len(active_jobs) > 3:
-                        st.caption(f"... et {len(active_jobs) - 3} autre(s) job(s)")
+                    with col2:
+                        progress = job.progress or 0
+                        st.progress(progress / 100.0)
+                        st.caption(f"{progress}% - {job.current_step or 'En cours...'}")
                     
-                    st.markdown("---")
-        except:
-            pass  # Silently fail if Celery not configured
+                    with col3:
+                        if st.button("📋 Détails", key=f"banner_job_{job.id}"):
+                            st.session_state.page = "📋 Historique des collectes"
+                            st.rerun()
+                
+                if len(active_jobs) > 3:
+                    st.caption(f"... et {len(active_jobs) - 3} autre(s) job(s)")
+                
+                st.markdown("---")
+    except:
+        pass  # Silently fail if Celery not configured
     
     st.markdown("---")
     
