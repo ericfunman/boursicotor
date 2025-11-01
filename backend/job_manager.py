@@ -184,11 +184,11 @@ class JobManager:
             
             stats = {
                 'total': db.query(DataCollectionJob).count(),
-                'pending': db.query(DataCollectionJob).filter(JobStatus.PENDING).count(),
-                'running': db.query(DataCollectionJob).filter(JobStatus.RUNNING).count(),
-                'completed': db.query(DataCollectionJob).filter(JobStatus.COMPLETED).count(),
-                'failed': db.query(DataCollectionJob).filter(JobStatus.FAILED).count(),
-                'cancelled': db.query(DataCollectionJob).filter(JobStatus.CANCELLED).count(),
+                'pending': db.query(DataCollectionJob).filter(DataCollectionJob.status == JobStatus.PENDING).count(),
+                'running': db.query(DataCollectionJob).filter(DataCollectionJob.status == JobStatus.RUNNING).count(),
+                'completed': db.query(DataCollectionJob).filter(DataCollectionJob.status == JobStatus.COMPLETED).count(),
+                'failed': db.query(DataCollectionJob).filter(DataCollectionJob.status == JobStatus.FAILED).count(),
+                'cancelled': db.query(DataCollectionJob).filter(DataCollectionJob.status == JobStatus.CANCELLED).count(),
             }
             
             # Average completion time for completed jobs
