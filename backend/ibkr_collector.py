@@ -187,7 +187,8 @@ class IBKRCollector:
         symbol: str,
         df: pd.DataFrame,
         interval: str,
-        name: str = None
+        name: str = None,
+        progress_callback=None
     ) -> Dict[str, any]:
         """
         Save historical data to database
@@ -197,6 +198,7 @@ class IBKRCollector:
             df: DataFrame with historical data
             interval: Interval string (e.g., '1min', '1h', '1day')
             name: Stock name (optional)
+            progress_callback: Optional callback function(current, total) for progress updates
         
         Returns:
             Dict with success status and statistics
@@ -220,8 +222,13 @@ class IBKRCollector:
             # Save historical data
             new_records = 0
             updated_records = 0
+            total_rows = len(df)
             
-            for _, row in df.iterrows():
+            for idx, (_, row) in enumerate(df.iterrows()):
+                # Update progress
+                if progress_callback:
+                    progress_callback(idx + 1, total_rows)
+                
                 # Check if record exists
                 existing = db.query(HistoricalData).filter(
                     and_(
@@ -285,7 +292,8 @@ class IBKRCollector:
         duration: str = '1 M',
         bar_size: str = '1 min',
         interval: str = '1min',
-        name: str = None
+        name: str = None,
+        progress_callback=None
     ) -> Dict[str, any]:
         """
         Collect historical data and save to database
@@ -296,6 +304,7 @@ class IBKRCollector:
             bar_size: Bar size for IBKR API
             interval: Interval for database storage
             name: Stock name
+            progress_callback: Optional callback function(current, total) for progress updates
         
         Returns:
             Dict with results
@@ -311,7 +320,7 @@ class IBKRCollector:
                 }
             
             # Save to database
-            result = self.save_to_database(symbol, df, interval, name)
+            result = self.save_to_database(symbol, df, interval, name, progress_callback)
             
             return result
             
