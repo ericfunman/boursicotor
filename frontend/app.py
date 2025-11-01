@@ -117,34 +117,170 @@ def dashboard_page():
     """Dashboard page"""
     st.header("📊 Dashboard")
     
-    col1, col2, col3, col4 = st.columns(4)
+    # Try to connect to IBKR and get account info
+    try:
+        from backend.ibkr_collector import IBKRCollector
+        
+        # Initialize session state for IBKR connection
+        if 'dashboard_ibkr' not in st.session_state:
+            st.session_state.dashboard_ibkr = None
+            st.session_state.dashboard_connected = False
+        
+        # Connection button - Using HTML for perfect alignment
+        col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 8])
+        
+        with col_btn1:
+            if not st.session_state.dashboard_connected:
+                if st.button("🔌 Connecter IBKR", type="primary", use_container_width=True):
+                    with st.spinner("Connexion à IBKR..."):
+                        st.session_state.dashboard_ibkr = IBKRCollector()
+                        if st.session_state.dashboard_ibkr.connect():
+                            st.session_state.dashboard_connected = True
+                            st.rerun()
+                        else:
+                            st.error("❌ Échec de la connexion")
+                            st.session_state.dashboard_ibkr = None
+            else:
+                if st.button("🔌 Déconnecter", use_container_width=True):
+                    if st.session_state.dashboard_ibkr:
+                        st.session_state.dashboard_ibkr.disconnect()
+                    st.session_state.dashboard_ibkr = None
+                    st.session_state.dashboard_connected = False
+                    st.rerun()
+        
+        with col_btn2:
+            # Perfect vertical alignment with flexbox
+            if st.session_state.dashboard_connected:
+                st.markdown("""
+                    <div style='display: flex; align-items: center; height: 38px;'>
+                        <div style='background-color: #d4edda; color: #155724; padding: 6px 12px; border-radius: 4px; border: 1px solid #c3e6cb; width: 100%; text-align: center;'>
+                            🟢 Connecté
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                    <div style='display: flex; align-items: center; height: 38px;'>
+                        <div style='background-color: #f8d7da; color: #721c24; padding: 6px 12px; border-radius: 4px; border: 1px solid #f5c6cb; width: 100%; text-align: center;'>
+                            🔴 Déconnecté
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # Get account data if connected
+        if st.session_state.dashboard_connected and st.session_state.dashboard_ibkr:
+            collector = st.session_state.dashboard_ibkr
+            
+            # Get account summary
+            account_summary = collector.get_account_summary()
+            
+            if account_summary:
+                # Display metrics
+                col1, col2, col3, col4 = st.columns(4)
+                
+                # Format: account_summary[currency][tag]
+                # Try to get EUR first, fallback to USD
+                currency = 'EUR' if 'EUR' in account_summary else ('USD' if 'USD' in account_summary else list(account_summary.keys())[0])
+                
+                account_data = account_summary.get(currency, {})
+                
+                # Extract values
+                nav = float(account_data.get('NetLiquidation', 0))
+                cash = float(account_data.get('TotalCashValue', 0))
+                upnl = float(account_data.get('UnrealizedPnL', 0))
+                rpnl = float(account_data.get('RealizedPnL', 0))
+                
+                # Currency symbol
+                curr_symbol = '€' if currency == 'EUR' else '$'
+                
+                with col1:
+                    st.metric("Valeur Nette", f"{nav:,.2f} {curr_symbol}", f"{upnl:+.2f} {curr_symbol}")
+                with col2:
+                    st.metric("Cash Disponible", f"{cash:,.2f} {curr_symbol}")
+                with col3:
+                    st.metric("P&L Non Réalisé", f"{upnl:+.2f} {curr_symbol}")
+                with col4:
+                    st.metric("P&L Réalisé", f"{rpnl:+.2f} {curr_symbol}")
+                
+                st.markdown("---")
+                
+                # Get positions
+                st.subheader("📊 Positions Actuelles")
+                
+                positions = collector.get_positions()
+                
+                if positions:
+                    import pandas as pd
+                    positions_df = pd.DataFrame(positions)
+                    st.dataframe(positions_df, use_container_width=True)
+                else:
+                    st.info("ℹ️ Aucune position ouverte")
+                
+            else:
+                st.warning("⚠️ Impossible de récupérer les données du compte")
+        else:
+            # Not connected - show placeholder
+            st.info("💡 Connectez-vous à IBKR pour voir vos données de compte en temps réel")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Valeur Nette", "--- €", "---")
+            with col2:
+                st.metric("Cash Disponible", "--- €")
+            with col3:
+                st.metric("P&L Non Réalisé", "--- €")
+            with col4:
+                st.metric("P&L Réalisé", "--- €")
+        
+        st.markdown("---")
+        
+        # Recent trades
+        st.subheader("📋 Derniers Trades")
+        
+        if st.session_state.dashboard_connected and st.session_state.dashboard_ibkr:
+            # Get recent trades from IBKR
+            try:
+                collector = st.session_state.dashboard_ibkr
+                
+                # Get trades (fills) from today
+                from datetime import datetime
+                trades = collector.ib.fills()
+                
+                if trades:
+                    trades_data = []
+                    for trade in trades[:20]:  # Last 20 trades
+                        fill = trade.execution
+                        trades_data.append({
+                            "Date": fill.time.strftime("%Y-%m-%d %H:%M:%S") if fill.time else "N/A",
+                            "Symbole": trade.contract.symbol,
+                            "Type": "ACHAT" if fill.side == "BOT" else "VENTE",
+                            "Quantité": fill.shares,
+                            "Prix": f"{fill.price:.2f}",
+                            "Commission": f"{fill.commission:.2f}",
+                            "Compte": fill.acctNumber
+                        })
+                    
+                    import pandas as pd
+                    st.dataframe(pd.DataFrame(trades_data), use_container_width=True)
+                else:
+                    st.info("ℹ️ Aucun trade récent. Passez des ordres dans l'onglet 'Trading' !")
+            
+            except Exception as e:
+                st.warning(f"⚠️ Impossible de récupérer les trades: {e}")
+        else:
+            st.info("💡 Connectez-vous à IBKR pour voir vos trades récents")
     
-    with col1:
-        st.metric("Portefeuille", "10 000 €", "+250 €")
-    with col2:
-        st.metric("Positions ouvertes", "3", "+1")
-    with col3:
-        st.metric("Gain journalier", "+2.5%", "+0.5%")
-    with col4:
-        st.metric("Win Rate", "65%", "+5%")
-    
-    st.markdown("---")
-    
-    # Recent trades
-    st.subheader("📋 Derniers Trades")
-    
-    # Placeholder data
-    trades_data = {
-        "Date": ["2024-01-20 14:30", "2024-01-20 11:15", "2024-01-19 16:45"],
-        "Symbole": ["TTE", "WLN", "TTE"],
-        "Type": ["ACHAT", "VENTE", "VENTE"],
-        "Quantité": [50, 30, 40],
-        "Prix": ["62.5 €", "45.2 €", "61.8 €"],
-        "P&L": ["+125 €", "+85 €", "-40 €"],
-        "Status": ["✅ Fermé", "✅ Fermé", "✅ Fermé"]
-    }
-    
-    st.dataframe(trades_data, use_container_width=True)
+    except ImportError:
+        st.error("❌ Module ib_insync non installé")
+        st.code("pip install ib_insync")
+    except Exception as e:
+        st.error(f"❌ Erreur: {e}")
+        import traceback
+        with st.expander("Détails de l'erreur"):
+            st.code(traceback.format_exc())
 
 
 def data_collection_page():

@@ -28,6 +28,32 @@ except ImportError:
 class IBKRCollector:
     """Collect market data from Interactive Brokers / Lynx"""
     
+    # IBKR Historical Data Limitations (max duration per bar size)
+    # Source: https://interactivebrokers.github.io/tws-api/historical_limitations.html
+    IBKR_LIMITS = {
+        '1 secs': {'max_duration': '1 D', 'chunk_days': 1},      # 1 day max
+        '5 secs': {'max_duration': '2 D', 'chunk_days': 2},      # 2 days max
+        '10 secs': {'max_duration': '2 D', 'chunk_days': 2},     # 2 days max
+        '15 secs': {'max_duration': '2 D', 'chunk_days': 2},     # 2 days max
+        '30 secs': {'max_duration': '1 W', 'chunk_days': 7},     # 1 week max
+        '1 min': {'max_duration': '1 W', 'chunk_days': 7},       # 1 week max
+        '2 mins': {'max_duration': '1 W', 'chunk_days': 7},      # 1 week max
+        '3 mins': {'max_duration': '1 W', 'chunk_days': 7},      # 1 week max
+        '5 mins': {'max_duration': '1 W', 'chunk_days': 7},      # 1 week max
+        '10 mins': {'max_duration': '1 W', 'chunk_days': 7},     # 1 week max
+        '15 mins': {'max_duration': '1 W', 'chunk_days': 7},     # 1 week max
+        '20 mins': {'max_duration': '1 W', 'chunk_days': 7},     # 1 week max
+        '30 mins': {'max_duration': '1 M', 'chunk_days': 30},    # 1 month max
+        '1 hour': {'max_duration': '1 M', 'chunk_days': 30},     # 1 month max
+        '2 hours': {'max_duration': '1 M', 'chunk_days': 30},    # 1 month max
+        '3 hours': {'max_duration': '1 M', 'chunk_days': 30},    # 1 month max
+        '4 hours': {'max_duration': '1 M', 'chunk_days': 30},    # 1 month max
+        '8 hours': {'max_duration': '1 M', 'chunk_days': 30},    # 1 month max
+        '1 day': {'max_duration': '1 Y', 'chunk_days': 365},     # 1 year max
+        '1 week': {'max_duration': '1 Y', 'chunk_days': 365},    # 1 year max
+        '1 month': {'max_duration': '1 Y', 'chunk_days': 365},   # 1 year max
+    }
+    
     def __init__(self):
         """Initialize IBKR collector"""
         if not IBKR_AVAILABLE:
@@ -182,6 +208,179 @@ class IBKRCollector:
             logger.error(f"Error getting historical data for {symbol}: {e}")
             return None
     
+    def _parse_duration_to_days(self, duration: str) -> int:
+        """
+        Convert IBKR duration string to number of days
+        
+        Args:
+            duration: Duration string (e.g., '1 D', '2 W', '3 M', '1 Y')
+        
+        Returns:
+            Number of days
+        """
+        parts = duration.strip().split()
+        if len(parts) != 2:
+            return 0
+        
+        value = int(parts[0])
+        unit = parts[1].upper()
+        
+        if unit == 'D':
+            return value
+        elif unit == 'W':
+            return value * 7
+        elif unit == 'M':
+            return value * 30
+        elif unit == 'Y':
+            return value * 365
+        else:
+            return 0
+    
+    def get_historical_data_chunked(
+        self,
+        symbol: str,
+        duration: str = '1 M',
+        bar_size: str = '5 secs',
+        what_to_show: str = 'TRADES',
+        use_rth: bool = False,
+        exchange: str = 'SMART',
+        currency: str = 'EUR',
+        progress_callback=None
+    ) -> Optional[pd.DataFrame]:
+        """
+        Get historical data with automatic chunking based on IBKR limits
+        
+        Args:
+            symbol: Stock symbol
+            duration: Total duration requested (e.g., '1 M', '3 M')
+            bar_size: Bar size (e.g., '5 secs', '1 min')
+            what_to_show: Data type
+            use_rth: Use regular trading hours only
+            exchange: Exchange
+            currency: Currency
+            progress_callback: Optional callback(current_chunk, total_chunks)
+        
+        Returns:
+            Combined DataFrame with all historical data
+        """
+        try:
+            # Check if chunking is needed
+            if bar_size not in self.IBKR_LIMITS:
+                logger.warning(f"Unknown bar size: {bar_size}, using standard request")
+                return self.get_historical_data(symbol, duration, bar_size, what_to_show, use_rth, exchange, currency)
+            
+            limit_info = self.IBKR_LIMITS[bar_size]
+            requested_days = self._parse_duration_to_days(duration)
+            max_chunk_days = limit_info['chunk_days']
+            
+            # If request is within limits, use standard method
+            if requested_days <= max_chunk_days:
+                logger.info(f"Request within IBKR limits ({requested_days} <= {max_chunk_days} days)")
+                return self.get_historical_data(symbol, duration, bar_size, what_to_show, use_rth, exchange, currency)
+            
+            # Calculate chunks needed
+            num_chunks = (requested_days + max_chunk_days - 1) // max_chunk_days
+            logger.info(f"📊 Splitting request into {num_chunks} chunks ({requested_days} days / {max_chunk_days} days per chunk)")
+            
+            all_data = []
+            end_date = datetime.now()
+            
+            for chunk_idx in range(num_chunks):
+                # Update progress
+                if progress_callback:
+                    progress_callback(chunk_idx + 1, num_chunks)
+                
+                # Calculate chunk duration
+                remaining_days = requested_days - (chunk_idx * max_chunk_days)
+                chunk_days = min(max_chunk_days, remaining_days)
+                
+                # Format duration string
+                if chunk_days < 7:
+                    chunk_duration = f"{chunk_days} D"
+                elif chunk_days < 30:
+                    chunk_duration = f"{chunk_days // 7} W"
+                else:
+                    chunk_duration = f"{chunk_days // 30} M"
+                
+                logger.info(f"📦 Chunk {chunk_idx + 1}/{num_chunks}: {chunk_duration} ending at {end_date.strftime('%Y-%m-%d')}")
+                
+                # Request chunk
+                if not self.connected:
+                    if not self.connect():
+                        logger.error("Failed to connect to IBKR")
+                        break
+                
+                contract = self.get_contract(symbol, exchange, currency)
+                if not contract:
+                    logger.error(f"Failed to get contract for {symbol}")
+                    break
+                
+                try:
+                    bars = self.ib.reqHistoricalData(
+                        contract,
+                        endDateTime=end_date.strftime('%Y%m%d %H:%M:%S'),
+                        durationStr=chunk_duration,
+                        barSizeSetting=bar_size,
+                        whatToShow=what_to_show,
+                        useRTH=use_rth,
+                        formatDate=1
+                    )
+                    
+                    if bars:
+                        df_chunk = util.df(bars)
+                        if not df_chunk.empty:
+                            logger.info(f"✅ Chunk {chunk_idx + 1}: {len(df_chunk)} bars")
+                            all_data.append(df_chunk)
+                            
+                            # Update end_date for next chunk
+                            if not df_chunk.empty:
+                                end_date = pd.to_datetime(df_chunk['date'].min())
+                        else:
+                            logger.warning(f"Empty chunk {chunk_idx + 1}")
+                    else:
+                        logger.warning(f"No data for chunk {chunk_idx + 1}")
+                    
+                    # Respect IBKR pacing (avoid too many requests)
+                    if chunk_idx < num_chunks - 1:
+                        self.ib.sleep(1)  # 1 second between requests
+                        
+                except Exception as e:
+                    logger.error(f"Error fetching chunk {chunk_idx + 1}: {e}")
+                    continue
+            
+            # Combine all chunks
+            if not all_data:
+                logger.warning(f"No data collected for {symbol}")
+                return None
+            
+            df_combined = pd.concat(all_data, ignore_index=True)
+            
+            # Remove duplicates
+            df_combined = df_combined.drop_duplicates(subset=['date'], keep='first')
+            df_combined = df_combined.sort_values('date')
+            
+            # Rename columns
+            df_combined = df_combined.rename(columns={
+                'date': 'timestamp',
+                'open': 'open',
+                'high': 'high',
+                'low': 'low',
+                'close': 'close',
+                'volume': 'volume'
+            })
+            
+            # Ensure timestamp is datetime
+            if not isinstance(df_combined['timestamp'].iloc[0], datetime):
+                df_combined['timestamp'] = pd.to_datetime(df_combined['timestamp'])
+            
+            logger.info(f"✅ Total collected: {len(df_combined)} bars for {symbol}")
+            
+            return df_combined[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
+            
+        except Exception as e:
+            logger.error(f"Error in chunked historical data collection: {e}")
+            return None
+    
     def save_to_database(
         self,
         symbol: str,
@@ -297,6 +496,7 @@ class IBKRCollector:
     ) -> Dict[str, any]:
         """
         Collect historical data and save to database
+        Uses automatic chunking for large requests based on IBKR limits
         
         Args:
             symbol: Stock symbol
@@ -310,8 +510,14 @@ class IBKRCollector:
             Dict with results
         """
         try:
-            # Get historical data
-            df = self.get_historical_data(symbol, duration, bar_size)
+            # Get historical data with automatic chunking
+            logger.info(f"Collecting data for {symbol}: {duration} @ {bar_size}")
+            df = self.get_historical_data_chunked(
+                symbol=symbol,
+                duration=duration,
+                bar_size=bar_size,
+                progress_callback=progress_callback
+            )
             
             if df is None or df.empty:
                 return {
