@@ -17,6 +17,8 @@ load_dotenv()
 
 try:
     from ib_insync import IB, Stock, util
+    import nest_asyncio
+    nest_asyncio.apply()  # Fix asyncio event loop for Streamlit
     IBKR_AVAILABLE = True
 except ImportError:
     IBKR_AVAILABLE = False
