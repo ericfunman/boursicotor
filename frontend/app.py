@@ -102,7 +102,8 @@ def connect_global_ibkr():
         from backend.ibkr_collector import IBKRCollector
         
         if st.session_state.global_ibkr is None:
-            st.session_state.global_ibkr = IBKRCollector()
+            # Use client_id=1 for Streamlit main connection
+            st.session_state.global_ibkr = IBKRCollector(client_id=1)
         
         if st.session_state.global_ibkr.connect():
             st.session_state.global_ibkr_connected = True

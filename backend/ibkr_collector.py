@@ -54,8 +54,12 @@ class IBKRCollector:
         '1 month': {'max_duration': '1 Y', 'chunk_days': 365},   # 1 year max
     }
     
-    def __init__(self):
-        """Initialize IBKR collector"""
+    def __init__(self, client_id: int = None):
+        """Initialize IBKR collector
+        
+        Args:
+            client_id: Custom client ID. If None, uses env var or generates random ID
+        """
         if not IBKR_AVAILABLE:
             raise ImportError("ib_insync library not installed. Install with: pip install ib_insync")
         
@@ -65,7 +69,14 @@ class IBKRCollector:
         # Configuration from environment
         self.host = os.getenv('IBKR_HOST', '127.0.0.1')
         self.port = int(os.getenv('IBKR_PORT', '4002'))
-        self.client_id = int(os.getenv('IBKR_CLIENT_ID', '1'))
+        
+        # Client ID: use provided, env var, or generate random (2-999)
+        if client_id is not None:
+            self.client_id = client_id
+        else:
+            import random
+            self.client_id = int(os.getenv('IBKR_CLIENT_ID', random.randint(2, 999)))
+        
         self.account = os.getenv('IBKR_ACCOUNT', 'DU0118471')
         
         logger.info(f"IBKR Collector initialized - {self.host}:{self.port}")
