@@ -12,6 +12,13 @@ import sys
 import os
 from pathlib import Path
 
+# Fix asyncio event loop for IBKR/Streamlit compatibility
+try:
+    import nest_asyncio
+    nest_asyncio.apply()
+except ImportError:
+    pass
+
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
 
