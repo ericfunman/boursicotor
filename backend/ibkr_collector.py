@@ -79,7 +79,7 @@ class IBKRCollector:
         
         self.account = os.getenv('IBKR_ACCOUNT', 'DU0118471')
         
-        logger.info(f"IBKR Collector initialized - {self.host}:{self.port}")
+        logger.info(f"IBKR Collector initialized - {self.host}:{self.port} with clientId={self.client_id}")
     
     def connect(self) -> bool:
         """Connect to IB Gateway/TWS"""
