@@ -122,25 +122,33 @@ Pour plus de détails, consultez `CELERY_SETUP.md`
 
 Le système de collecte de données fonctionne maintenant en arrière-plan grâce à Celery + Redis !
 
-#### Lancer l'application (Windows)
-```bash
-# Option automatique
-start_with_celery.bat
+#### 🚀 Lancer l'application (Windows) - SIMPLE
 
-# Option manuelle (3 terminaux)
+**Double-cliquez sur `startBoursicotor.bat`** - Le script lance automatiquement :
+- ✅ Redis (broker de messages)
+- ✅ Celery Worker (exécuteur de jobs)
+- ✅ Streamlit (interface web)
+
+**Pour arrêter proprement tous les services :**
+Double-cliquez sur `stopBoursicotor.bat`
+
+#### Lancement manuel (si vous préférez le contrôle total)
+```bash
 # Terminal 1 : Redis
 redis-server
 
 # Terminal 2 : Celery Worker
-celery -A backend.celery_config worker --loglevel=info --pool=solo
+celery -A backend.tasks worker --loglevel=info --pool=solo
 
 # Terminal 3 : Streamlit
 streamlit run frontend/app.py
 ```
 
+**⚠️ IMPORTANT** : Les 3 services doivent rester ouverts pour que la collecte asynchrone fonctionne !
+
 #### Lancer Flower (monitoring web optionnel)
 ```bash
-celery -A backend.celery_config flower
+celery -A backend.tasks flower
 # Ouvrir http://localhost:5555
 ```
 

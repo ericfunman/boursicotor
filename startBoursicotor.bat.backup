@@ -40,14 +40,6 @@ if not exist ".env" (
 
 echo [2/4] Configuration detectee
 
-REM Empecher la mise en veille pendant l'execution
-echo [INFO] Desactivation temporaire de la mise en veille...
-powercfg /change standby-timeout-ac 0
-powercfg /change standby-timeout-dc 0
-powercfg /change monitor-timeout-ac 0
-powercfg /change monitor-timeout-dc 0
-echo [OK] Mise en veille desactivee (sera restauree a l'arret)
-
 REM Definir le chemin vers Redis
 set REDIS_PATH=C:\redis\redis-server.exe
 
@@ -58,6 +50,7 @@ if "%ERRORLEVEL%"=="0" (
     echo [OK] Redis est deja en cours d'execution
 ) else (
     echo [INFO] Lancement de Redis...
+    
     if exist "%REDIS_PATH%" (
         start "Redis Server - Boursicotor" "%REDIS_PATH%"
         timeout /t 2 /nobreak >NUL
@@ -71,7 +64,7 @@ if "%ERRORLEVEL%"=="0" (
         echo Redis n'a pas ete trouve a: %REDIS_PATH%
         echo.
         echo Veuillez verifier l'installation de Redis
-        echo ou modifier le chemin dans ce script ^(ligne 44^).
+        echo ou modifier le chemin dans ce script (ligne 31).
         echo.
         pause
         exit /b 1
@@ -98,8 +91,8 @@ echo  URL: http://localhost:8501
 echo ========================================
 echo.
 echo IMPORTANT:
-echo - Redis Server: Terminal separe ^(NE PAS FERMER^)
-echo - Celery Worker: Terminal separe ^(NE PAS FERMER^)
+echo - Redis Server: Terminal separe (NE PAS FERMER)
+echo - Celery Worker: Terminal separe (NE PAS FERMER)
 echo - Streamlit: Cette fenetre
 echo.
 echo Appuyez sur Ctrl+C pour arreter Streamlit uniquement
