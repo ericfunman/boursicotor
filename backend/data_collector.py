@@ -7,20 +7,11 @@ import pandas as pd
 from sqlalchemy.orm import Session
 
 from backend.models import Ticker, HistoricalData, SessionLocal
-from backend.config import logger, DATA_CONFIG, ALPHA_VANTAGE_API_KEY, POLYGON_API_KEY
+from backend.config import logger, DATA_CONFIG
 
 # IBKR client is optional - will use mock data if not available
 IBKR_AVAILABLE = False
 ibkr_client = None
-
-# Saxo Bank client
-SAXO_AVAILABLE = False
-try:
-    from brokers.saxo_client import SaxoClient
-    SAXO_AVAILABLE = True
-    logger.info("✅ Saxo Bank client available")
-except Exception as e:
-    logger.warning(f"⚠️ Saxo Bank not available: {e}")
 
 # Yahoo Finance client
 YAHOO_AVAILABLE = False
@@ -30,24 +21,6 @@ try:
     logger.info("✅ Yahoo Finance client available")
 except Exception as e:
     logger.warning(f"⚠️ Yahoo Finance not available: {e}")
-
-# Alpha Vantage client
-ALPHA_VANTAGE_AVAILABLE = False
-try:
-    from alpha_vantage.timeseries import TimeSeries
-    ALPHA_VANTAGE_AVAILABLE = True
-    logger.info("✅ Alpha Vantage client available")
-except Exception as e:
-    logger.warning(f"⚠️ Alpha Vantage not available: {e}")
-
-# Polygon.io client
-POLYGON_AVAILABLE = False
-try:
-    from polygon import RESTClient
-    POLYGON_AVAILABLE = True
-    logger.info("✅ Polygon.io client available")
-except Exception as e:
-    logger.warning(f"⚠️ Polygon.io not available: {e}")
 
 
 class DataCollector:

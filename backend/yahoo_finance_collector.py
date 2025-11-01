@@ -115,7 +115,8 @@ class YahooFinanceCollector:
         self,
         symbol: str,
         name: str,
-        df: pd.DataFrame
+        df: pd.DataFrame,
+        progress_callback=None
     ) -> int:
         """
         Store data in database
@@ -124,6 +125,7 @@ class YahooFinanceCollector:
             symbol: Ticker symbol
             name: Company name
             df: DataFrame with historical data
+            progress_callback: Optional callback(current, total) for progress updates
             
         Returns:
             Number of records inserted
@@ -143,8 +145,13 @@ class YahooFinanceCollector:
                 logger.info(f"✅ Created ticker: {symbol}")
             
             inserted = 0
+            total_rows = len(df)
             
-            for timestamp, row in df.iterrows():
+            for idx, (timestamp, row) in enumerate(df.iterrows()):
+                # Update progress
+                if progress_callback:
+                    progress_callback(idx + 1, total_rows)
+                
                 # Convert timestamp to datetime
                 if isinstance(timestamp, pd.Timestamp):
                     timestamp = timestamp.to_pydatetime()
@@ -224,7 +231,7 @@ class YahooFinanceCollector:
             logger.info(f"📥 Single request for {symbol}: {period} @ {interval}")
             df = self.fetch_historical_data(symbol, period, interval)
             if df is not None:
-                return self.store_to_database(symbol, name, df)
+                return self.store_to_database(symbol, name, df, progress_callback)
             return 0
         
         # Chunking required
@@ -262,7 +269,7 @@ class YahooFinanceCollector:
             df = self._fetch_with_dates(symbol, actual_start, chunk_end, interval)
             
             if df is not None and not df.empty:
-                inserted = self.store_to_database(symbol, name, df)
+                inserted = self.store_to_database(symbol, name, df, progress_callback)
                 total_inserted += inserted
                 logger.info(f"   ✅ Chunk {chunk_idx + 1}: {inserted} records inserted")
             else:
@@ -344,7 +351,8 @@ class YahooFinanceCollector:
         symbol: str,
         name: str,
         period: str = "1y",
-        interval: str = "1d"
+        interval: str = "1d",
+        progress_callback=None
     ) -> int:
         """
         Fetch and store historical data in one operation
@@ -354,13 +362,14 @@ class YahooFinanceCollector:
             name: Company name
             period: Data period
             interval: Data interval
+            progress_callback: Optional callback(current, total) for progress updates
             
         Returns:
             Number of records inserted
         """
         df = self.fetch_historical_data(symbol, period, interval)
         if df is not None:
-            return self.store_to_database(symbol, name, df)
+            return self.store_to_database(symbol, name, df, progress_callback)
         return 0
     
     @staticmethod

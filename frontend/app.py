@@ -50,10 +50,6 @@ def get_available_tickers():
     finally:
         db.close()
 
-# Saxo Bank client is optional
-SAXO_AVAILABLE = False
-saxo_client = None
-
 # Page configuration
 st.set_page_config(
     page_title="Boursicotor - Trading Algorithmique",
@@ -82,30 +78,6 @@ def main():
     st.title("🚀 Boursicotor - Plateforme de Trading Algorithmique")
     st.markdown("---")
     
-    # Initialize session state for Saxo client
-    if 'saxo_client' not in st.session_state:
-        st.session_state.saxo_client = None
-        st.session_state.saxo_connected = False
-        # Try to load existing tokens (lazy loading)
-        try:
-            with open('.saxo_tokens', 'r') as f:
-                lines = f.readlines()
-                if lines:
-                    # Import SaxoClient only when needed
-                    try:
-                        from brokers.saxo_client import SaxoClient
-                        st.session_state.saxo_client = SaxoClient()
-                        access_token = lines[0].split('=')[1].strip()
-                        st.session_state.saxo_client.access_token = access_token
-                        st.session_state.saxo_client.connected = True
-                        st.session_state.saxo_connected = True
-                        logger.info("✅ Saxo tokens loaded from file")
-                    except ImportError as ie:
-                        logger.debug(f"Saxo client not available: {ie}")
-        except FileNotFoundError:
-            pass  # No tokens file, normal on first run
-        except Exception as e:
-            logger.debug(f"Could not load Saxo tokens: {e}")
     
     # Sidebar
     with st.sidebar:
@@ -120,41 +92,9 @@ def main():
         
         st.markdown("---")
         
-        # Connection status
+        # Connection status - IBKR only
         st.subheader("État des connexions")
-        
-        # Saxo Bank connection
-        if SAXO_AVAILABLE:
-            if st.session_state.saxo_connected:
-                st.success("✅ Saxo Bank Connecté")
-                if st.button("🔄 Renouveler connexion Saxo"):
-                    st.info("⚠️ Exécutez: python authenticate_saxo.py")
-            else:
-                st.warning("⚠️ Saxo Bank Déconnecté")
-                st.info("📝 Pour vous connecter:\n1. Fermez Streamlit\n2. Exécutez: python authenticate_saxo.py\n3. Relancez Streamlit")
-        
-        # IBKR connection (legacy)
-        if IBKR_AVAILABLE and ibkr_client:
-            if st.button("🔌 Connecter à IBKR"):
-                with st.spinner("Connexion en cours..."):
-                    if ibkr_client.connect():
-                        st.success("✅ Connecté à Interactive Brokers")
-                    else:
-                        st.error("❌ Échec de la connexion")
-            
-            if ibkr_client.connected:
-                st.success("✅ IBKR Connecté")
-            else:
-                st.warning("⚠️ IBKR Déconnecté")
-        
-        # Show data source
-        st.markdown("---")
-        if st.session_state.saxo_connected:
-            st.info("📡 Source: **Saxo Bank API**")
-        elif IBKR_AVAILABLE and ibkr_client and ibkr_client.connected:
-            st.info("📡 Source: **Interactive Brokers**")
-        else:
-            st.info("📡 Source: **Données simulées**")
+        st.info("� IBKR: Connexion via IB Gateway\n� Yahoo Finance: Disponible")
     
     # Route to selected page
     if page == "📊 Dashboard":
@@ -219,115 +159,243 @@ def data_collection_page():
     with col_source1:
         data_source = st.radio(
             "Choisir la source",
-            ["🏦 Saxo Bank (Temps Réel)", "📊 Yahoo Finance (Historique)", "📈 Alpha Vantage (Historique)", "🔷 Polygon.io (Temps Réel)"],
-            help="Saxo Bank: Prix temps réel simulés | Yahoo Finance: Historique massif réel | Alpha Vantage: Historique détaillé | Polygon.io: Données temps réel"
+            ["💼 IBKR / Lynx (Temps Réel)", "📊 Yahoo Finance (Historique)"],
+            index=0,  # IBKR par défaut
+            help="IBKR/Lynx: Données temps réel via IB Gateway | Yahoo Finance: Données historiques"
         )
     
     with col_source2:
-        if data_source == "🏦 Saxo Bank (Temps Réel)":
-            st.info("**Saxo Bank**\n- ✅ Prix temps réel\n- ⚠️ Données simulées (mode démo)\n- 📊 Limite: 1,200 points")
-        elif data_source == "📊 Yahoo Finance (Historique)":
-            st.success("**Yahoo Finance**\n- ✅ Données réelles\n- ✅ Historique massif (26+ ans)\n- 📊 Aucune limite stricte")
-        elif data_source == "📈 Alpha Vantage (Historique)":
-            st.success("**Alpha Vantage**\n- ✅ Données réelles\n- ✅ Historique détaillé (20+ ans)\n- 📊 Limite: 5 appels/min, 500/jour")
-        else:  # Polygon.io
-            st.success("**Polygon.io**\n- ✅ Données temps réel\n- ✅ API moderne et rapide\n- 📊 Limite: 5 appels/min, 2M/jour")
+        if data_source == "💼 IBKR / Lynx (Temps Réel)":
+            st.success("**IBKR / Lynx**\n- ✅ Données réelles temps réel\n- ✅ Via IB Gateway\n- 📊 Aucune limite API\n- ⚡ Latence minimale")
+        else:  # Yahoo Finance
+            st.info("**Yahoo Finance**\n- ✅ Données réelles\n- ✅ Historique massif (26+ ans)\n- ⚠️ Délai de 15 minutes")
     
+    use_ibkr = data_source == "💼 IBKR / Lynx (Temps Réel)"
     use_yahoo = data_source == "📊 Yahoo Finance (Historique)"
-    use_alpha_vantage = data_source == "📈 Alpha Vantage (Historique)"
-    use_polygon = data_source == "🔷 Polygon.io (Temps Réel)"
     
     st.markdown("---")
-    
-    # Search section (available for both sources)
-    st.subheader("🔍 Recherche d'actions françaises")
-    
-    col_search1, col_search2 = st.columns([3, 1])
-    
-    with col_search1:
-        search_query = st.text_input(
-            "Rechercher une action (ticker ou nom)",
-            placeholder="Ex: GLE, Société Générale, LVMH, MC...",
-            help="Entrez le ticker (ex: GLE) ou le nom de la société (ex: Société Générale)"
-        )
-    
-    with col_search2:
-        search_button = st.button("🔍 Rechercher", type="secondary", use_container_width=True)
-    
-    # Initialize session state for search results
-    if 'search_results' not in st.session_state:
-        st.session_state.search_results = []
-    if 'selected_stock' not in st.session_state:
-        st.session_state.selected_stock = None
-    
-    # Perform search
-    if search_button and search_query:
-        with st.spinner(f"Recherche de '{search_query}'..."):
-            try:
-                from backend.saxo_search import SaxoInstrumentSearch
-                searcher = SaxoInstrumentSearch()
-                st.session_state.search_results = searcher.search_french_stocks(search_query, limit=10)
-                
-                if st.session_state.search_results:
-                    st.success(f"✅ {len(st.session_state.search_results)} résultat(s) trouvé(s)")
-                else:
-                    st.warning("⚠️ Aucune action française trouvée pour cette recherche")
-            except Exception as e:
-                st.error(f"❌ Erreur lors de la recherche: {e}")
-                logger.error(f"Search error: {e}")
-        
-        # Display search results
-        if st.session_state.search_results:
-            st.markdown("---")
-            st.markdown("**📋 Résultats de recherche:**")
-            
-            # Create a selection list
-            for i, stock in enumerate(st.session_state.search_results):
-                col_result1, col_result2 = st.columns([4, 1])
-                
-                with col_result1:
-                    st.markdown(f"""
-                    **{stock['ticker']}** - {stock['name']}  
-                    <small>Exchange: {stock['exchange']} | Currency: {stock['currency']} | UIC: {stock['uic']}</small>
-                    """, unsafe_allow_html=True)
-                
-                with col_result2:
-                    if st.button("Sélectionner", key=f"select_{i}", use_container_width=True):
-                        st.session_state.selected_stock = stock
-                        st.rerun()
-        
-        st.markdown("---")
     
     col1, col2 = st.columns(2)
     
     with col1:
         st.subheader("📥 Récupération de données historiques")
         
-        # Ticker selection - either from search or predefined list
-        if st.session_state.selected_stock:
-            st.info(f"🎯 **Action sélectionnée:** {st.session_state.selected_stock['ticker']} - {st.session_state.selected_stock['name']}")
-            selected_ticker = st.session_state.selected_stock['ticker']
-            selected_name = st.session_state.selected_stock['name']
+        # Ticker search and selection
+        st.markdown("### 🔍 Recherche de Ticker")
+        
+        # Search mode selection
+        search_mode = st.radio(
+            "Mode de recherche",
+            ["📋 Liste existante", "🔎 Recherche IBKR"],
+            horizontal=True,
+            help="Choisissez parmi les tickers existants ou recherchez de nouvelles actions via IBKR"
+        )
+        
+        if search_mode == "📋 Liste existante":
+            # Get tickers from database
+            available_tickers = get_available_tickers()
             
-            if st.button("❌ Effacer la sélection"):
-                st.session_state.selected_stock = None
-                st.session_state.search_results = []
-                st.rerun()
+            if not available_tickers:
+                st.warning("⚠️ Aucun ticker en base de données. Utilisez la recherche IBKR pour ajouter des actions.")
+                selected_ticker = None
+                selected_name = None
+            else:
+                # Filter existing tickers
+                search_term = st.text_input(
+                    "Filtrer les tickers",
+                    placeholder="Ex: Air Liquide, TTE, Total...",
+                    help="Tapez pour filtrer la liste des tickers déjà collectés"
+                )
+                
+                if search_term:
+                    search_lower = search_term.lower()
+                    filtered_items = {
+                        ticker: name 
+                        for ticker, name in available_tickers.items() 
+                        if search_lower in ticker.lower() or search_lower in name.lower()
+                    }
+                else:
+                    filtered_items = available_tickers
+                
+                # Show filtered results
+                if filtered_items:
+                    ticker_options = list(filtered_items.keys())
+                    selected_ticker = st.selectbox(
+                        "Sélectionner le ticker",
+                        ticker_options,
+                        format_func=lambda x: f"{x} - {filtered_items[x]}",
+                        help=f"{len(filtered_items)} ticker(s) en base de données"
+                    )
+                    selected_name = filtered_items[selected_ticker]
+                else:
+                    st.warning("Aucun ticker trouvé. Essayez un autre terme de recherche.")
+                    selected_ticker = None
+                    selected_name = None
+        
         else:
-            # Fallback to predefined list
-            ticker_options = list(FRENCH_TICKERS.keys())
-            selected_ticker = st.selectbox(
-                "Ticker",
-                ticker_options,
-                format_func=lambda x: f"{x} - {FRENCH_TICKERS[x]}"
+            # IBKR Search mode
+            st.info("🔎 Recherchez une action sur IBKR pour l'ajouter à votre liste")
+            
+            # Initialize session state for search results
+            if 'ibkr_search_results' not in st.session_state:
+                st.session_state.ibkr_search_results = []
+            if 'ibkr_selected_ticker' not in st.session_state:
+                st.session_state.ibkr_selected_ticker = None
+            if 'ibkr_selected_name' not in st.session_state:
+                st.session_state.ibkr_selected_name = None
+            
+            search_query = st.text_input(
+                "Rechercher une action",
+                placeholder="Ex: Air Liquide, Apple, Tesla...",
+                help="Entrez le nom de l'entreprise pour rechercher sur IBKR"
             )
-            selected_name = FRENCH_TICKERS[selected_ticker]
+            
+            if search_query and len(search_query) >= 2:
+                if st.button("🔍 Rechercher sur IBKR", type="primary"):
+                    with st.spinner(f"Recherche de '{search_query}' sur IBKR..."):
+                        try:
+                            # Initialize IBKR collector
+                            from backend.ibkr_collector import IBKRCollector
+                            collector = IBKRCollector()
+                            
+                            if collector.connect():
+                                # Search for contracts
+                                from ib_insync import Stock
+                                contracts = collector.ib.reqMatchingSymbols(search_query)
+                                
+                                if contracts:
+                                    # Filter for French stocks only
+                                    french_exchanges = ['SBF', 'EURONEXT', 'ENEXT.BE', 'AEB']
+                                    options = []
+                                    
+                                    for contract in contracts:
+                                        cd = contract.contract
+                                        
+                                        # Filter: only stocks (STK) on French/European exchanges
+                                        if (hasattr(cd, 'secType') and cd.secType == 'STK' and
+                                            hasattr(cd, 'symbol') and hasattr(cd, 'primaryExchange') and
+                                            cd.primaryExchange in french_exchanges):
+                                            
+                                            # Get company description if available
+                                            desc = contract.contract.longName if hasattr(contract.contract, 'longName') else search_query.title()
+                                            label = f"{cd.symbol} - {desc} ({cd.primaryExchange})"
+                                            options.append((label, cd.symbol, cd.primaryExchange, desc))
+                                    
+                                    if options:
+                                        st.session_state.ibkr_search_results = options
+                                        st.success(f"✅ {len(options)} action(s) française(s) trouvée(s)")
+                                    else:
+                                        st.session_state.ibkr_search_results = []
+                                        st.warning(f"❌ Aucune action française trouvée pour '{search_query}'. Essayez un autre terme ou utilisez la saisie manuelle ci-dessous.")
+                                else:
+                                    st.session_state.ibkr_search_results = []
+                                    st.warning("Aucun résultat trouvé. Essayez un autre terme.")
+                                
+                                collector.disconnect()
+                            else:
+                                st.error("❌ Impossible de se connecter à IBKR. Vérifiez que TWS/Gateway est lancé.")
+                        except Exception as e:
+                            st.error(f"❌ Erreur lors de la recherche : {str(e)}")
+            
+            # Display search results if available
+            selected_ticker = None
+            selected_name = None
+            
+            if st.session_state.ibkr_search_results:
+                options = st.session_state.ibkr_search_results
+                choice = st.selectbox(
+                    "Sélectionner une action",
+                    range(len(options)),
+                    format_func=lambda i: options[i][0],
+                    key="ibkr_ticker_choice"
+                )
+                
+                selected_ticker = options[choice][1]
+                selected_name = options[choice][3]
+                
+                st.success(f"✅ Ticker sélectionné : **{selected_ticker}** - {selected_name}")
+            
+            # Manual input fallback
+            if not selected_ticker:
+                st.markdown("---")
+                st.markdown("**Ou saisissez directement le ticker :**")
+                col_t1, col_t2 = st.columns([1, 2])
+                with col_t1:
+                    selected_ticker = st.text_input(
+                        "Ticker",
+                        placeholder="Ex: AI, AAPL, TSLA",
+                        help="Symbole du ticker"
+                    ).upper()
+                with col_t2:
+                    selected_name = st.text_input(
+                        "Nom",
+                        placeholder="Ex: Air Liquide S.A.",
+                        help="Nom de l'entreprise"
+                    )
         
         # Duration and interval options depend on source
-        if use_yahoo:
+        if use_ibkr:
+            # IBKR options
+            st.markdown("**IBKR / Lynx** - Périodes et intervalles")
+            st.info("💼 IBKR fournit des données temps réel sans limitation d'API")
+            
+            duration_options = {
+                "1 jour": "1 D",
+                "3 jours": "3 D",
+                "1 semaine": "1 W",
+                "2 semaines": "2 W",
+                "1 mois": "1 M",
+                "3 mois": "3 M",
+                "6 mois": "6 M",
+                "1 an": "1 Y",
+                "2 ans": "2 Y"
+            }
+            selected_duration = st.selectbox(
+                "Période",
+                list(duration_options.keys()),
+                index=4,  # Default: 1 mois
+                help="IBKR: Données temps réel et historiques"
+            )
+            period = duration_options[selected_duration]
+            
+            # Warning about sub-5-second intervals
+            st.warning("⚠️ **Important** : Les intervalles < 5 secondes ne sont disponibles que pour certaines actions très liquides (principalement US). Pour les actions européennes (TTE, AI, etc.), utilisez 5 secondes minimum.")
+            
+            # Interval options for IBKR
+            interval_options = {
+                "5 secondes": "5 secs",
+                "10 secondes": "10 secs",
+                "15 secondes": "15 secs",
+                "30 secondes": "30 secs",
+                "1 minute": "1 min",
+                "2 minutes": "2 mins",
+                "3 minutes": "3 mins",
+                "5 minutes": "5 mins",
+                "10 minutes": "10 mins",
+                "15 minutes": "15 mins",
+                "20 minutes": "20 mins",
+                "30 minutes": "30 mins",
+                "1 heure": "1 hour",
+                "2 heures": "2 hours",
+                "3 heures": "3 hours",
+                "4 heures": "4 hours",
+                "8 heures": "8 hours",
+                "1 jour": "1 day",
+                "1 semaine": "1 week",
+                "1 mois": "1 month"
+            }
+            selected_interval = st.selectbox(
+                "Intervalle",
+                list(interval_options.keys()),
+                index=4,  # Default: 1 minute
+                help="IBKR: Intervalles de 5 secondes à 1 mois (intervalles < 5s limités aux actions US très liquides)"
+            )
+            interval = interval_options[selected_interval]
+            
+        elif use_yahoo:
             # Yahoo Finance options
             st.markdown("**Yahoo Finance** - Périodes et intervalles")
-            st.info("📊 Yahoo Finance ne supporte pas les intervalles < 1 minute. Utilisez Saxo Bank pour des données à la seconde.")
+            st.info("📊 Yahoo Finance fournit des données historiques gratuites (délai 15min)")
             
             duration_options = {
                 "1 jour": "1d",
@@ -379,142 +447,6 @@ def data_collection_page():
             elif interval == "1h":
                 if selected_duration in ["2 ans", "5 ans", "10 ans", "Maximum"]:
                     st.warning("⚠️ Intervalle 1 heure: données limitées au-delà de quelques mois")
-                    
-        elif use_alpha_vantage:
-            # Alpha Vantage options
-            st.markdown("**Alpha Vantage** - Périodes et intervalles")
-            st.info("📈 Alpha Vantage fournit des données historiques détaillées avec limite de 5 appels/minute.")
-            
-            duration_options = {
-                "1 mois": "1M",
-                "3 mois": "3M", 
-                "6 mois": "6M",
-                "1 an": "1Y",
-                "2 ans": "2Y",
-                "5 ans": "5Y",
-                "10 ans": "10Y",
-                "20 ans": "20Y"
-            }
-            selected_duration = st.selectbox(
-                "Période",
-                list(duration_options.keys()),
-                index=3,  # Default: 1 an
-                help="Alpha Vantage: historique disponible selon le ticker"
-            )
-            period = duration_options[selected_duration]
-            
-            # Interval options for Alpha Vantage
-            interval_options = {
-                "1 minute": "1min",
-                "5 minutes": "5min",
-                "15 minutes": "15min",
-                "30 minutes": "30min",
-                "1 heure": "60min",
-                "1 jour": "1day"
-            }
-            selected_interval = st.selectbox(
-                "Intervalle",
-                list(interval_options.keys()),
-                index=4,  # Default: 1 heure
-                help="Alpha Vantage: données intraday limitées aux 1-2 derniers mois"
-            )
-            interval = interval_options[selected_interval]
-            
-            if interval != "1day" and selected_duration not in ["1 mois", "3 mois"]:
-                st.warning("⚠️ Données intraday limitées aux 1-2 derniers mois par Alpha Vantage")
-                
-        elif use_polygon:
-            # Polygon.io options
-            st.markdown("**Polygon.io** - Périodes et intervalles")
-            st.info("🔷 Polygon.io fournit des données temps réel avec limite de 5 appels/minute.")
-            
-            duration_options = {
-                "1 jour": "1D",
-                "3 jours": "3D",
-                "1 semaine": "1W", 
-                "2 semaines": "2W",
-                "1 mois": "1M",
-                "3 mois": "3M",
-                "6 mois": "6M"
-            }
-            selected_duration = st.selectbox(
-                "Période",
-                list(duration_options.keys()),
-                index=2,  # Default: 1 semaine
-                help="Polygon.io: données récentes avec historique limité"
-            )
-            period = duration_options[selected_duration]
-            
-            # Interval options for Polygon
-            interval_options = {
-                "1 minute": "1min",
-                "5 minutes": "5min",
-                "15 minutes": "15min",
-                "30 minutes": "30min",
-                "1 heure": "1hour",
-                "1 jour": "1day"
-            }
-            selected_interval = st.selectbox(
-                "Intervalle",
-                list(interval_options.keys()),
-                index=0,  # Default: 1 minute
-                help="Polygon.io: support complet des intervalles"
-            )
-            interval = interval_options[selected_interval]
-        
-        else:
-            # Saxo Bank options
-            st.markdown("**Saxo Bank** - Durées et intervalles")
-            st.info("⚡ Saxo Bank supporte les intervalles à la seconde (1s, 5s, 10s, 30s) mais données simulées en mode démo.")
-            
-            duration_options = {
-                "1 heure": "1H",
-                "4 heures": "4H",
-                "1 jour": "1D",
-                "2 jours": "2D",
-                "3 jours": "3D",
-                "5 jours": "5D",
-                "1 semaine": "1W",
-                "2 semaines": "2W",
-                "1 mois": "1M",
-                "2 mois": "2M",
-                "3 mois": "3M",
-                "6 mois": "6M",
-                "1 an": "1Y"
-            }
-            selected_duration = st.selectbox(
-                "Durée",
-                list(duration_options.keys()),
-                index=4  # Default: 3 jours
-            )
-            duration = duration_options[selected_duration]
-            
-            # Bar size
-            bar_size_options = {
-                "1 seconde": "1sec",
-                "5 secondes": "5sec",
-                "10 secondes": "10sec",
-                "30 secondes": "30sec",
-                "1 minute": "1min",
-                "2 minutes": "2min",
-                "3 minutes": "3min",
-                "5 minutes": "5min",
-                "10 minutes": "10min",
-                "15 minutes": "15min",
-                "30 minutes": "30min",
-                "1 heure": "1hour",
-                "2 heures": "2hour",
-                "4 heures": "4hour",
-                "1 jour": "1day",
-                "1 semaine": "1week"
-            }
-            selected_bar_size = st.selectbox(
-                "Intervalle",
-                list(bar_size_options.keys()),
-                index=4  # Default: 1 minute
-            )
-            bar_size = bar_size_options[selected_bar_size]
-        
         # Collect button
         if st.button("📊 Collecter les données", type="primary", use_container_width=True):
             
@@ -563,75 +495,90 @@ def data_collection_page():
                             st.warning(f"⚠️ Aucune donnée disponible pour {selected_ticker}. Vérifiez le ticker ou les paramètres de période/intervalle.")
                     finally:
                         db.close()
-                        
-            elif use_alpha_vantage:
-                # Alpha Vantage collection
-                with st.spinner(f"Collecte depuis Alpha Vantage pour {selected_ticker}..."):
-                    from backend.data_collector import DataCollector
-                    
-                    collector = DataCollector(use_saxo=False)  # Don't use Saxo for Alpha Vantage
-                    inserted = collector.collect_historical_data(
-                        symbol=selected_ticker,
-                        name=selected_name,
-                        duration=period,
-                        bar_size=interval
-                    )
-                    
-                    if inserted > 0:
-                        st.success(f"✅ {inserted} nouveaux enregistrements ajoutés depuis Alpha Vantage !")
-                        st.info(f"📈 Source: Alpha Vantage | Période: {selected_duration} | Intervalle: {selected_interval}")
-                    else:
-                        st.warning(f"⚠️ Aucune donnée récupérée depuis Alpha Vantage pour {selected_ticker}")
-                        
-            elif use_polygon:
-                # Polygon.io collection
-                with st.spinner(f"Collecte depuis Polygon.io pour {selected_ticker}..."):
-                    from backend.data_collector import DataCollector
-                    
-                    collector = DataCollector(use_saxo=False)  # Don't use Saxo for Polygon
-                    inserted = collector.collect_historical_data(
-                        symbol=selected_ticker,
-                        name=selected_name,
-                        duration=period,
-                        bar_size=interval
-                    )
-                    
-                    if inserted > 0:
-                        st.success(f"✅ {inserted} nouveaux enregistrements ajoutés depuis Polygon.io !")
-                        st.info(f"🔷 Source: Polygon.io | Période: {selected_duration} | Intervalle: {selected_interval}")
-                    else:
-                        st.warning(f"⚠️ Aucune donnée récupérée depuis Polygon.io pour {selected_ticker}")
             
-            else:
-                # Saxo Bank collection
-                with st.spinner(f"Collecte en cours pour {selected_ticker}..."):
-                    from backend.data_collector import DataCollector
-                    
-                    collector = DataCollector(use_saxo=True)
-                    inserted = collector.collect_historical_data(
-                        symbol=selected_ticker,
-                        name=selected_name,
-                        duration=duration,
-                        bar_size=bar_size
-                    )
-                    
-                    if inserted > 0:
-                        st.success(f"✅ {inserted} nouveaux enregistrements ajoutés depuis Saxo Bank !")
-                        st.info(f"📊 Source: Saxo Bank (simulé) | Durée: {selected_duration} | Intervalle: {selected_bar_size}")
-                    else:
-                        # Check if ticker exists in database
-                        from backend.models import SessionLocal, Ticker, HistoricalData
-                        db = SessionLocal()
-                        try:
-                            ticker_obj = db.query(Ticker).filter(Ticker.symbol == selected_ticker).first()
-                            if ticker_obj:
-                                count = db.query(HistoricalData).filter(HistoricalData.ticker_id == ticker_obj.id).count()
-                                st.info(f"ℹ️ Aucune nouvelle donnée. {count} enregistrements déjà présents en base pour {selected_ticker}")
+            elif use_ibkr:
+                # IBKR collection
+                with st.spinner(f"Collecte depuis IBKR pour {selected_ticker}..."):
+                    try:
+                        from backend.ibkr_collector import IBKRCollector
+                        
+                        collector = IBKRCollector()
+                        
+                        # Connect to IBKR
+                        if not collector.connect():
+                            st.error("❌ Impossible de se connecter à IB Gateway")
+                            st.info("Vérifiez que IB Gateway est démarré et que l'API est activée")
+                        else:
+                            # Map selected values to database format
+                            interval_db_map = {
+                                "5 secondes": "5sec",
+                                "10 secondes": "10sec",
+                                "15 secondes": "15sec",
+                                "30 secondes": "30sec",
+                                "1 minute": "1min",
+                                "2 minutes": "2min",
+                                "3 minutes": "3min",
+                                "5 minutes": "5min",
+                                "10 minutes": "10min",
+                                "15 minutes": "15min",
+                                "20 minutes": "20min",
+                                "30 minutes": "30min",
+                                "1 heure": "1h",
+                                "2 heures": "2h",
+                                "3 heures": "3h",
+                                "4 heures": "4h",
+                                "8 heures": "8h",
+                                "1 jour": "1day",
+                                "1 semaine": "1week",
+                                "1 mois": "1month"
+                            }
+                            
+                            db_interval = interval_db_map.get(selected_interval, "1min")
+                            
+                            # Progress indicators
+                            progress_bar = st.progress(0)
+                            status_text = st.empty()
+                            
+                            # Progress callback
+                            def update_progress(current, total):
+                                progress = current / total
+                                progress_bar.progress(progress)
+                                status_text.text(f"💾 Enregistrement en base de données: {current}/{total} ({int(progress*100)}%)")
+                            
+                            # Collect and save
+                            result = collector.collect_and_save(
+                                symbol=selected_ticker,
+                                duration=period,
+                                bar_size=interval,
+                                interval=db_interval,
+                                name=selected_name,
+                                progress_callback=update_progress
+                            )
+                            
+                            # Clear progress indicators
+                            progress_bar.empty()
+                            status_text.empty()
+                            
+                            # Disconnect
+                            collector.disconnect()
+                            
+                            if result['success']:
+                                st.success(f"✅ {result['new_records']} nouveaux enregistrements ajoutés depuis IBKR !")
+                                if result['updated_records'] > 0:
+                                    st.info(f"🔄 {result['updated_records']} enregistrements mis à jour")
+                                st.info(f"📊 Source: IBKR | Période: {selected_duration} | Intervalle: {selected_interval}")
+                                st.caption(f"📅 Période des données: {result['date_range']}")
                             else:
-                                st.warning(f"⚠️ Aucune donnée disponible pour {selected_ticker}. Données simulées car Chart API indisponible en mode démo.")
-                        finally:
-                            db.close()
-
+                                st.error(f"❌ Erreur: {result.get('error', 'Erreur inconnue')}")
+                    
+                    except ImportError:
+                        st.error("❌ Module ib_insync non installé")
+                        st.code("pip install ib_insync")
+                    except Exception as e:
+                        st.error(f"❌ Erreur lors de la collecte IBKR: {e}")
+                        import traceback
+                        with st.expander("Détails de l'erreur"):
+                            st.code(traceback.format_exc())
     
     with col2:
         st.subheader("📊 Données en base")
@@ -783,8 +730,8 @@ def data_collection_page():
                             limit_records = st.number_input(
                                 "Limiter le nombre d'enregistrements source",
                                 min_value=10,
-                                max_value=max_limit,
-                                value=min(1000, max_limit),
+                                max_value=max(max_limit, 10),  # Ensure max >= min
+                                value=max(min(1000, max_limit), 10),  # Ensure value >= min_value
                                 step=100,
                                 help=f"Pour éviter la surcharge, limitez le nombre d'enregistrements à traiter ({source_count:,} disponibles)"
                             )
@@ -2757,8 +2704,22 @@ def trading_page():
         col_order1, col_order2 = st.columns([2, 1])
         
         with col_order1:
-            # Symbol input
-            symbol = st.text_input("Symbole", value="WLN", help="Ex: WLN, TTE, GLE, MC")
+            # Get available tickers from database
+            available_tickers = get_available_tickers()
+            
+            if not available_tickers:
+                st.warning("⚠️ Aucun ticker en base. Ajoutez des actions via la recherche IBKR dans l'onglet 'Collecte de Données'.")
+                symbol = st.text_input("Symbole (saisie manuelle)", value="WLN", help="Ex: WLN, TTE, GLE, MC")
+            else:
+                # Symbol selection from available tickers
+                ticker_options = list(available_tickers.keys())
+                selected_ticker = st.selectbox(
+                    "Action",
+                    ticker_options,
+                    format_func=lambda x: f"{x} - {available_tickers[x]}",
+                    help="Sélectionnez une action depuis votre base de données"
+                )
+                symbol = selected_ticker
             
             # Order details
             col_qty, col_action = st.columns(2)
@@ -2923,50 +2884,18 @@ def settings_page():
     """Settings page"""
     st.header("⚙️ Paramètres")
     
-    st.subheader("🏦 Configuration Saxo Bank")
+    st.subheader("💼 Configuration IBKR / Lynx")
     
-    # Saxo Bank connection info
+    # IBKR connection info
     col1, col2 = st.columns(2)
     
     with col1:
-        st.text_input("Base URL", value=os.getenv("SAXO_BASE_URL", "https://gateway.saxobank.com/sim/openapi"), disabled=True)
-        st.text_input("App Key", value=os.getenv("SAXO_APP_KEY", "")[:20] + "...", disabled=True, type="password")
+        st.text_input("Host", value=os.getenv("IBKR_HOST", "127.0.0.1"), disabled=True)
+        st.text_input("Port", value=os.getenv("IBKR_PORT", "4002"), disabled=True)
     
     with col2:
-        st.text_input("Auth URL", value=os.getenv("SAXO_AUTH_URL", "https://sim.logonvalidation.net"), disabled=True)
-        st.text_input("Redirect URI", value=os.getenv("SAXO_REDIRECT_URI", "http://localhost:8501/callback"), disabled=True)
-    
-    # Connection status
-    st.markdown("---")
-    st.subheader("📡 État de la connexion")
-    
-    if st.session_state.saxo_connected:
-        st.success("✅ Connecté à Saxo Bank (Mode Simulation)")
-        
-        # Token info
-        try:
-            with open('.saxo_tokens', 'r') as f:
-                lines = f.readlines()
-                if len(lines) >= 3:
-                    expires_at_str = lines[2].split('=')[1].strip()
-                    from datetime import datetime
-                    expires_at = datetime.fromisoformat(expires_at_str)
-                    time_left = expires_at - datetime.now()
-                    
-                    if time_left.total_seconds() > 0:
-                        hours_left = int(time_left.total_seconds() // 3600)
-                        minutes_left = int((time_left.total_seconds() % 3600) // 60)
-                        st.info(f"⏱️ Token expire dans : {hours_left}h {minutes_left}min")
-                    else:
-                        st.warning("⚠️ Token expiré - Veuillez vous reconnecter")
-        except Exception as e:
-            st.warning("⚠️ Impossible de lire les informations du token")
-        
-        if st.button("🔄 Renouveler l'authentification"):
-            st.info("Pour renouveler l'authentification :\n1. Fermez Streamlit\n2. Exécutez: `python authenticate_saxo.py`\n3. Relancez Streamlit")
-    else:
-        st.error("❌ Non connecté à Saxo Bank")
-        st.info("Pour vous connecter :\n1. Fermez Streamlit\n2. Exécutez: `python authenticate_saxo.py`\n3. Suivez les instructions\n4. Relancez Streamlit")
+        st.text_input("Client ID", value=os.getenv("IBKR_CLIENT_ID", "1"), disabled=True)
+        st.text_input("Account", value=os.getenv("IBKR_ACCOUNT", ""), disabled=True)
     
     st.markdown("---")
     
@@ -2975,7 +2904,7 @@ def settings_page():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.checkbox("Mode Simulation", value=True, disabled=True, help="Mode simulation Saxo Bank activé par défaut")
+        st.checkbox("Mode Simulation", value=True, disabled=True, help="Mode simulation activé par défaut pour éviter les trades réels accidentels")
         st.number_input("Taille maximale de position (€)", value=10000, step=1000)
     
     with col2:
@@ -2989,12 +2918,12 @@ def settings_page():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.number_input("Délai entre requêtes (secondes)", value=1, min_value=0, max_value=10, help="Délai pour éviter le rate limiting de l'API Saxo Bank")
+        st.number_input("Délai entre requêtes (secondes)", value=1, min_value=0, max_value=10, help="Délai pour éviter le rate limiting des APIs")
     
     with col2:
-        st.checkbox("Utiliser données simulées si API échoue", value=True, help="Génère des données réalistes si l'API Chart n'est pas disponible")
+        st.checkbox("Utiliser données simulées si API échoue", value=True, help="Génère des données réalistes si l'API n'est pas disponible")
     
-    st.info("ℹ️ **Limite API Saxo Bank** : Maximum 1200 points par requête (contrainte de l'API)")
+    st.info("ℹ️ **IBKR** : Pas de limite API pour les données historiques | **Yahoo Finance** : Gratuit avec délai de 15 minutes")
     
     if st.button("💾 Sauvegarder les paramètres"):
         st.success("✅ Paramètres sauvegardés")
