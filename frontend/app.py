@@ -681,6 +681,7 @@ def data_collection_page():
                     # Create Yahoo Finance job
                     job = job_manager.create_job(
                         ticker_symbol=selected_ticker,
+                        ticker_name=selected_name,
                         source="yahoo_finance",
                         duration=selected_duration,
                         interval=selected_interval
@@ -742,6 +743,7 @@ def data_collection_page():
                         # Create IBKR job
                         job = job_manager.create_job(
                             ticker_symbol=selected_ticker,
+                            ticker_name=selected_name,
                             source="ibkr",
                             duration=selected_duration,
                             interval=selected_interval
