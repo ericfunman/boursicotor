@@ -199,7 +199,7 @@ class JobManager:
                 )
             ).filter(DataCollectionJob.status == JobStatus.COMPLETED).scalar()
             
-            stats['avg_completion_time_seconds'] = int(avg_time) if avg_time else 0
+            stats['average_completion_time'] = int(avg_time) if avg_time else 0
             
             return stats
             
