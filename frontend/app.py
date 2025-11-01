@@ -132,11 +132,15 @@ def main():
     """Main application"""
     st.title("🚀 Boursicotor - Plateforme de Trading Algorithmique")
     
-    # Global progress banner for active jobs
+    # Global progress banner for active jobs (with caching to avoid blocking)
     try:
-        from backend.job_manager import JobManager
-        job_manager = JobManager()
-        active_jobs = job_manager.get_active_jobs()
+        @st.cache_data(ttl=3)  # Cache for 3 seconds to avoid DB blocking
+        def get_cached_active_jobs():
+            from backend.job_manager import JobManager
+            job_manager = JobManager()
+            return job_manager.get_active_jobs()
+        
+        active_jobs = get_cached_active_jobs()
         
         if active_jobs:
             with st.container():
