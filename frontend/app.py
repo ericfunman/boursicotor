@@ -128,19 +128,26 @@ def disconnect_global_ibkr():
         st.session_state.global_ibkr_connected = False
 
 
+@st.cache_data(ttl=3)  # Cache for 3 seconds to avoid DB blocking
+def get_cached_active_jobs():
+    """Get active jobs with caching to avoid blocking UI"""
+    try:
+        from backend.job_manager import JobManager
+        job_manager = JobManager()
+        return job_manager.get_active_jobs()
+    except:
+        return []
+
+
 def main():
     """Main application"""
     st.title("🚀 Boursicotor - Plateforme de Trading Algorithmique")
     
-    # Global progress banner for active jobs (with caching to avoid blocking)
-    try:
-        @st.cache_data(ttl=3)  # Cache for 3 seconds to avoid DB blocking
-        def get_cached_active_jobs():
-            from backend.job_manager import JobManager
-            job_manager = JobManager()
-            return job_manager.get_active_jobs()
-        
-        active_jobs = get_cached_active_jobs()
+    # Global progress banner for active jobs - TEMPORARILY DISABLED FOR DEBUGGING
+    # TODO: Re-enable once navigation issue is fixed
+    if False:  # Disabled for debugging
+        try:
+            active_jobs = get_cached_active_jobs()
         
         if active_jobs:
             with st.container():
