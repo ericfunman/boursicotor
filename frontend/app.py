@@ -2020,6 +2020,50 @@ def live_prices_page():
                     st.warning(f"⚠️ Impossible d'afficher les détails de la stratégie: {e}")
 
         
+        # Data source selection
+        st.markdown("---")
+        st.subheader("📡 Source de Données")
+        
+        col_source1, col_source2 = st.columns([2, 1])
+        
+        with col_source1:
+            data_source = st.radio(
+                "Choisir la source",
+                ["Yahoo Finance (Délai 15min)", "IBKR (Temps Réel)"],
+                help="Yahoo Finance: Données gratuites avec délai | IBKR: Données temps réel via IB Gateway"
+            )
+        
+        with col_source2:
+            if data_source == "IBKR (Temps Réel)":
+                # IBKR connection status
+                if 'ibkr_collector' not in st.session_state:
+                    st.session_state.ibkr_collector = None
+                    st.session_state.ibkr_connected = False
+                
+                if not st.session_state.ibkr_connected:
+                    if st.button("🔌 Connecter IBKR", type="primary"):
+                        try:
+                            from backend.ibkr_collector import IBKRCollector
+                            st.session_state.ibkr_collector = IBKRCollector()
+                            if st.session_state.ibkr_collector.connect():
+                                st.session_state.ibkr_connected = True
+                                st.success("✅ Connecté!")
+                                st.rerun()
+                            else:
+                                st.error("❌ Échec connexion")
+                        except Exception as e:
+                            st.error(f"❌ Erreur: {e}")
+                else:
+                    st.success("🟢 IBKR Connecté")
+                    if st.button("🔌 Déconnecter"):
+                        if st.session_state.ibkr_collector:
+                            st.session_state.ibkr_collector.disconnect()
+                        st.session_state.ibkr_collector = None
+                        st.session_state.ibkr_connected = False
+                        st.rerun()
+        
+        st.markdown("---")
+        
         # Create ticker selection and time scale
         col1, col2, col3 = st.columns([2, 1, 1])
         
@@ -2124,7 +2168,6 @@ def live_prices_page():
         
         # Live update loop
         if st.session_state.live_running:
-            import yfinance as yf
             import plotly.graph_objects as go
             from datetime import datetime
             import pandas as pd
@@ -2133,77 +2176,126 @@ def live_prices_page():
             # Get ticker object for database storage
             ticker_obj = db.query(Ticker).filter(Ticker.symbol == selected_symbol).first()
             
-            # Get Yahoo Finance symbol (add .PA for Paris exchange)
-            yf_symbol = f"{selected_symbol}.PA"
-            
-            # Map time scale to Yahoo Finance interval
-            interval_map = {
-                "1s": "1m",  # Yahoo Finance n'a pas de 1s, on utilise 1m
-                "1min": "1m",
-                "5min": "5m",
-                "15min": "15m",
-                "30min": "30m",
-                "1h": "1h",
-                "1jour": "1d"
-            }
-            yf_interval = interval_map.get(time_scale, "1m")
-            
             # Continuous update loop
             max_points = 200  # Keep last 200 points for better visualization
             
             while st.session_state.live_running:
                 try:
-                    # Fetch latest data from Yahoo Finance based on time scale
-                    ticker_data = yf.Ticker(yf_symbol)
-                    
-                    # Get intraday data for the selected interval
-                    if time_scale == "1jour":
-                        hist_data = ticker_data.history(period="5d", interval=yf_interval)
-                    else:
-                        hist_data = ticker_data.history(period="1d", interval=yf_interval)
-                    
-                    if not hist_data.empty:
-                        # Get the latest bar
-                        latest_bar = hist_data.iloc[-1]
-                        current_price = latest_bar['Close']
-                        current_volume = latest_bar['Volume']
-                        data_time = hist_data.index[-1]  # Timestamp from Yahoo
-                        current_time = datetime.now()  # Current timestamp for display
+                    # Choose data source
+                    if data_source == "IBKR (Temps Réel)" and st.session_state.ibkr_connected:
+                        # Use IBKR data
+                        collector = st.session_state.ibkr_collector
+                        contract = collector.get_contract(selected_symbol)
                         
-                        # Get previous close for change calculation
-                        if len(hist_data) > 1:
-                            prev_close = hist_data.iloc[-2]['Close']
+                        if contract:
+                            # Request market data
+                            ticker_data = collector.ib.reqMktData(contract, '', False, False)
+                            collector.ib.sleep(1)  # Wait for data
+                            
+                            if ticker_data.last > 0:
+                                current_price = ticker_data.last
+                                current_volume = ticker_data.volume if ticker_data.volume > 0 else 0
+                                current_time = datetime.now()
+                                
+                                # Get previous close
+                                if len(st.session_state.live_data['price']) > 0:
+                                    prev_close = st.session_state.live_data['price'][-1]
+                                else:
+                                    prev_close = current_price
+                                
+                                # Calculate change
+                                price_change = current_price - prev_close
+                                price_change_pct = (price_change / prev_close * 100) if prev_close else 0
+                                
+                                # Add to live data
+                                st.session_state.live_data['time'].append(current_time)
+                                st.session_state.live_data['price'].append(current_price)
+                                st.session_state.live_data['open'].append(ticker_data.open if ticker_data.open > 0 else current_price)
+                                st.session_state.live_data['high'].append(ticker_data.high if ticker_data.high > 0 else current_price)
+                                st.session_state.live_data['low'].append(ticker_data.low if ticker_data.low > 0 else current_price)
+                                st.session_state.live_data['volume'].append(current_volume)
+                                
+                                # Cancel market data subscription
+                                collector.ib.cancelMktData(contract)
+                            else:
+                                # No real-time data, fallback to Yahoo
+                                st.warning("⚠️ Pas de données temps réel IBKR, passage à Yahoo Finance")
+                                data_source = "Yahoo Finance (Délai 15min)"
                         else:
-                            prev_close = current_price
+                            st.error(f"❌ Impossible de trouver le contrat pour {selected_symbol}")
+                            time_module.sleep(1)
+                            continue
+                    
+                    if data_source == "Yahoo Finance (Délai 15min)" or not st.session_state.get('ibkr_connected', False):
+                        # Use Yahoo Finance data
+                        import yfinance as yf
                         
-                        # Calculate change
-                        price_change = current_price - prev_close
-                        price_change_pct = (price_change / prev_close * 100) if prev_close else 0
+                        # Get Yahoo Finance symbol (add .PA for Paris exchange)
+                        yf_symbol = f"{selected_symbol}.PA"
                         
-                        # Save to database (avoid duplicates by checking timestamp)
-                        existing_record = db.query(HistoricalData).filter(
-                            HistoricalData.ticker_id == ticker_obj.id,
-                            HistoricalData.timestamp == data_time,
-                            HistoricalData.interval == time_scale
-                        ).first()
+                        # Map time scale to Yahoo Finance interval
+                        interval_map = {
+                            "1s": "1m",  # Yahoo Finance n'a pas de 1s, on utilise 1m
+                            "1min": "1m",
+                            "5min": "5m",
+                            "15min": "15m",
+                            "30min": "30m",
+                            "1h": "1h",
+                            "1jour": "1d"
+                        }
+                        yf_interval = interval_map.get(time_scale, "1m")
                         
-                        if not existing_record:
-                            new_record = HistoricalData(
-                                ticker_id=ticker_obj.id,
-                                timestamp=data_time,
-                                open=float(latest_bar['Open']),
-                                high=float(latest_bar['High']),
-                                low=float(latest_bar['Low']),
-                                close=float(latest_bar['Close']),
-                                volume=int(latest_bar['Volume']),
-                                interval=time_scale
-                            )
-                            db.add(new_record)
-                            db.commit()
+                        # Fetch latest data from Yahoo Finance based on time scale
+                        ticker_data = yf.Ticker(yf_symbol)
                         
-                        # Add to live data for chart (with OHLCV)
-                        st.session_state.live_data['time'].append(current_time)
-                        st.session_state.live_data['price'].append(current_price)
+                        # Get intraday data for the selected interval
+                        if time_scale == "1jour":
+                            hist_data = ticker_data.history(period="5d", interval=yf_interval)
+                        else:
+                            hist_data = ticker_data.history(period="1d", interval=yf_interval)
+                        
+                        if not hist_data.empty:
+                            # Get the latest bar
+                            latest_bar = hist_data.iloc[-1]
+                            current_price = latest_bar['Close']
+                            current_volume = latest_bar['Volume']
+                            data_time = hist_data.index[-1]  # Timestamp from Yahoo
+                            current_time = datetime.now()  # Current timestamp for display
+                            
+                            # Get previous close for change calculation
+                            if len(hist_data) > 1:
+                                prev_close = hist_data.iloc[-2]['Close']
+                            else:
+                                prev_close = current_price
+                            
+                            # Calculate change
+                            price_change = current_price - prev_close
+                            price_change_pct = (price_change / prev_close * 100) if prev_close else 0
+                            
+                            # Save to database (avoid duplicates by checking timestamp)
+                            existing_record = db.query(HistoricalData).filter(
+                                HistoricalData.ticker_id == ticker_obj.id,
+                                HistoricalData.timestamp == data_time,
+                                HistoricalData.interval == time_scale
+                            ).first()
+                            
+                            if not existing_record:
+                                new_record = HistoricalData(
+                                    ticker_id=ticker_obj.id,
+                                    timestamp=data_time,
+                                    open=float(latest_bar['Open']),
+                                    high=float(latest_bar['High']),
+                                    low=float(latest_bar['Low']),
+                                    close=float(latest_bar['Close']),
+                                    volume=int(latest_bar['Volume']),
+                                    interval=time_scale
+                                )
+                                db.add(new_record)
+                                db.commit()
+                            
+                            # Add to live data for chart (with OHLCV)
+                            st.session_state.live_data['time'].append(current_time)
+                            st.session_state.live_data['price'].append(current_price)
                         st.session_state.live_data['open'].append(float(latest_bar['Open']))
                         st.session_state.live_data['high'].append(float(latest_bar['High']))
                         st.session_state.live_data['low'].append(float(latest_bar['Low']))
@@ -2536,6 +2628,288 @@ def live_prices_page():
             
     finally:
         db.close()
+
+
+
+
+def trading_page():
+    """Trading page with IBKR integration"""
+    st.header("💼 Trading")
+    
+    try:
+        from backend.ibkr_collector import IBKRCollector
+        from ib_insync import Stock, MarketOrder, LimitOrder
+        
+        # Initialize IBKR collector in session state
+        if 'ibkr_collector' not in st.session_state:
+            st.session_state.ibkr_collector = None
+            st.session_state.ibkr_connected = False
+        
+        # Connection section
+        col_connect1, col_connect2 = st.columns([2, 1])
+        
+        with col_connect1:
+            if not st.session_state.ibkr_connected:
+                if st.button("🔌 Connecter à IBKR", type="primary", use_container_width=True):
+                    try:
+                        with st.spinner("Connexion à IB Gateway..."):
+                            st.session_state.ibkr_collector = IBKRCollector()
+                            if st.session_state.ibkr_collector.connect():
+                                st.session_state.ibkr_connected = True
+                                st.success("✅ Connecté à IBKR!")
+                                st.rerun()
+                            else:
+                                st.error("❌ Échec de la connexion")
+                    except Exception as e:
+                        st.error(f"❌ Erreur: {e}")
+            else:
+                if st.button("🔌 Déconnecter", use_container_width=True):
+                    if st.session_state.ibkr_collector:
+                        st.session_state.ibkr_collector.disconnect()
+                    st.session_state.ibkr_collector = None
+                    st.session_state.ibkr_connected = False
+                    st.rerun()
+        
+        with col_connect2:
+            if st.session_state.ibkr_connected:
+                st.success("🟢 Connecté")
+            else:
+                st.error("🔴 Déconnecté")
+        
+        if not st.session_state.ibkr_connected:
+            st.info("👆 Connectez-vous à IB Gateway pour commencer le trading")
+            st.markdown("---")
+            st.markdown("""
+            ### 📋 Prérequis
+            
+            1. **IB Gateway** doit être démarré
+            2. **API activée** dans Configuration → API → Settings
+            3. **Port configuré** (par défaut: 4002 pour paper trading)
+            4. **IP autorisée** (127.0.0.1 dans Trusted IPs)
+            """)
+            return
+        
+        collector = st.session_state.ibkr_collector
+        
+        st.markdown("---")
+        
+        # Account Summary
+        st.subheader("💰 Résumé du Compte")
+        
+        col_acc1, col_acc2, col_acc3, col_acc4 = st.columns(4)
+        
+        try:
+            account_summary = collector.get_account_summary()
+            
+            if account_summary and 'EUR' in account_summary:
+                eur_data = account_summary['EUR']
+                
+                with col_acc1:
+                    net_liq = float(eur_data.get('NetLiquidation', 0))
+                    st.metric("💰 Valeur Nette", f"{net_liq:,.2f} €")
+                
+                with col_acc2:
+                    buying_power = float(eur_data.get('BuyingPower', 0))
+                    st.metric("💪 Pouvoir d'Achat", f"{buying_power:,.2f} €")
+                
+                with col_acc3:
+                    unrealized_pnl = float(eur_data.get('UnrealizedPnL', 0))
+                    st.metric("📈 P&L Non Réalisé", f"{unrealized_pnl:,.2f} €", 
+                             delta=f"{unrealized_pnl:+.2f} €" if unrealized_pnl != 0 else None)
+                
+                with col_acc4:
+                    realized_pnl = float(eur_data.get('RealizedPnL', 0))
+                    st.metric("✅ P&L Réalisé", f"{realized_pnl:,.2f} €",
+                             delta=f"{realized_pnl:+.2f} €" if realized_pnl != 0 else None)
+        
+        except Exception as e:
+            st.warning(f"⚠️ Impossible de récupérer le résumé du compte: {e}")
+        
+        st.markdown("---")
+        
+        # Positions
+        st.subheader("📊 Positions Actuelles")
+        
+        try:
+            positions = collector.get_positions()
+            
+            if positions:
+                positions_df = pd.DataFrame(positions)
+                st.dataframe(positions_df, use_container_width=True)
+            else:
+                st.info("ℹ️ Aucune position ouverte")
+        
+        except Exception as e:
+            st.warning(f"⚠️ Impossible de récupérer les positions: {e}")
+        
+        st.markdown("---")
+        
+        # Trading Interface
+        st.subheader("📝 Passer un Ordre")
+        
+        col_order1, col_order2 = st.columns([2, 1])
+        
+        with col_order1:
+            # Symbol input
+            symbol = st.text_input("Symbole", value="WLN", help="Ex: WLN, TTE, GLE, MC")
+            
+            # Order details
+            col_qty, col_action = st.columns(2)
+            
+            with col_qty:
+                quantity = st.number_input("Quantité", min_value=1, value=10, step=1)
+            
+            with col_action:
+                action = st.selectbox("Action", ["BUY", "SELL"])
+            
+            # Order type
+            order_type = st.selectbox("Type d'ordre", ["Market", "Limit"])
+            
+            limit_price = None
+            if order_type == "Limit":
+                limit_price = st.number_input("Prix limite", min_value=0.01, value=10.00, step=0.01, format="%.2f")
+            
+            # Submit order button
+            if st.button("📤 Envoyer l'ordre", type="primary", use_container_width=True):
+                try:
+                    with st.spinner("Envoi de l'ordre..."):
+                        # Get contract
+                        contract = collector.get_contract(symbol)
+                        
+                        if not contract:
+                            st.error(f"❌ Impossible de trouver le contrat pour {symbol}")
+                        else:
+                            # Create order
+                            if order_type == "Market":
+                                order = MarketOrder(action, quantity)
+                            else:
+                                order = LimitOrder(action, quantity, limit_price)
+                            
+                            # Place order
+                            trade = collector.ib.placeOrder(contract, order)
+                            
+                            st.success(f"✅ Ordre envoyé: {action} {quantity} {symbol}")
+                            st.json({
+                                'orderId': trade.order.orderId,
+                                'status': trade.orderStatus.status,
+                                'symbol': symbol,
+                                'action': action,
+                                'quantity': quantity,
+                                'type': order_type
+                            })
+                            
+                            # Wait a bit and refresh
+                            collector.ib.sleep(1)
+                            
+                except Exception as e:
+                    st.error(f"❌ Erreur lors de l'envoi de l'ordre: {e}")
+                    import traceback
+                    st.code(traceback.format_exc())
+        
+        with col_order2:
+            st.markdown("### 📋 Info")
+            st.markdown("""
+            **Types d'ordres** :
+            - **Market** : Exécution immédiate au prix du marché
+            - **Limit** : Exécution uniquement au prix spécifié ou mieux
+            
+            **Actions** :
+            - **BUY** : Acheter (ouvrir position longue)
+            - **SELL** : Vendre (fermer position ou shorter)
+            
+            ⚠️ **Mode Simulation**
+            Vous tradez sur un compte de démonstration.
+            """)
+        
+        st.markdown("---")
+        
+        # Open Orders
+        st.subheader("📋 Ordres en Cours")
+        
+        try:
+            open_orders = collector.ib.openOrders()
+            
+            if open_orders:
+                orders_data = []
+                for trade in open_orders:
+                    orders_data.append({
+                        'Order ID': trade.order.orderId,
+                        'Symbol': trade.contract.symbol,
+                        'Action': trade.order.action,
+                        'Quantity': trade.order.totalQuantity,
+                        'Type': trade.order.orderType,
+                        'Status': trade.orderStatus.status,
+                        'Filled': trade.orderStatus.filled,
+                        'Remaining': trade.orderStatus.remaining
+                    })
+                
+                orders_df = pd.DataFrame(orders_data)
+                st.dataframe(orders_df, use_container_width=True)
+                
+                # Cancel order section
+                if st.checkbox("Annuler un ordre"):
+                    order_id_to_cancel = st.number_input("Order ID à annuler", min_value=1, step=1)
+                    if st.button("❌ Annuler l'ordre", type="secondary"):
+                        try:
+                            # Find the order
+                            order_to_cancel = None
+                            for trade in open_orders:
+                                if trade.order.orderId == order_id_to_cancel:
+                                    order_to_cancel = trade
+                                    break
+                            
+                            if order_to_cancel:
+                                collector.ib.cancelOrder(order_to_cancel.order)
+                                st.success(f"✅ Ordre {order_id_to_cancel} annulé")
+                                collector.ib.sleep(1)
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Ordre {order_id_to_cancel} non trouvé")
+                        
+                        except Exception as e:
+                            st.error(f"❌ Erreur: {e}")
+            else:
+                st.info("ℹ️ Aucun ordre en cours")
+        
+        except Exception as e:
+            st.warning(f"⚠️ Impossible de récupérer les ordres: {e}")
+        
+        st.markdown("---")
+        
+        # Recent Trades
+        st.subheader("📜 Historique des Trades")
+        
+        try:
+            fills = collector.ib.fills()
+            
+            if fills:
+                fills_data = []
+                for fill in fills:
+                    fills_data.append({
+                        'Date': fill.time,
+                        'Symbol': fill.contract.symbol,
+                        'Action': fill.execution.side,
+                        'Quantity': fill.execution.shares,
+                        'Prix': f"{fill.execution.price:.2f}",
+                        'Commission': f"{fill.commissionReport.commission:.2f}" if fill.commissionReport else "N/A"
+                    })
+                
+                fills_df = pd.DataFrame(fills_data)
+                st.dataframe(fills_df, use_container_width=True)
+            else:
+                st.info("ℹ️ Aucun trade exécuté")
+        
+        except Exception as e:
+            st.warning(f"⚠️ Impossible de récupérer l'historique: {e}")
+    
+    except ImportError:
+        st.error("❌ Module ib_insync non installé")
+        st.code("pip install ib_insync")
+    
+    except Exception as e:
+        st.error(f"❌ Erreur: {e}")
+        import traceback
+        st.code(traceback.format_exc())
 
 
 def settings_page():
