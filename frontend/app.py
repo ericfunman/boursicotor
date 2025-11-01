@@ -130,6 +130,44 @@ def disconnect_global_ibkr():
 def main():
     """Main application"""
     st.title("🚀 Boursicotor - Plateforme de Trading Algorithmique")
+    
+    # Global progress banner for active jobs
+    try:
+        from backend.job_manager import JobManager
+        job_manager = JobManager()
+        active_jobs = job_manager.get_active_jobs()
+        
+        if active_jobs:
+            with st.container():
+                st.markdown("""
+                    <div style='background-color: #d1ecf1; color: #0c5460; padding: 10px; border-radius: 5px; border: 1px solid #bee5eb; margin-bottom: 10px;'>
+                        <strong>🔄 Collectes en cours</strong>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                for job in active_jobs[:3]:  # Show max 3 active jobs
+                    col1, col2, col3 = st.columns([2, 3, 1])
+                    
+                    with col1:
+                        st.text(f"{job.ticker_symbol} ({job.source})")
+                    
+                    with col2:
+                        progress = job.progress or 0
+                        st.progress(progress / 100.0)
+                        st.caption(f"{progress}% - {job.current_step or 'En cours...'}")
+                    
+                    with col3:
+                        if st.button("📋 Détails", key=f"banner_job_{job.id}"):
+                            st.session_state.page = "📋 Historique des collectes"
+                            st.rerun()
+                
+                if len(active_jobs) > 3:
+                    st.caption(f"... et {len(active_jobs) - 3} autre(s) job(s)")
+                
+                st.markdown("---")
+    except:
+        pass  # Silently fail if Celery not configured
+    
     st.markdown("---")
     
     # Initialize global IBKR connection
@@ -142,8 +180,9 @@ def main():
         # Page selection
         page = st.radio(
             "Navigation",
-            ["📊 Dashboard", "💾 Collecte de Données", "📈 Analyse Technique", 
-             "� Cours Live", "�🔙 Backtesting", "🤖 Trading Automatique", "⚙️ Paramètres"]
+            ["📊 Dashboard", "💾 Collecte de Données", "� Historique des collectes",
+             "📈 Analyse Technique", "� Cours Live", "�🔙 Backtesting", 
+             "🤖 Trading Automatique", "⚙️ Paramètres"]
         )
         
         st.markdown("---")
@@ -195,7 +234,9 @@ def main():
         dashboard_page()
     elif page == "💾 Collecte de Données":
         data_collection_page()
-    elif page == "📈 Analyse Technique":
+    elif page == "� Historique des collectes":
+        jobs_monitoring_page()
+    elif page == "�📈 Analyse Technique":
         technical_analysis_page()
     elif page == "� Cours Live":
         live_prices_page()
@@ -628,132 +669,115 @@ def data_collection_page():
             elif interval == "1h":
                 if selected_duration in ["2 ans", "5 ans", "10 ans", "Maximum"]:
                     st.warning("⚠️ Intervalle 1 heure: données limitées au-delà de quelques mois")
-        # Collect button
+        # Collect button - Create async job with Celery
         if st.button("📊 Collecter les données", type="primary", use_container_width=True):
-            
-            if use_yahoo:
-                # Yahoo Finance collection with chunking and progress
-                from backend.yahoo_finance_collector import YahooFinanceCollector
+            try:
+                from backend.job_manager import JobManager
+                from backend.tasks import collect_data_yahoo, collect_data_ibkr
                 
-                collector = YahooFinanceCollector()
+                job_manager = JobManager()
                 
-                # Create progress bar and status text
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                
-                # Progress callback
-                def update_progress(current, total, message):
-                    progress = current / total
-                    progress_bar.progress(progress)
-                    status_text.text(f"⏳ {message} ({int(progress * 100)}%)")
-                
-                # Use chunked collection with progress
-                inserted = collector.collect_and_store_chunked(
-                    symbol=selected_ticker,
-                    name=selected_name,
-                    period=period,
-                    interval=interval,
-                    progress_callback=update_progress
-                )
-                
-                # Clear progress indicators
-                progress_bar.empty()
-                status_text.empty()
-                
-                if inserted > 0:
-                    st.success(f"✅ {inserted} nouveaux enregistrements ajoutés depuis Yahoo Finance !")
+                if use_yahoo:
+                    # Create Yahoo Finance job
+                    job = job_manager.create_job(
+                        ticker_symbol=selected_ticker,
+                        source="yahoo_finance",
+                        duration=selected_duration,
+                        interval=selected_interval
+                    )
+                    
+                    # Launch Celery task
+                    task = collect_data_yahoo.delay(
+                        job_id=job.id,
+                        ticker_symbol=selected_ticker,
+                        ticker_name=selected_name,
+                        period=period,
+                        interval=interval
+                    )
+                    
+                    # Update job with Celery task ID
+                    job_manager.update_job_task_id(job.id, task.id)
+                    
+                    st.success(f"✅ Job de collecte créé pour {selected_ticker} depuis Yahoo Finance!")
                     st.info(f"📊 Source: Yahoo Finance | Période: {selected_duration} | Intervalle: {selected_interval}")
-                else:
-                    # Check if ticker exists in database
-                    from backend.models import SessionLocal, Ticker, HistoricalData
-                    db = SessionLocal()
-                    try:
-                        ticker_obj = db.query(Ticker).filter(Ticker.symbol == selected_ticker).first()
-                        if ticker_obj:
-                            count = db.query(HistoricalData).filter(HistoricalData.ticker_id == ticker_obj.id).count()
-                            st.info(f"ℹ️ Aucune nouvelle donnée. {count} enregistrements déjà présents en base pour {selected_ticker}")
-                        else:
-                            st.warning(f"⚠️ Aucune donnée disponible pour {selected_ticker}. Vérifiez le ticker ou les paramètres de période/intervalle.")
-                    finally:
-                        db.close()
-            
-            elif use_ibkr:
-                # IBKR collection
-                # Use global IBKR connection
-                collector = get_global_ibkr()
+                    st.info("🔄 La collecte s'exécute en arrière-plan. Consultez la page **Historique des collectes** pour suivre la progression.")
+                    
+                    # Add link to monitoring page
+                    st.markdown("👉 [Voir l'historique des collectes](#)")
                 
-                if collector is None:
-                    st.error("❌ Connectez-vous à IBKR depuis la sidebar pour collecter des données")
-                    st.info("💡 Utilisez le bouton de connexion dans la barre latérale")
-                else:
-                    with st.spinner(f"Collecte depuis IBKR pour {selected_ticker}..."):
-                        try:
-                            # Map selected values to database format
-                            interval_db_map = {
-                                "5 secondes": "5sec",
-                                "10 secondes": "10sec",
-                                "15 secondes": "15sec",
-                                "30 secondes": "30sec",
-                                "1 minute": "1min",
-                                "2 minutes": "2min",
-                                "3 minutes": "3min",
-                                "5 minutes": "5min",
-                                "10 minutes": "10min",
-                                "15 minutes": "15min",
-                                "20 minutes": "20min",
-                                "30 minutes": "30min",
-                                "1 heure": "1h",
-                                "2 heures": "2h",
-                                "3 heures": "3h",
-                                "4 heures": "4h",
-                                "8 heures": "8h",
-                                "1 jour": "1day",
-                                "1 semaine": "1week",
-                                "1 mois": "1month"
-                            }
-                            
-                            db_interval = interval_db_map.get(selected_interval, "1min")
-                            
-                            # Progress indicators
-                            progress_bar = st.progress(0)
-                            status_text = st.empty()
-                            
-                            # Progress callback
-                            def update_progress(current, total):
-                                progress = current / total
-                                progress_bar.progress(progress)
-                                status_text.text(f"💾 Enregistrement en base de données: {current}/{total} ({int(progress*100)}%)")
-                            
-                            # Collect and save
-                            result = collector.collect_and_save(
-                                symbol=selected_ticker,
-                                duration=period,
-                                bar_size=interval,
-                                interval=db_interval,
-                                name=selected_name,
-                                progress_callback=update_progress
-                            )
-                            
-                            # Clear progress indicators
-                            progress_bar.empty()
-                            status_text.empty()
-                            
-                            # Note: Do NOT disconnect - using global connection
-                            
-                            if result['success']:
-                                st.success(f"✅ {result['new_records']} nouveaux enregistrements ajoutés depuis IBKR !")
-                                if result['updated_records'] > 0:
-                                    st.info(f"🔄 {result['updated_records']} enregistrements mis à jour")
-                                st.info(f"📊 Source: IBKR | Période: {selected_duration} | Intervalle: {selected_interval}")
-                                st.caption(f"📅 Période des données: {result['date_range']}")
-                            else:
-                                st.error(f"❌ Erreur: {result.get('error', 'Erreur inconnue')}")
+                elif use_ibkr:
+                    # Check IBKR connection
+                    collector = get_global_ibkr()
+                    
+                    if collector is None:
+                        st.error("❌ Connectez-vous à IBKR depuis la sidebar pour collecter des données")
+                        st.info("💡 Utilisez le bouton de connexion dans la barre latérale")
+                    else:
+                        # Map selected values to database format
+                        interval_db_map = {
+                            "5 secondes": "5sec",
+                            "10 secondes": "10sec",
+                            "15 secondes": "15sec",
+                            "30 secondes": "30sec",
+                            "1 minute": "1min",
+                            "2 minutes": "2min",
+                            "3 minutes": "3min",
+                            "5 minutes": "5min",
+                            "10 minutes": "10min",
+                            "15 minutes": "15min",
+                            "20 minutes": "20min",
+                            "30 minutes": "30min",
+                            "1 heure": "1h",
+                            "2 heures": "2h",
+                            "3 heures": "3h",
+                            "4 heures": "4h",
+                            "8 heures": "8h",
+                            "1 jour": "1day",
+                            "1 semaine": "1week",
+                            "1 mois": "1month"
+                        }
                         
-                        except Exception as e:
-                            st.error(f"❌ Erreur lors de la collecte IBKR: {e}")
-                            import traceback
-                            with st.expander("Détails de l'erreur"):
-                                st.code(traceback.format_exc())
+                        db_interval = interval_db_map.get(selected_interval, "1min")
+                        
+                        # Create IBKR job
+                        job = job_manager.create_job(
+                            ticker_symbol=selected_ticker,
+                            source="ibkr",
+                            duration=selected_duration,
+                            interval=selected_interval
+                        )
+                        
+                        # Launch Celery task
+                        task = collect_data_ibkr.delay(
+                            job_id=job.id,
+                            ticker_symbol=selected_ticker,
+                            ticker_name=selected_name,
+                            duration=period,
+                            bar_size=interval,
+                            interval_db=db_interval
+                        )
+                        
+                        # Update job with Celery task ID
+                        job_manager.update_job_task_id(job.id, task.id)
+                        
+                        st.success(f"✅ Job de collecte créé pour {selected_ticker} depuis IBKR!")
+                        st.info(f"📊 Source: IBKR | Période: {selected_duration} | Intervalle: {selected_interval}")
+                        st.info("🔄 La collecte s'exécute en arrière-plan. Consultez la page **Historique des collectes** pour suivre la progression.")
+                        
+                        # Add link to monitoring page
+                        st.markdown("👉 [Voir l'historique des collectes](#)")
+            
+            except ImportError as e:
+                st.error("❌ Celery n'est pas installé ou configuré correctement")
+                st.info("� Consultez le fichier CELERY_SETUP.md pour installer et configurer Celery + Redis")
+                with st.expander("Détails de l'erreur"):
+                    st.code(str(e))
+            
+            except Exception as e:
+                st.error(f"❌ Erreur lors de la création du job: {e}")
+                import traceback
+                with st.expander("Détails de l'erreur"):
+                    st.code(traceback.format_exc())
     
     with col2:
         st.subheader("📊 Données en base")
@@ -1172,6 +1196,203 @@ def data_collection_page():
                         st.metric("Variation", f"{variation:+.2f}%")
         finally:
             db.close()
+
+
+def jobs_monitoring_page():
+    """Job monitoring page - Shows async data collection progress"""
+    st.header("📋 Historique des collectes de données")
+    
+    try:
+        from backend.job_manager import JobManager
+        from backend.models import JobStatus
+        
+        job_manager = JobManager()
+        
+        # Auto-refresh every 3 seconds if there are active jobs
+        active_jobs = job_manager.get_active_jobs()
+        if active_jobs:
+            st.info("🔄 Cette page se rafraîchit automatiquement toutes les 3 secondes")
+            import time
+            time.sleep(3)
+            st.rerun()
+        
+        # Statistics
+        st.subheader("📊 Statistiques")
+        stats = job_manager.get_statistics()
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Total", stats['total'])
+        with col2:
+            st.metric("En cours", stats['running'], help="Jobs actuellement en exécution")
+        with col3:
+            st.metric("Complétés", stats['completed'])
+        with col4:
+            avg_time = stats['average_completion_time']
+            if avg_time:
+                st.metric("Temps moyen", f"{avg_time:.1f}s")
+            else:
+                st.metric("Temps moyen", "N/A")
+        
+        st.markdown("---")
+        
+        # Filter tabs
+        tab1, tab2, tab3, tab4 = st.tabs(["🔄 En cours", "✅ Complétés", "❌ Échoués", "📜 Tous"])
+        
+        with tab1:
+            st.subheader("Jobs en cours d'exécution")
+            active_jobs = job_manager.get_active_jobs()
+            
+            if not active_jobs:
+                st.info("Aucun job en cours d'exécution")
+            else:
+                for job in active_jobs:
+                    with st.container():
+                        col1, col2 = st.columns([3, 1])
+                        
+                        with col1:
+                            st.markdown(f"**{job.ticker_symbol}** - {job.source}")
+                            st.caption(f"Démarré: {job.started_at.strftime('%d/%m/%Y %H:%M:%S') if job.started_at else 'N/A'}")
+                            st.caption(f"Durée: {job.duration} | Intervalle: {job.interval}")
+                            
+                            # Progress bar
+                            progress = job.progress or 0
+                            st.progress(progress / 100.0)
+                            st.caption(f"Progression: {progress}% - {job.current_step or 'En attente...'}")
+                        
+                        with col2:
+                            # Cancel button
+                            if st.button("❌ Annuler", key=f"cancel_{job.id}"):
+                                try:
+                                    job_manager.cancel_job(job.id)
+                                    st.success("Job annulé")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Erreur: {e}")
+                        
+                        st.markdown("---")
+        
+        with tab2:
+            st.subheader("Jobs complétés")
+            completed_jobs = job_manager.get_jobs_by_status(JobStatus.COMPLETED)
+            
+            if not completed_jobs:
+                st.info("Aucun job complété récemment")
+            else:
+                for job in completed_jobs[:20]:  # Limit to 20 most recent
+                    with st.expander(f"✅ {job.ticker_symbol} - {job.source} ({job.completed_at.strftime('%d/%m/%Y %H:%M')})"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown(f"**Ticker:** {job.ticker_symbol}")
+                            st.markdown(f"**Source:** {job.source}")
+                            st.markdown(f"**Durée:** {job.duration}")
+                            st.markdown(f"**Intervalle:** {job.interval}")
+                        
+                        with col2:
+                            st.markdown(f"**Démarré:** {job.started_at.strftime('%d/%m/%Y %H:%M:%S') if job.started_at else 'N/A'}")
+                            st.markdown(f"**Complété:** {job.completed_at.strftime('%d/%m/%Y %H:%M:%S') if job.completed_at else 'N/A'}")
+                            
+                            if job.started_at and job.completed_at:
+                                duration = (job.completed_at - job.started_at).total_seconds()
+                                st.markdown(f"**Temps écoulé:** {duration:.1f}s")
+                        
+                        st.markdown(f"**Résultats:**")
+                        col3, col4, col5 = st.columns(3)
+                        with col3:
+                            st.metric("Nouveaux", job.records_new or 0)
+                        with col4:
+                            st.metric("Mis à jour", job.records_updated or 0)
+                        with col5:
+                            st.metric("Total", job.records_total or 0)
+        
+        with tab3:
+            st.subheader("Jobs échoués")
+            failed_jobs = job_manager.get_jobs_by_status(JobStatus.FAILED)
+            
+            if not failed_jobs:
+                st.info("Aucun job échoué récemment")
+            else:
+                for job in failed_jobs[:20]:  # Limit to 20 most recent
+                    with st.expander(f"❌ {job.ticker_symbol} - {job.source} ({job.completed_at.strftime('%d/%m/%Y %H:%M') if job.completed_at else 'N/A'})"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown(f"**Ticker:** {job.ticker_symbol}")
+                            st.markdown(f"**Source:** {job.source}")
+                            st.markdown(f"**Durée:** {job.duration}")
+                            st.markdown(f"**Intervalle:** {job.interval}")
+                        
+                        with col2:
+                            st.markdown(f"**Démarré:** {job.started_at.strftime('%d/%m/%Y %H:%M:%S') if job.started_at else 'N/A'}")
+                            st.markdown(f"**Échoué:** {job.completed_at.strftime('%d/%m/%Y %H:%M:%S') if job.completed_at else 'N/A'}")
+                        
+                        if job.error_message:
+                            st.error(f"**Erreur:** {job.error_message}")
+        
+        with tab4:
+            st.subheader("Tous les jobs")
+            all_jobs = job_manager.get_recent_jobs(limit=50)
+            
+            if not all_jobs:
+                st.info("Aucun job enregistré")
+            else:
+                # Create table data
+                table_data = []
+                for job in all_jobs:
+                    status_emoji = {
+                        JobStatus.PENDING: "⏳",
+                        JobStatus.RUNNING: "🔄",
+                        JobStatus.COMPLETED: "✅",
+                        JobStatus.FAILED: "❌",
+                        JobStatus.CANCELLED: "🚫"
+                    }.get(job.status, "❓")
+                    
+                    table_data.append({
+                        "Status": status_emoji,
+                        "Ticker": job.ticker_symbol,
+                        "Source": job.source,
+                        "Durée": job.duration,
+                        "Intervalle": job.interval,
+                        "Progression": f"{job.progress or 0}%",
+                        "Créé": job.created_at.strftime('%d/%m %H:%M'),
+                        "Complété": job.completed_at.strftime('%d/%m %H:%M') if job.completed_at else "-"
+                    })
+                
+                import pandas as pd
+                df = pd.DataFrame(table_data)
+                st.dataframe(df, use_container_width=True, hide_index=True)
+        
+        # Cleanup section
+        st.markdown("---")
+        st.subheader("🧹 Maintenance")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.info("💡 Les jobs complétés ou échoués sont automatiquement supprimés après 7 jours")
+        
+        with col2:
+            if st.button("🗑️ Nettoyer maintenant", type="secondary"):
+                try:
+                    from backend.tasks import cleanup_old_jobs
+                    cleanup_old_jobs.delay(days_to_keep=7)
+                    st.success("Nettoyage lancé en arrière-plan")
+                except Exception as e:
+                    st.error(f"Erreur: {e}")
+    
+    except ImportError as e:
+        st.error("❌ Celery n'est pas installé ou configuré correctement")
+        st.info("💡 Consultez le fichier CELERY_SETUP.md pour installer et configurer Celery + Redis")
+        with st.expander("Détails de l'erreur"):
+            st.code(str(e))
+    
+    except Exception as e:
+        st.error(f"❌ Erreur lors de la récupération des jobs: {e}")
+        import traceback
+        with st.expander("Détails de l'erreur"):
+            st.code(traceback.format_exc())
 
 
 def technical_analysis_page():
