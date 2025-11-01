@@ -73,11 +73,67 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+def init_global_ibkr_connection():
+    """Initialize global IBKR connection in session_state"""
+    if 'global_ibkr' not in st.session_state:
+        st.session_state.global_ibkr = None
+        st.session_state.global_ibkr_connected = False
+
+
+def get_global_ibkr():
+    """Get or create global IBKR connection"""
+    init_global_ibkr_connection()
+    
+    if st.session_state.global_ibkr_connected and st.session_state.global_ibkr is not None:
+        # Check if still connected
+        if st.session_state.global_ibkr.ib.isConnected():
+            return st.session_state.global_ibkr
+        else:
+            # Connection lost, reset
+            st.session_state.global_ibkr = None
+            st.session_state.global_ibkr_connected = False
+    
+    return None
+
+
+def connect_global_ibkr():
+    """Connect global IBKR instance"""
+    try:
+        from backend.ibkr_collector import IBKRCollector
+        
+        if st.session_state.global_ibkr is None:
+            st.session_state.global_ibkr = IBKRCollector()
+        
+        if st.session_state.global_ibkr.connect():
+            st.session_state.global_ibkr_connected = True
+            return True, "✅ Connecté à IBKR"
+        else:
+            st.session_state.global_ibkr = None
+            st.session_state.global_ibkr_connected = False
+            return False, "❌ Échec de la connexion"
+    except Exception as e:
+        logger.error(f"Error connecting to IBKR: {e}")
+        return False, f"❌ Erreur: {str(e)}"
+
+
+def disconnect_global_ibkr():
+    """Disconnect global IBKR instance"""
+    if st.session_state.global_ibkr is not None:
+        try:
+            st.session_state.global_ibkr.disconnect()
+        except:
+            pass
+        st.session_state.global_ibkr = None
+        st.session_state.global_ibkr_connected = False
+
+
 def main():
     """Main application"""
     st.title("🚀 Boursicotor - Plateforme de Trading Algorithmique")
     st.markdown("---")
     
+    # Initialize global IBKR connection
+    init_global_ibkr_connection()
     
     # Sidebar
     with st.sidebar:
@@ -92,9 +148,47 @@ def main():
         
         st.markdown("---")
         
-        # Connection status - IBKR only
-        st.subheader("État des connexions")
-        st.info("� IBKR: Connexion via IB Gateway\n� Yahoo Finance: Disponible")
+        # Global IBKR Connection
+        st.subheader("🔌 Connexion IBKR")
+        
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            if not st.session_state.global_ibkr_connected:
+                if st.button("🔌 Connecter", type="primary", use_container_width=True, key="sidebar_connect"):
+                    with st.spinner("Connexion..."):
+                        success, message = connect_global_ibkr()
+                        if success:
+                            st.success(message)
+                            st.rerun()
+                        else:
+                            st.error(message)
+            else:
+                if st.button("🔌 Déconnecter", use_container_width=True, key="sidebar_disconnect"):
+                    disconnect_global_ibkr()
+                    st.success("Déconnecté")
+                    st.rerun()
+        
+        with col2:
+            if st.session_state.global_ibkr_connected:
+                st.markdown("""
+                    <div style='display: flex; align-items: center; height: 38px;'>
+                        <div style='background-color: #d4edda; color: #155724; padding: 6px 12px; border-radius: 4px; border: 1px solid #c3e6cb; width: 100%; text-align: center;'>
+                            🟢 Connecté
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                    <div style='display: flex; align-items: center; height: 38px;'>
+                        <div style='background-color: #f8d7da; color: #721c24; padding: 6px 12px; border-radius: 4px; border: 1px solid #f5c6cb; width: 100%; text-align: center;'>
+                            🔴 Déconnecté
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        st.info("💡 **Connexion partagée**\n\nLa connexion IBKR est partagée entre toutes les pages. Connectez-vous une seule fois ici.")
     
     # Route to selected page
     if page == "📊 Dashboard":
@@ -114,173 +208,126 @@ def main():
 
 
 def dashboard_page():
-    """Dashboard page"""
+    """Dashboard page - Uses global IBKR connection"""
     st.header("📊 Dashboard")
     
-    # Try to connect to IBKR and get account info
-    try:
-        from backend.ibkr_collector import IBKRCollector
+    # Use global IBKR connection
+    collector = get_global_ibkr()
+    
+    if not st.session_state.global_ibkr_connected:
+        st.warning("⚠️ Connectez-vous à IBKR depuis la barre latérale pour voir les informations de compte.")
+        st.info("💡 La connexion IBKR est partagée entre toutes les pages. Utilisez le bouton dans la sidebar.")
         
-        # Initialize session state for IBKR connection
-        if 'dashboard_ibkr' not in st.session_state:
-            st.session_state.dashboard_ibkr = None
-            st.session_state.dashboard_connected = False
+        # Show placeholder metrics
+        st.subheader("💰 Informations du compte")
         
-        # Connection button - Using HTML for perfect alignment
-        col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 8])
+        col1, col2, col3, col4 = st.columns(4)
         
-        with col_btn1:
-            if not st.session_state.dashboard_connected:
-                if st.button("🔌 Connecter IBKR", type="primary", use_container_width=True):
-                    with st.spinner("Connexion à IBKR..."):
-                        st.session_state.dashboard_ibkr = IBKRCollector()
-                        if st.session_state.dashboard_ibkr.connect():
-                            st.session_state.dashboard_connected = True
-                            st.rerun()
-                        else:
-                            st.error("❌ Échec de la connexion")
-                            st.session_state.dashboard_ibkr = None
-            else:
-                if st.button("🔌 Déconnecter", use_container_width=True):
-                    if st.session_state.dashboard_ibkr:
-                        st.session_state.dashboard_ibkr.disconnect()
-                    st.session_state.dashboard_ibkr = None
-                    st.session_state.dashboard_connected = False
-                    st.rerun()
-        
-        with col_btn2:
-            # Perfect vertical alignment with flexbox
-            if st.session_state.dashboard_connected:
-                st.markdown("""
-                    <div style='display: flex; align-items: center; height: 38px;'>
-                        <div style='background-color: #d4edda; color: #155724; padding: 6px 12px; border-radius: 4px; border: 1px solid #c3e6cb; width: 100%; text-align: center;'>
-                            🟢 Connecté
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                    <div style='display: flex; align-items: center; height: 38px;'>
-                        <div style='background-color: #f8d7da; color: #721c24; padding: 6px 12px; border-radius: 4px; border: 1px solid #f5c6cb; width: 100%; text-align: center;'>
-                            🔴 Déconnecté
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
+        with col1:
+            st.metric("Valeur Nette", "--- €", "---")
+        with col2:
+            st.metric("Cash Disponible", "--- €")
+        with col3:
+            st.metric("P&L Non Réalisé", "--- €")
+        with col4:
+            st.metric("P&L Réalisé", "--- €")
         
         st.markdown("---")
+        st.subheader("📋 Derniers Trades")
+        st.info("💡 Connectez-vous à IBKR pour voir vos trades récents")
         
-        # Get account data if connected
-        if st.session_state.dashboard_connected and st.session_state.dashboard_ibkr:
-            collector = st.session_state.dashboard_ibkr
+        return
+    
+    # Connected - show real data
+    try:
+        # Get account summary
+        account_summary = collector.get_account_summary()
+        
+        if account_summary:
+            st.subheader("💰 Informations du compte")
             
-            # Get account summary
-            account_summary = collector.get_account_summary()
-            
-            if account_summary:
-                # Display metrics
-                col1, col2, col3, col4 = st.columns(4)
-                
-                # Format: account_summary[currency][tag]
-                # Try to get EUR first, fallback to USD
-                currency = 'EUR' if 'EUR' in account_summary else ('USD' if 'USD' in account_summary else list(account_summary.keys())[0])
-                
-                account_data = account_summary.get(currency, {})
-                
-                # Extract values
-                nav = float(account_data.get('NetLiquidation', 0))
-                cash = float(account_data.get('TotalCashValue', 0))
-                upnl = float(account_data.get('UnrealizedPnL', 0))
-                rpnl = float(account_data.get('RealizedPnL', 0))
-                
-                # Currency symbol
-                curr_symbol = '€' if currency == 'EUR' else '$'
-                
-                with col1:
-                    st.metric("Valeur Nette", f"{nav:,.2f} {curr_symbol}", f"{upnl:+.2f} {curr_symbol}")
-                with col2:
-                    st.metric("Cash Disponible", f"{cash:,.2f} {curr_symbol}")
-                with col3:
-                    st.metric("P&L Non Réalisé", f"{upnl:+.2f} {curr_symbol}")
-                with col4:
-                    st.metric("P&L Réalisé", f"{rpnl:+.2f} {curr_symbol}")
-                
-                st.markdown("---")
-                
-                # Get positions
-                st.subheader("📊 Positions Actuelles")
-                
-                positions = collector.get_positions()
-                
-                if positions:
-                    import pandas as pd
-                    positions_df = pd.DataFrame(positions)
-                    st.dataframe(positions_df, use_container_width=True)
-                else:
-                    st.info("ℹ️ Aucune position ouverte")
-                
-            else:
-                st.warning("⚠️ Impossible de récupérer les données du compte")
-        else:
-            # Not connected - show placeholder
-            st.info("💡 Connectez-vous à IBKR pour voir vos données de compte en temps réel")
-            
+            # Display metrics
             col1, col2, col3, col4 = st.columns(4)
             
+            # Format: account_summary[currency][tag]
+            # Try to get EUR first, fallback to USD
+            currency = 'EUR' if 'EUR' in account_summary else ('USD' if 'USD' in account_summary else list(account_summary.keys())[0])
+            
+            account_data = account_summary.get(currency, {})
+            
+            # Extract values
+            nav = float(account_data.get('NetLiquidation', 0))
+            cash = float(account_data.get('TotalCashValue', 0))
+            upnl = float(account_data.get('UnrealizedPnL', 0))
+            rpnl = float(account_data.get('RealizedPnL', 0))
+            
+            # Currency symbol
+            curr_symbol = '€' if currency == 'EUR' else '$'
+            
             with col1:
-                st.metric("Valeur Nette", "--- €", "---")
+                st.metric("Valeur Nette", f"{nav:,.2f} {curr_symbol}", f"{upnl:+.2f} {curr_symbol}")
             with col2:
-                st.metric("Cash Disponible", "--- €")
+                st.metric("Cash Disponible", f"{cash:,.2f} {curr_symbol}")
             with col3:
-                st.metric("P&L Non Réalisé", "--- €")
+                st.metric("P&L Non Réalisé", f"{upnl:+.2f} {curr_symbol}")
             with col4:
-                st.metric("P&L Réalisé", "--- €")
+                st.metric("P&L Réalisé", f"{rpnl:+.2f} {curr_symbol}")
+            
+            st.markdown("---")
+            
+            # Get positions
+            st.subheader("📊 Positions Actuelles")
+            
+            positions = collector.get_positions()
+            
+            if positions:
+                import pandas as pd
+                positions_df = pd.DataFrame(positions)
+                st.dataframe(positions_df, use_container_width=True)
+            else:
+                st.info("ℹ️ Aucune position ouverte")
+            
+        else:
+            st.warning("⚠️ Impossible de récupérer les données du compte")
         
         st.markdown("---")
         
         # Recent trades
         st.subheader("📋 Derniers Trades")
         
-        if st.session_state.dashboard_connected and st.session_state.dashboard_ibkr:
-            # Get recent trades from IBKR
-            try:
-                collector = st.session_state.dashboard_ibkr
-                
-                # Get trades (fills) from today
-                from datetime import datetime
-                trades = collector.ib.fills()
-                
-                if trades:
-                    trades_data = []
-                    for trade in trades[:20]:  # Last 20 trades
-                        fill = trade.execution
-                        trades_data.append({
-                            "Date": fill.time.strftime("%Y-%m-%d %H:%M:%S") if fill.time else "N/A",
-                            "Symbole": trade.contract.symbol,
-                            "Type": "ACHAT" if fill.side == "BOT" else "VENTE",
-                            "Quantité": fill.shares,
-                            "Prix": f"{fill.price:.2f}",
-                            "Commission": f"{fill.commission:.2f}",
-                            "Compte": fill.acctNumber
-                        })
-                    
-                    import pandas as pd
-                    st.dataframe(pd.DataFrame(trades_data), use_container_width=True)
-                else:
-                    st.info("ℹ️ Aucun trade récent. Passez des ordres dans l'onglet 'Trading' !")
+        try:
+            # Get trades (fills) from today
+            from datetime import datetime
+            trades = collector.ib.fills()
             
-            except Exception as e:
-                st.warning(f"⚠️ Impossible de récupérer les trades: {e}")
-        else:
-            st.info("💡 Connectez-vous à IBKR pour voir vos trades récents")
+            if trades:
+                trades_data = []
+                for trade in trades[:20]:  # Last 20 trades
+                    fill = trade.execution
+                    trades_data.append({
+                        "Date": fill.time.strftime("%Y-%m-%d %H:%M:%S") if fill.time else "N/A",
+                        "Symbole": trade.contract.symbol,
+                        "Type": "ACHAT" if fill.side == "BOT" else "VENTE",
+                        "Quantité": fill.shares,
+                        "Prix": f"{fill.price:.2f}",
+                        "Commission": f"{fill.commission:.2f}",
+                        "Compte": fill.acctNumber
+                    })
+                
+                import pandas as pd
+                st.dataframe(pd.DataFrame(trades_data), use_container_width=True)
+            else:
+                st.info("ℹ️ Aucun trade récent. Passez des ordres dans l'onglet 'Trading' !")
+        
+        except Exception as e:
+            st.warning(f"⚠️ Impossible de récupérer les trades: {e}")
     
-    except ImportError:
-        st.error("❌ Module ib_insync non installé")
-        st.code("pip install ib_insync")
     except Exception as e:
         st.error(f"❌ Erreur: {e}")
         import traceback
         with st.expander("Détails de l'erreur"):
             st.code(traceback.format_exc())
+
 
 
 def data_collection_page():
@@ -390,11 +437,12 @@ def data_collection_page():
                 if st.button("🔍 Rechercher sur IBKR", type="primary"):
                     with st.spinner(f"Recherche de '{search_query}' sur IBKR..."):
                         try:
-                            # Initialize IBKR collector
-                            from backend.ibkr_collector import IBKRCollector
-                            collector = IBKRCollector()
+                            # Use global IBKR connection
+                            collector = get_global_ibkr()
                             
-                            if collector.connect():
+                            if collector is None:
+                                st.error("❌ Connectez-vous à IBKR depuis la sidebar pour utiliser la recherche")
+                            else:
                                 # Search for contracts
                                 from ib_insync import Stock
                                 contracts = collector.ib.reqMatchingSymbols(search_query)
@@ -426,10 +474,7 @@ def data_collection_page():
                                 else:
                                     st.session_state.ibkr_search_results = []
                                     st.warning("Aucun résultat trouvé. Essayez un autre terme.")
-                                
-                                collector.disconnect()
-                            else:
-                                st.error("❌ Impossible de se connecter à IBKR. Vérifiez que TWS/Gateway est lancé.")
+                        
                         except Exception as e:
                             st.error(f"❌ Erreur lors de la recherche : {str(e)}")
             
@@ -634,17 +679,15 @@ def data_collection_page():
             
             elif use_ibkr:
                 # IBKR collection
-                with st.spinner(f"Collecte depuis IBKR pour {selected_ticker}..."):
-                    try:
-                        from backend.ibkr_collector import IBKRCollector
-                        
-                        collector = IBKRCollector()
-                        
-                        # Connect to IBKR
-                        if not collector.connect():
-                            st.error("❌ Impossible de se connecter à IB Gateway")
-                            st.info("Vérifiez que IB Gateway est démarré et que l'API est activée")
-                        else:
+                # Use global IBKR connection
+                collector = get_global_ibkr()
+                
+                if collector is None:
+                    st.error("❌ Connectez-vous à IBKR depuis la sidebar pour collecter des données")
+                    st.info("💡 Utilisez le bouton de connexion dans la barre latérale")
+                else:
+                    with st.spinner(f"Collecte depuis IBKR pour {selected_ticker}..."):
+                        try:
                             # Map selected values to database format
                             interval_db_map = {
                                 "5 secondes": "5sec",
@@ -695,8 +738,7 @@ def data_collection_page():
                             progress_bar.empty()
                             status_text.empty()
                             
-                            # Disconnect
-                            collector.disconnect()
+                            # Note: Do NOT disconnect - using global connection
                             
                             if result['success']:
                                 st.success(f"✅ {result['new_records']} nouveaux enregistrements ajoutés depuis IBKR !")
@@ -706,15 +748,12 @@ def data_collection_page():
                                 st.caption(f"📅 Période des données: {result['date_range']}")
                             else:
                                 st.error(f"❌ Erreur: {result.get('error', 'Erreur inconnue')}")
-                    
-                    except ImportError:
-                        st.error("❌ Module ib_insync non installé")
-                        st.code("pip install ib_insync")
-                    except Exception as e:
-                        st.error(f"❌ Erreur lors de la collecte IBKR: {e}")
-                        import traceback
-                        with st.expander("Détails de l'erreur"):
-                            st.code(traceback.format_exc())
+                        
+                        except Exception as e:
+                            st.error(f"❌ Erreur lors de la collecte IBKR: {e}")
+                            import traceback
+                            with st.expander("Détails de l'erreur"):
+                                st.code(traceback.format_exc())
     
     with col2:
         st.subheader("📊 Données en base")
