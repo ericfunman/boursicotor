@@ -1,10 +1,11 @@
 """
 Database models and connection management
 """
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Text, Index
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Text, Index, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
+import enum
 from backend.config import DATABASE_URL, logger
 
 Base = declarative_base()
@@ -40,6 +41,57 @@ class Ticker(Base):
     # Relationships
     historical_data = relationship("HistoricalData", back_populates="ticker", cascade="all, delete-orphan")
     trades = relationship("Trade", back_populates="ticker")
+
+
+class JobStatus(enum.Enum):
+    """Data collection job status"""
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class DataCollectionJob(Base):
+    """Asynchronous data collection job tracking"""
+    __tablename__ = "data_collection_jobs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Job identification
+    celery_task_id = Column(String(255), unique=True, index=True, nullable=False)
+    
+    # Job parameters
+    ticker_symbol = Column(String(10), nullable=False, index=True)
+    ticker_name = Column(String(100))
+    source = Column(String(50), nullable=False)  # 'ibkr' or 'yahoo'
+    duration = Column(String(20))  # e.g., '1 M', '3 M'
+    interval = Column(String(20))  # e.g., '5 secs', '1 min'
+    
+    # Job status
+    status = Column(Enum(JobStatus), default=JobStatus.PENDING, nullable=False, index=True)
+    progress = Column(Integer, default=0)  # 0-100
+    current_step = Column(String(200))  # Current operation description
+    
+    # Results
+    records_new = Column(Integer, default=0)
+    records_updated = Column(Integer, default=0)
+    records_total = Column(Integer, default=0)
+    error_message = Column(Text)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    started_at = Column(DateTime)
+    completed_at = Column(DateTime)
+    
+    # Metadata
+    created_by = Column(String(100))  # Future: user tracking
+    
+    # Indexes for efficient queries
+    __table_args__ = (
+        Index('idx_status_created', 'status', 'created_at'),
+        Index('idx_ticker_status', 'ticker_symbol', 'status'),
+    )
 
 
 class HistoricalData(Base):
