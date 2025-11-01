@@ -26,42 +26,17 @@ except Exception as e:
 class DataCollector:
     """Service for collecting and storing market data"""
     
-    def __init__(self, use_saxo: bool = True):
+    def __init__(self, use_saxo: bool = False):
+        """
+        Initialize DataCollector
+        
+        Args:
+            use_saxo: Deprecated parameter, kept for compatibility
+        """
         self.db: Session = SessionLocal()
-        self.saxo_client = None
-        self.alpha_vantage_client = None
-        self.polygon_client = None
         
-        # Initialize Saxo client if available and requested
-        if use_saxo and SAXO_AVAILABLE:
-            self.saxo_client = SaxoClient()
-            if self.saxo_client.ensure_authenticated():
-                logger.info("✅ Saxo Bank client initialized and authenticated")
-            else:
-                logger.warning("⚠️ Saxo Bank authentication failed")
-                self.saxo_client = None
-        
-        # Initialize Alpha Vantage client if API key is available
-        if ALPHA_VANTAGE_AVAILABLE and ALPHA_VANTAGE_API_KEY:
-            try:
-                self.alpha_vantage_client = TimeSeries(key=ALPHA_VANTAGE_API_KEY, output_format='pandas')
-                logger.info("✅ Alpha Vantage client initialized")
-            except Exception as e:
-                logger.warning(f"⚠️ Alpha Vantage initialization failed: {e}")
-                self.alpha_vantage_client = None
-        elif ALPHA_VANTAGE_AVAILABLE:
-            logger.warning("⚠️ Alpha Vantage available but no API key provided")
-        
-        # Initialize Polygon.io client if API key is available
-        if POLYGON_AVAILABLE and POLYGON_API_KEY:
-            try:
-                self.polygon_client = RESTClient(api_key=POLYGON_API_KEY)
-                logger.info("✅ Polygon.io client initialized")
-            except Exception as e:
-                logger.warning(f"⚠️ Polygon.io initialization failed: {e}")
-                self.polygon_client = None
-        elif POLYGON_AVAILABLE:
-            logger.warning("⚠️ Polygon.io available but no API key provided")
+        # Note: Saxo Bank, Alpha Vantage, and Polygon have been removed
+        # Only Yahoo Finance and IBKR are supported now
         
     def __del__(self):
         self.db.close()
