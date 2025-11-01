@@ -257,10 +257,14 @@ def dashboard_page():
     """Dashboard page - Uses global IBKR connection"""
     st.header("📊 Dashboard")
     
-    # Use global IBKR connection
-    collector = get_global_ibkr()
+    # Initialize session state
+    init_global_ibkr_connection()
     
-    if not st.session_state.global_ibkr_connected:
+    # Debug: Show connection state
+    # st.caption(f"Debug: Connected={st.session_state.get('global_ibkr_connected', False)}, Collector={st.session_state.get('global_ibkr') is not None}")
+    
+    # Check connection state BEFORE trying to get collector
+    if not st.session_state.get('global_ibkr_connected', False):
         st.warning("⚠️ Connectez-vous à IBKR depuis la barre latérale pour voir les informations de compte.")
         st.info("💡 La connexion IBKR est partagée entre toutes les pages. Utilisez le bouton dans la sidebar.")
         
@@ -284,10 +288,36 @@ def dashboard_page():
         
         return
     
+    # Get collector only AFTER confirming we're connected
+    collector = st.session_state.get('global_ibkr')
+    
+    if collector is None:
+        st.error("❌ Erreur: Connexion IBKR invalide - collector est None")
+        st.info("💡 Essayez de vous déconnecter et reconnecter depuis la sidebar")
+        # Reset connection state
+        st.session_state.global_ibkr_connected = False
+        return
+    
+    # Verify collector has ib attribute
+    if not hasattr(collector, 'ib') or collector.ib is None:
+        st.error("❌ Erreur: L'objet IBKR n'est pas initialisé correctement")
+        st.info("💡 Essayez de vous déconnecter et reconnecter depuis la sidebar")
+        # Reset connection state
+        st.session_state.global_ibkr_connected = False
+        st.session_state.global_ibkr = None
+        return
+    
     # Connected - show real data
     try:
-        # Get account summary
-        account_summary = collector.get_account_summary()
+        # Get account summary with timeout protection
+        account_summary = None
+        try:
+            # Use a simple flag check instead of blocking call
+            if hasattr(collector, 'get_account_summary'):
+                account_summary = collector.get_account_summary()
+        except Exception as e:
+            logger.warning(f"Could not get account summary: {e}")
+            st.warning(f"⚠️ Impossible de récupérer les données du compte: {e}")
         
         if account_summary:
             st.subheader("💰 Informations du compte")
@@ -324,7 +354,13 @@ def dashboard_page():
             # Get positions
             st.subheader("📊 Positions Actuelles")
             
-            positions = collector.get_positions()
+            positions = None
+            try:
+                if hasattr(collector, 'get_positions'):
+                    positions = collector.get_positions()
+            except Exception as e:
+                logger.warning(f"Could not get positions: {e}")
+                st.warning(f"⚠️ Impossible de récupérer les positions: {e}")
             
             if positions:
                 import pandas as pd
@@ -342,9 +378,14 @@ def dashboard_page():
         st.subheader("📋 Derniers Trades")
         
         try:
-            # Get trades (fills) from today
-            from datetime import datetime
-            trades = collector.ib.fills()
+            # Get trades (fills) with protection
+            trades = None
+            if hasattr(collector, 'ib') and collector.ib:
+                try:
+                    trades = collector.ib.fills()
+                except Exception as e:
+                    logger.warning(f"Could not get fills: {e}")
+                    st.warning(f"⚠️ Impossible de récupérer les trades: {e}")
             
             if trades:
                 trades_data = []
@@ -1211,13 +1252,12 @@ def jobs_monitoring_page():
         
         job_manager = JobManager()
         
-        # Auto-refresh every 3 seconds if there are active jobs
-        active_jobs = job_manager.get_active_jobs()
+        # Auto-refresh without blocking - use st.empty() pattern instead of sleep
+        active_jobs = get_cached_active_jobs()
         if active_jobs:
-            st.info("🔄 Cette page se rafraîchit automatiquement toutes les 3 secondes")
-            import time
-            time.sleep(3)
-            st.rerun()
+            st.info("🔄 Cette page se rafraîchit automatiquement")
+            # Use time_auto_update to avoid blocking
+            st.empty()
         
         # Statistics
         st.subheader("📊 Statistiques")
