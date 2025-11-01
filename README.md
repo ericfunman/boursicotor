@@ -4,8 +4,9 @@ Plateforme de trading algorithmique avec analyse technique, machine learning et 
 
 ## 📋 Fonctionnalités
 
-- ✅ Connexion à Saxo Bank ou Interactive Brokers (IBKR)
-- 📊 Collecte de données historiques et temps réel (1s-10s intervals)
+- ✅ Connexion à Interactive Brokers (IBKR) / Lynx
+- 📊 Collecte de données historiques et temps réel (5s-1 mois intervals)
+- 🔄 **Collecte asynchrone avec Celery + Redis** (nouveau !)
 - 💾 Stockage optimisé dans PostgreSQL ou SQLite
 - 📈 30+ indicateurs techniques (RSI, MACD, Bollinger Bands, etc.)
 - 🤖 Machine Learning pour détection de patterns
@@ -53,9 +54,23 @@ venv\Scripts\activate  # Windows
 3. Installer les dépendances
 ```bash
 pip install -r requirements.txt
+pip install -r requirements_celery.txt  # Pour collecte asynchrone
 ```
 
-4. Configurer PostgreSQL
+4. Installer et configurer Redis (pour Celery)
+```bash
+# Option 1: Chocolatey (Windows)
+choco install redis-64
+
+# Option 2: WSL
+wsl
+sudo apt-get install redis-server
+
+# Option 3: Docker
+docker run -d -p 6379:6379 redis:latest
+```
+
+5. Configurer PostgreSQL
 ```bash
 # Créer la base de données
 psql -U postgres
@@ -66,58 +81,70 @@ CREATE DATABASE boursicotor;
 python database/init_db.py
 ```
 
-5. Configurer les variables d'environnement
+6. Configurer les variables d'environnement
 ```bash
 cp .env.example .env
 # Éditer .env avec vos paramètres
 ```
 
-## 🔑 APIs de Données
+## 🔑 Sources de Données
 
-Boursicotor supporte plusieurs sources de données gratuites pour récupérer des données financières :
+Boursicotor utilise deux sources de données fiables :
 
-### Sources Disponibles (par ordre de priorité)
+### Sources Disponibles
 
-1. **🏦 Saxo Bank** (recommandé pour données temps réel)
-   - Données intraday précises
-   - Nécessite un compte Saxo Bank
+1. **🏦 Interactive Brokers (IBKR) / Lynx** (recommandé)
+   - Données temps réel et historiques précises
+   - Intervalles de 5 secondes à 1 mois
+   - Chunking automatique pour grandes périodes
+   - Nécessite un compte IBKR/Lynx et TWS/IB Gateway
 
-2. **📈 Yahoo Finance** (gratuit, pas de clé API)
+2. **📈 Yahoo Finance** (gratuit, backup)
    - Données historiques fiables
    - Support des marchés européens (.PA pour Paris)
-   - Limites : pas de données temps réel
+   - Pas de clé API requise
+   - Limites : données moins précises pour l'intraday
 
-3. **📊 Alpha Vantage** (gratuit avec clé API)
-   - Clé API gratuite (5 appels/minute, 500/jour)
-   - Données temps réel et historiques
-   - [Obtenir une clé gratuite](https://www.alphavantage.co/support/#api-key)
+### Configuration IBKR
 
-4. **🔷 Polygon.io** (gratuit avec clé API)
-   - Clé API gratuite (5 appels/minute, 2M/jour)
-   - Données temps réel et historiques
-   - Excellente documentation
-   - [Obtenir une clé gratuite](https://polygon.io/)
+1. Installez TWS ou IB Gateway
+2. Configurez l'API dans TWS :
+   - File → Global Configuration → API → Settings
+   - Enable ActiveX and Socket Clients
+   - Socket port: 7497 (paper trading) ou 7496 (live)
+   - Trusted IPs: 127.0.0.1
 
-### Configuration des APIs
-
-Ajoutez vos clés API dans le fichier `.env` :
-
-```bash
-# APIs externes (optionnel)
-ALPHA_VANTAGE_API_KEY=votre_clé_alpha_vantage
-POLYGON_API_KEY=votre_clé_polygon
-```
-
-### Test des Sources
-
-```bash
-# Tester toutes les sources disponibles
-python test_new_data_sources.py
-```
+Pour plus de détails, consultez `CELERY_SETUP.md`
 
 ## 🎯 Utilisation
 
-### Lancer l'application
+### Démarrage rapide avec Celery (Recommandé)
+
+Le système de collecte de données fonctionne maintenant en arrière-plan grâce à Celery + Redis !
+
+#### Lancer l'application (Windows)
+```bash
+# Option automatique
+start_with_celery.bat
+
+# Option manuelle (3 terminaux)
+# Terminal 1 : Redis
+redis-server
+
+# Terminal 2 : Celery Worker
+celery -A backend.celery_config worker --loglevel=info --pool=solo
+
+# Terminal 3 : Streamlit
+streamlit run frontend/app.py
+```
+
+#### Lancer Flower (monitoring web optionnel)
+```bash
+celery -A backend.celery_config flower
+# Ouvrir http://localhost:5555
+```
+
+### Utilisation classique (sans Celery)
 
 ```bash
 streamlit run frontend/app.py
@@ -125,6 +152,14 @@ streamlit run frontend/app.py
 
 ### Collecter des données
 
+**Via l'interface Streamlit (recommandé) :**
+1. Connectez-vous à IBKR depuis la sidebar
+2. Allez sur "💾 Collecte de Données"
+3. Sélectionnez un ticker, période et intervalle
+4. Cliquez sur "📊 Collecter les données"
+5. Suivez la progression sur "📋 Historique des collectes"
+
+**Via ligne de commande :**
 ```bash
 python backend/data_collector.py --ticker TTE --interval 1min --days 30
 ```
@@ -135,17 +170,36 @@ python backend/data_collector.py --ticker TTE --interval 1min --days 30
 python backtesting/run_backtest.py --strategy momentum --ticker TTE --start 2024-01-01 --end 2024-12-31
 ```
 
+## 📚 Documentation
+
+- 📖 [CELERY_SETUP.md](CELERY_SETUP.md) - Installation et configuration de Celery + Redis
+- 📖 [CELERY_USAGE.md](CELERY_USAGE.md) - Guide d'utilisation de la collecte asynchrone
+- 📖 [docs/](docs/) - Documentation technique complète
+
 ## 📊 Phase de développement
 
 - [x] Phase 1: Structure du projet
-- [ ] Phase 2: Connexion IBKR et collecte de données
-- [ ] Phase 3: Base de données PostgreSQL
-- [ ] Phase 4: Interface Streamlit
-- [ ] Phase 5: Indicateurs techniques
+- [x] Phase 2: Connexion IBKR et collecte de données
+- [x] Phase 2.5: Infrastructure Celery + Redis pour collecte asynchrone
+- [x] Phase 3: Base de données PostgreSQL
+- [x] Phase 4: Interface Streamlit
+- [x] Phase 5: Indicateurs techniques
 - [ ] Phase 6: Backtesting
 - [ ] Phase 7: Machine Learning
 - [ ] Phase 8: Paper Trading
 - [ ] Phase 9: Trading automatique
+
+## 🆕 Nouveautés (Version actuelle)
+
+### Collecte asynchrone avec Celery + Redis
+
+- ✅ **Collectes en arrière-plan** : Ne bloque plus l'interface
+- ✅ **Résistant aux interruptions** : Continue même si vous fermez le navigateur
+- ✅ **Suivi en temps réel** : Progression visible avec barre de progression
+- ✅ **Historique complet** : Tous les jobs enregistrés en base de données
+- ✅ **Annulation possible** : Possibilité d'annuler un job en cours
+- ✅ **Monitoring web** : Interface Flower pour supervision avancée
+- ✅ **Nettoyage automatique** : Jobs anciens supprimés après 7 jours
 
 ## ⚠️ Avertissement
 
