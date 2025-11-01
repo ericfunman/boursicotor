@@ -704,8 +704,8 @@ def data_collection_page():
                     st.info(f"📊 Source: Yahoo Finance | Période: {selected_duration} | Intervalle: {selected_interval}")
                     st.info("🔄 La collecte s'exécute en arrière-plan. Consultez la page **Historique des collectes** pour suivre la progression.")
                     
-                    # Add link to monitoring page
-                    st.markdown("👉 [Voir l'historique des collectes](#)")
+                    # Rerun to refresh UI and allow navigation
+                    st.rerun()
                 
                 elif use_ibkr:
                     # Check IBKR connection
@@ -767,8 +767,8 @@ def data_collection_page():
                         st.info(f"📊 Source: IBKR | Période: {selected_duration} | Intervalle: {selected_interval}")
                         st.info("🔄 La collecte s'exécute en arrière-plan. Consultez la page **Historique des collectes** pour suivre la progression.")
                         
-                        # Add link to monitoring page
-                        st.markdown("👉 [Voir l'historique des collectes](#)")
+                        # Rerun to refresh UI and allow navigation
+                        st.rerun()
             
             except ImportError as e:
                 st.error("❌ Celery n'est pas installé ou configuré correctement")
