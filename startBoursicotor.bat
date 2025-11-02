@@ -71,7 +71,7 @@ if "%ERRORLEVEL%"=="0" (
         echo Redis n'a pas ete trouve a: %REDIS_PATH%
         echo.
         echo Veuillez verifier l'installation de Redis
-        echo ou modifier le chemin dans ce script ^(ligne 44^).
+        echo ou modifier le chemin dans ce script ^(ligne 51^).
         echo.
         pause
         exit /b 1
@@ -85,7 +85,7 @@ if "%ERRORLEVEL%"=="0" (
     echo [OK] Celery Worker est deja en cours d'execution
 ) else (
     echo [INFO] Lancement de Celery Worker...
-    start "Celery Worker - Boursicotor" cmd /k "cd /d "%~dp0" && call venv\Scripts\activate.bat && celery -A backend.tasks worker --loglevel=info --pool=solo"
+    start "Celery Worker - Boursicotor" cmd /k "cd /d "%~dp0" && call venv\Scripts\activate.bat && celery -A backend.celery_config worker --loglevel=info --pool=solo"
     timeout /t 3 /nobreak >NUL
     echo [OK] Celery Worker demarre
 )

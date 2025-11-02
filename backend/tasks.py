@@ -102,7 +102,10 @@ def collect_data_ibkr(
         job.progress = 10
         db.commit()
         
-        result = collector.collect_and_save(
+        logger.info(f"🚀 Starting data collection for job {job_id}: {ticker_symbol}")
+        
+        # Use streaming mode for better memory efficiency
+        result = collector.collect_and_save_streaming(
             symbol=ticker_symbol,
             duration=duration,
             bar_size=bar_size,
@@ -110,6 +113,8 @@ def collect_data_ibkr(
             name=ticker_name,
             progress_callback=progress_callback
         )
+        
+        logger.info(f"📊 Collection result for job {job_id}: success={result.get('success')}, total_records={result.get('total_records')}, error={result.get('error')}")
         
         # Update job with results
         job.progress = 95
@@ -124,7 +129,7 @@ def collect_data_ibkr(
             job.progress = 100
             job.current_step = "Completed successfully!"
             job.completed_at = datetime.utcnow()
-            logger.info(f"✅ Job {job_id} completed: {job.records_new} new, {job.records_updated} updated")
+            logger.info(f"✅ Job {job_id} completed: {job.records_new} new, {job.records_updated} updated, total: {job.records_total}")
         else:
             job.status = JobStatus.FAILED
             job.error_message = result.get('error', 'Unknown error')

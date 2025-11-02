@@ -12,6 +12,12 @@ import sys
 import os
 from pathlib import Path
 
+# Auto-refresh for progress bars
+try:
+    from streamlit_autorefresh import st_autorefresh
+except ImportError:
+    st_autorefresh = None
+
 # Fix asyncio event loop for IBKR/Streamlit compatibility
 try:
     import nest_asyncio
@@ -162,9 +168,8 @@ def main():
                         st.caption(f"{progress}% - {job.current_step or 'En cours...'}")
                     
                     with col3:
-                        if st.button("📋 Détails", key=f"banner_job_{job.id}"):
-                            st.session_state.page = "📋 Historique des collectes"
-                            st.rerun()
+                        # Removed Details button - use History page directly
+                        st.caption("→ Voir Historique")
                 
                 if len(active_jobs) > 3:
                     st.caption(f"... et {len(active_jobs) - 3} autre(s) job(s)")
@@ -645,6 +650,9 @@ def data_collection_page():
             
             # Warning about sub-5-second intervals
             st.warning("⚠️ **Important** : Les intervalles < 5 secondes ne sont disponibles que pour certaines actions très liquides (principalement US). Pour les actions européennes (TTE, AI, etc.), utilisez 5 secondes minimum.")
+            
+            # Info about streaming optimization
+            st.success("✨ **Mode optimisé** : Les données sont sauvegardées progressivement pendant la collecte. Vous pouvez demander de grandes périodes sans problème de mémoire !")
             
             # Interval options for IBKR
             interval_options = {
@@ -1262,25 +1270,32 @@ def data_collection_page():
 def jobs_monitoring_page():
     """Job monitoring page - Shows async data collection progress"""
     st.header("📋 Historique des collectes de données")
-    
+
+    # Auto-refresh for progress bars (every 5 seconds when jobs are active)
+    active_jobs = get_cached_active_jobs()
+    if active_jobs and st_autorefresh:
+        st_autorefresh(interval=5000, key="jobs_refresh")  # 5 seconds
+        st.info("🔄 Rafraîchissement automatique activé (5 secondes)")
+
+    # Manual refresh button
+    col_refresh, col_empty = st.columns([1, 3])
+    with col_refresh:
+        if st.button("🔄 Actualiser", help="Actualiser manuellement les statuts des jobs"):
+            st.rerun()
+
     try:
         from backend.job_manager import JobManager
-        from backend.models import JobStatus
-        
+        from backend.models import JobStatus, DataCollectionJob, SessionLocal
+        from datetime import datetime, timedelta
+
         job_manager = JobManager()
-        
-        # Auto-refresh without blocking - use st.empty() pattern instead of sleep
-        active_jobs = get_cached_active_jobs()
-        if active_jobs:
-            st.info("🔄 Cette page se rafraîchit automatiquement")
-            # Use time_auto_update to avoid blocking
-            st.empty()
+        db = SessionLocal()
         
         # Statistics
         st.subheader("📊 Statistiques")
         stats = job_manager.get_statistics()
         
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1.5])
         
         with col1:
             st.metric("Total", stats['total'])
@@ -1294,6 +1309,32 @@ def jobs_monitoring_page():
                 st.metric("Temps moyen", f"{avg_time:.1f}s")
             else:
                 st.metric("Temps moyen", "N/A")
+        with col5:
+            # Quick action: Cancel all stuck jobs
+            if st.button("🧹 Nettoyer jobs bloqués", help="Annule tous les jobs en cours depuis plus de 2h"):
+                try:
+                    from datetime import timedelta
+                    cutoff_time = datetime.utcnow() - timedelta(hours=2)
+                    stuck_jobs = db.query(DataCollectionJob).filter(
+                        DataCollectionJob.status.in_([JobStatus.PENDING, JobStatus.RUNNING]),
+                        DataCollectionJob.started_at < cutoff_time
+                    ).all()
+                    
+                    count = 0
+                    for job in stuck_jobs:
+                        job.status = JobStatus.CANCELLED
+                        job.completed_at = datetime.utcnow()
+                        job.error_message = "Job bloqué - annulé automatiquement"
+                        count += 1
+                    
+                    db.commit()
+                    if count > 0:
+                        st.success(f"✅ {count} job(s) bloqué(s) annulé(s)")
+                        st.rerun()
+                    else:
+                        st.info("ℹ️ Aucun job bloqué détecté")
+                except Exception as e:
+                    st.error(f"❌ Erreur: {e}")
         
         st.markdown("---")
         
@@ -1322,14 +1363,30 @@ def jobs_monitoring_page():
                             st.caption(f"Progression: {progress}% - {job.current_step or 'En attente...'}")
                         
                         with col2:
-                            # Cancel button
-                            if st.button("❌ Annuler", key=f"cancel_{job.id}"):
+                            # Force stop button
+                            if st.button("🛑 Forcer l'arrêt", key=f"force_cancel_{job.id}", type="secondary"):
                                 try:
-                                    job_manager.cancel_job(job.id)
-                                    st.success("Job annulé")
-                                    st.rerun()
+                                    # Use static method to cancel job
+                                    success = JobManager.cancel_job(job.id)
+                                    
+                                    if success:
+                                        st.success(f"✅ Job {job.id} annulé avec succès")
+                                        
+                                        # Automatically restart Celery worker
+                                        with st.spinner("🔄 Redémarrage du worker Celery..."):
+                                            restart_success = JobManager.restart_celery_worker()
+                                            if restart_success:
+                                                st.success("✅ Worker Celery redémarré automatiquement")
+                                            else:
+                                                st.warning("⚠️ Impossible de redémarrer automatiquement. Relancez `startboursicotor.bat`")
+                                        
+                                        st.rerun()
+                                    else:
+                                        st.error(f"❌ Impossible d'annuler le job {job.id}")
+                                        
                                 except Exception as e:
-                                    st.error(f"Erreur: {e}")
+                                    st.error(f"❌ Erreur lors de l'annulation: {e}")
+                                    logger.error(f"Error cancelling job {job.id}: {e}", exc_info=True)
                         
                         st.markdown("---")
         
@@ -1453,6 +1510,11 @@ def jobs_monitoring_page():
         import traceback
         with st.expander("Détails de l'erreur"):
             st.code(traceback.format_exc())
+    
+    finally:
+        # Close database session
+        if 'db' in locals():
+            db.close()
 
 
 def technical_analysis_page():

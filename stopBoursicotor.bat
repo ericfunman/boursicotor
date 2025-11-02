@@ -29,7 +29,7 @@ wmic process where "commandline like '%%celery%%worker%%'" delete 2>NUL
 echo [OK] Celery Worker arrete
 
 REM Arreter Redis
-echo [3/4] Arret de Redis...
+echo [3/3] Arret de Redis...
 taskkill /F /IM redis-server.exe 2>NUL
 if "%ERRORLEVEL%"=="0" (
     echo [OK] Redis arrete
@@ -38,7 +38,8 @@ if "%ERRORLEVEL%"=="0" (
 )
 
 REM Restaurer les parametres de mise en veille (30 min sur secteur, 15 min sur batterie)
-echo [4/4] Restauration des parametres de mise en veille...
+echo.
+echo [INFO] Restauration des parametres de mise en veille...
 powercfg /change standby-timeout-ac 30
 powercfg /change standby-timeout-dc 15
 powercfg /change monitor-timeout-ac 10
