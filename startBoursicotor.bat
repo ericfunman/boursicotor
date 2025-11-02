@@ -104,7 +104,8 @@ if "%ERRORLEVEL%"=="0" (
     echo [INFO] Lancement de Redis...
     if exist "%REDIS_PATH%" (
         start "Redis Server - Boursicotor" "%REDIS_PATH%"
-        timeout /t 2 /nobreak >NUL
+        echo [INFO] Attente du demarrage de Redis...
+        timeout /t 3 /nobreak >NUL
         echo [OK] Redis demarre dans une fenetre separee
     ) else (
         echo.
@@ -128,11 +129,20 @@ tasklist /FI "WINDOWTITLE eq Celery Worker*" 2>NUL | find /I /N "python.exe">NUL
 if "%ERRORLEVEL%"=="0" (
     echo [OK] Celery Worker est deja en cours d'execution
 ) else (
-    REM Purger la queue Celery avant de demarrer
+    REM Purger la queue Celery APRES que Redis soit lance
     echo [INFO] Purge de la queue Celery...
-    call venv\Scripts\activate.bat
-    celery -A backend.celery_config purge -f 2>NUL
-    echo [OK] Queue purgee
+    
+    REM Execute purge in a subshell to ensure venv is active
+    cmd /c "cd /d "%~dp0" && call venv\Scripts\activate.bat && celery -A backend.celery_config purge -f"
+    
+    if "%ERRORLEVEL%"=="0" (
+        echo [OK] Queue Celery purgee avec succes
+    ) else (
+        echo [WARN] La purge a echoue, mais on continue...
+    )
+    
+    REM Petit delai pour s'assurer que la purge est complete
+    timeout /t 1 /nobreak >NUL
     
     echo [INFO] Lancement de Celery Worker...
     start "Celery Worker - Boursicotor" cmd /k "cd /d "%~dp0" && call venv\Scripts\activate.bat && celery -A backend.celery_config worker --loglevel=info --pool=solo"
