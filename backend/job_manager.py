@@ -163,30 +163,39 @@ class JobManager:
             if job.celery_task_id and not job.celery_task_id.startswith('temp-'):
                 try:
                     from backend.celery_config import celery_app
-                    # First try to revoke the task
+                    # Revoke this specific task with terminate
                     celery_app.control.revoke(job.celery_task_id, terminate=True, signal='SIGKILL')
                     logger.info(f"Revoked Celery task {job.celery_task_id}")
                     
-                    # On Windows, also try to kill the worker process entirely
-                    import platform
-                    if platform.system() == 'Windows':
-                        import subprocess
-                        try:
-                            subprocess.run(['taskkill', '/F', '/IM', 'celery.exe'], 
-                                         capture_output=True, timeout=5)
-                            logger.info("Force killed Celery worker process on Windows")
-                        except Exception as e2:
-                            logger.warning(f"Could not force kill worker: {e2}")
+                    # Remove this specific task from queue if pending
+                    # Note: purge() removes ALL tasks, so we just revoke the specific one
+                    # The revoke with terminate=True should stop it from executing
+                    
                 except Exception as e:
                     logger.warning(f"Could not revoke Celery task: {e}")
-            
-            # Purge entire Celery queue to remove any pending tasks
-            try:
-                from backend.celery_config import celery_app
-                celery_app.control.purge()
-                logger.info("Purged all pending tasks from Celery queue")
-            except Exception as e:
-                logger.warning(f"Could not purge Celery queue: {e}")
+                    
+                # On Windows, try to kill and restart the worker to ensure clean state
+                import platform
+                if platform.system() == 'Windows':
+                    try:
+                        import subprocess
+                        # Kill the worker
+                        subprocess.run(['taskkill', '/F', '/IM', 'celery.exe'], 
+                                     capture_output=True, timeout=5)
+                        logger.info("Killed Celery worker process")
+                        
+                        # Purge the queue now that worker is stopped
+                        try:
+                            celery_app.control.purge()
+                            logger.info("Purged Celery queue")
+                        except:
+                            pass
+                        
+                        # Restart the worker
+                        JobManager.restart_celery_worker()
+                        
+                    except Exception as e2:
+                        logger.warning(f"Could not kill/restart worker: {e2}")
             
             # Update job status
             job.status = JobStatus.CANCELLED
