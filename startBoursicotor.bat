@@ -117,6 +117,9 @@ if "%ERRORLEVEL%"=="0" (
     REM Execute purge in a subshell to ensure venv is active
     cmd /c "cd /d "%~dp0" && call venv\Scripts\activate.bat && celery -A backend.celery_config purge -f" > nul 2>&1
     
+    REM Clean up any stuck jobs in database
+    cmd /c "cd /d "%~dp0" && call venv\Scripts\activate.bat && python cleanup_jobs.py" > nul 2>&1
+    
     REM Note: purge returns exit code 0 even if queue was empty, so we just confirm it ran
     echo [OK] Redis et queue Celery nettoyes (demarrage propre)
     
