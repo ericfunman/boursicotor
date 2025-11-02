@@ -129,16 +129,19 @@ tasklist /FI "WINDOWTITLE eq Celery Worker*" 2>NUL | find /I /N "python.exe">NUL
 if "%ERRORLEVEL%"=="0" (
     echo [OK] Celery Worker est deja en cours d'execution
 ) else (
-    REM Purger la queue Celery APRES que Redis soit lance
-    echo [INFO] Purge de la queue Celery...
+    REM Purger Redis ET Celery APRES que Redis soit lance
+    echo [INFO] Nettoyage de Redis et de la queue Celery...
+    
+    REM Flush Redis to remove all persisted Celery data
+    C:\redis\redis-cli.exe FLUSHALL > nul 2>&1
     
     REM Execute purge in a subshell to ensure venv is active
     cmd /c "cd /d "%~dp0" && call venv\Scripts\activate.bat && celery -A backend.celery_config purge -f" > nul 2>&1
     
     REM Note: purge returns exit code 0 even if queue was empty, so we just confirm it ran
-    echo [OK] Queue Celery verifiee et purgee si necessaire
+    echo [OK] Redis et queue Celery nettoyes (demarrage propre)
     
-    REM Petit delai pour s'assurer que la purge est complete
+    REM Petit delai pour s'assurer que le nettoyage est complete
     timeout /t 1 /nobreak >NUL
     
     echo [INFO] Lancement de Celery Worker...
