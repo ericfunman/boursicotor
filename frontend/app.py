@@ -1918,11 +1918,6 @@ def backtesting_page():
                     
                     st.info(f"📊 {len(df)} points chargés pour l'analyse")
                     
-                    # Progress bar
-                    progress_bar = st.progress(0)
-                    status_text = st.empty()
-                    results_container = st.empty()
-                    
                     # Convert commission % to decimal
                     commission_decimal = commission_pct / 100
                     
@@ -1931,29 +1926,24 @@ def backtesting_page():
                         st.info(f"🚀 Mode parallèle activé - utilisation de {cpu_count() - 1} processus")
                         st.warning("📊 **Progression en temps réel** : Consultez les logs dans la console/terminal pour suivre l'avancement détaillé (mise à jour tous les 10 backtests)")
                         
-                        engine = BacktestingEngine(
-                            initial_capital=initial_capital,
-                            commission=commission_decimal,
-                            allow_short=True
-                        )
+                        with st.spinner("⏳ Optimisation en cours... Consultez les logs pour la progression détaillée"):
+                            engine = BacktestingEngine(
+                                initial_capital=initial_capital,
+                                commission=commission_decimal,
+                                allow_short=True
+                            )
+                            
+                            # Run parallel optimization (les logs s'affichent dans la console)
+                            best_strategy, best_result, all_results = engine.run_parallel_optimization(
+                                df=df,
+                                symbol=selected_ticker,
+                                num_iterations=max_iterations,
+                                target_return=target_return,
+                                num_processes=None,  # Auto-detect
+                                progress_callback=None  # Pas de callback (logs console uniquement)
+                            )
                         
-                        # Initialiser un placeholder pour la progression
-                        progress_placeholder = st.empty()
-                        progress_placeholder.info("🚀 Démarrage de l'optimisation parallèle... Les résultats s'afficheront au fur et à mesure. Consultez les logs de la console pour le détail de la progression.")
-                        
-                        # Run parallel optimization (les logs s'affichent dans la console)
-                        best_strategy, best_result, all_results = engine.run_parallel_optimization(
-                            df=df,
-                            symbol=selected_ticker,
-                            num_iterations=max_iterations,
-                            target_return=target_return,
-                            num_processes=None,  # Auto-detect
-                            progress_callback=None  # Pas de callback (logs console uniquement)
-                        )
-                        
-                        progress_placeholder.empty()
-                        progress_bar.progress(1.0)
-                        status_text.success(f"✅ Optimisation terminée ! {len(all_results)} stratégies testées.")
+                        st.success(f"✅ Optimisation terminée ! {len(all_results)} stratégies testées.")
                         
                         if best_result and best_strategy:
                             best_return = best_result.total_return
@@ -1976,6 +1966,11 @@ def backtesting_page():
                     
                     else:
                         # === MODE SÉQUENTIEL (ancien code) ===
+                        # Progress bar pour le mode séquentiel uniquement
+                        progress_bar = st.progress(0)
+                        status_text = st.empty()
+                        results_container = st.empty()
+                        
                         # Search for strategy
                         generator = StrategyGenerator(target_return=target_return)
                         
