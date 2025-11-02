@@ -39,6 +39,16 @@ class BacktestResult:
         result['start_date'] = self.start_date.isoformat() if self.start_date else None
         result['end_date'] = self.end_date.isoformat() if self.end_date else None
         return result
+    
+    @staticmethod
+    def from_dict(data: Dict):
+        """Create BacktestResult from dictionary"""
+        # Convert ISO strings back to datetime
+        if isinstance(data.get('start_date'), str):
+            data['start_date'] = datetime.fromisoformat(data['start_date'])
+        if isinstance(data.get('end_date'), str):
+            data['end_date'] = datetime.fromisoformat(data['end_date'])
+        return BacktestResult(**data)
 
 
 @dataclass
@@ -91,15 +101,9 @@ class Strategy:
     @staticmethod
     def from_dict(data: Dict):
         """Create strategy from dictionary"""
-        strategy_name = data['name']
-        
-        # Try to get the class from globals (handles all defined strategies)
-        strategy_class = globals().get(strategy_name)
-        
-        if strategy_class is None or not issubclass(strategy_class, Strategy):
-            raise ValueError(f"Unknown strategy: {strategy_name}")
-        
-        return strategy_class(**data['parameters'])
+        # Cette fonction sera appelée après que toutes les classes soient définies
+        # On utilise une approche lazy avec import local pour éviter les dépendances circulaires
+        return _create_strategy_from_dict(data)
 
 
 class RandomStrategy(Strategy):
@@ -2036,7 +2040,7 @@ class BacktestingEngine:
             for i, (strategy_dict, result_dict) in enumerate(pool.imap_unordered(self._run_single_backtest_worker, args_list)):
                 # Reconstruire les objets
                 strategy = Strategy.from_dict(strategy_dict)
-                result = BacktestResult(**result_dict)
+                result = BacktestResult.from_dict(result_dict)
                 
                 results.append((strategy, result))
                 
@@ -3122,3 +3126,35 @@ class StrategyGenerator:
             return best_strategy, best_result
         
         return None, None
+
+
+# Helper function for Strategy.from_dict() - must be at module level for multiprocessing
+def _create_strategy_from_dict(data: Dict):
+    """
+    Create strategy from dictionary
+    This function is at module level so it can access all strategy classes
+    """
+    strategy_name = data['name']
+    
+    # Map of all available strategies
+    strategy_classes = {
+        'RandomStrategy': RandomStrategy,
+        'MovingAverageCrossover': MovingAverageCrossover,
+        'RSIStrategy': RSIStrategy,
+        'MultiIndicatorStrategy': MultiIndicatorStrategy,
+        'AdvancedMultiIndicatorStrategy': AdvancedMultiIndicatorStrategy,
+        'MomentumBreakoutStrategy': MomentumBreakoutStrategy,
+        'MeanReversionStrategy': MeanReversionStrategy,
+        'UltraAggressiveStrategy': UltraAggressiveStrategy,
+        'MegaIndicatorStrategy': MegaIndicatorStrategy,
+        'HyperAggressiveStrategy': HyperAggressiveStrategy,
+        'UltimateStrategy': UltimateStrategy,
+        'EnhancedMovingAverageStrategy': EnhancedMovingAverageStrategy,
+        'EnhancedMA': EnhancedMovingAverageStrategy,  # Alias
+    }
+    
+    if strategy_name not in strategy_classes:
+        raise ValueError(f"Unknown strategy: {strategy_name}")
+    
+    strategy_class = strategy_classes[strategy_name]
+    return strategy_class(**data['parameters'])
