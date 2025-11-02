@@ -2004,7 +2004,7 @@ def backtesting_page():
                             engine = BacktestingEngine(
                                 initial_capital=initial_capital,
                                 commission=commission_decimal,
-                                allow_short=True
+                                allow_short=False  # Désactiver short temporairement - bug à corriger
                             )
                             
                             # Run parallel optimization (les logs s'affichent dans la console)
@@ -2128,7 +2128,7 @@ def backtesting_page():
                             engine = BacktestingEngine(
                                 initial_capital=initial_capital,
                                 commission=commission_decimal,
-                                allow_short=True
+                                allow_short=False  # Désactiver short temporairement - bug à corriger
                             )
                             result = engine.run_backtest(df, strategy, selected_ticker)
                         
