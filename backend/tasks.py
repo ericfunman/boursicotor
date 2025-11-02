@@ -153,6 +153,15 @@ def collect_data_ibkr(
         
         # Re-raise for Celery to handle
         raise
+    
+    finally:
+        # Always disconnect from IBKR to avoid connection leaks
+        try:
+            if collector and collector.connected:
+                collector.disconnect()
+                logger.info(f"🔌 Disconnected from IBKR for job {job_id}")
+        except Exception as disconnect_error:
+            logger.warning(f"Error disconnecting IBKR for job {job_id}: {disconnect_error}")
 
 
 @celery_app.task(bind=True, base=DatabaseTask)
