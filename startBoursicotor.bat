@@ -62,47 +62,8 @@ if "%ERRORLEVEL%"=="0" (
 REM IB Gateway n'est pas lance
 echo [INFO] Lancement d'IB Gateway avec IBC (auto-login)...
 
-REM Verifier si IBC est installe
+REM Lancer directement IBC (le fichier existe)
 set "IBC_LAUNCHER=C:\IBC\start_gateway.bat"
-if not exist "%IBC_LAUNCHER%" (
-    echo.
-    echo ========================================
-    echo  [ATTENTION] IBC non installe !
-    echo ========================================
-    echo.
-    echo IBC ^(IB Controller^) autorise la connexion automatique.
-    echo Sans IBC, vous devrez vous connecter manuellement.
-    echo.
-    echo Pour installer IBC, executez: install_ibc.bat
-    echo.
-    choice /C YN /M "Continuer sans IBC (connexion manuelle)"
-    if errorlevel 2 exit /b 1
-    
-    REM Fallback: lancement manuel d'IB Gateway
-    if not exist "%IBGATEWAY_PATH%" (
-        echo.
-        echo [ERREUR] IB Gateway non trouve a: %IBGATEWAY_PATH%
-        echo.
-        pause
-        exit /b 1
-    )
-    
-    start "IB Gateway - Boursicotor" "%IBGATEWAY_PATH%"
-    echo [INFO] IB Gateway demarre, veuillez vous connecter manuellement
-    echo.
-    echo ========================================
-    echo  IMPORTANT: Connectez-vous a IB Gateway
-    echo  User: ericlapinasimu
-    echo  Mode: Paper Trading (Simule)
-    echo  Port API: 4002
-    echo ========================================
-    echo.
-    echo Appuyez sur une touche une fois connecte...
-    pause
-    goto :skip_ibgateway
-)
-
-REM Lancer IB Gateway avec IBC (auto-login)
 call "%IBC_LAUNCHER%"
 echo [INFO] IB Gateway lance avec IBC (connexion automatique)
 echo [INFO] Attente de la connexion (30 secondes)...
