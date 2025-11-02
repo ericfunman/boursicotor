@@ -2108,21 +2108,25 @@ class AdvancedIndicators:
         low = df['low']
         close = df['close']
 
-        # Calcul des mouvements directionnels
-        dm_plus = np.where((high - high.shift(1)) > (low.shift(1) - low),
-                          np.maximum(high - high.shift(1), 0), 0)
-        dm_minus = np.where((low.shift(1) - low) > (high - high.shift(1)),
-                           np.maximum(low.shift(1) - low, 0), 0)
+        # Calcul des mouvements directionnels (garder comme Series avec index)
+        high_diff = high - high.shift(1)
+        low_diff = low.shift(1) - low
+        
+        dm_plus = pd.Series(0.0, index=df.index)
+        dm_plus[high_diff > low_diff] = high_diff[high_diff > low_diff].clip(lower=0)
+        
+        dm_minus = pd.Series(0.0, index=df.index)
+        dm_minus[low_diff > high_diff] = low_diff[low_diff > high_diff].clip(lower=0)
 
         # True Range
         tr = pd.concat([high - low,
                        (high - close.shift(1)).abs(),
                        (low - close.shift(1)).abs()], axis=1).max(axis=1)
 
-        # Moyennes mobiles
+        # Moyennes mobiles (toutes les Series ont maintenant le même index)
         atr = tr.rolling(window=period).mean()
-        di_plus = (pd.Series(dm_plus).rolling(window=period).mean() / atr * 100).fillna(0)
-        di_minus = (pd.Series(dm_minus).rolling(window=period).mean() / atr * 100).fillna(0)
+        di_plus = (dm_plus.rolling(window=period).mean() / atr * 100).fillna(0)
+        di_minus = (dm_minus.rolling(window=period).mean() / atr * 100).fillna(0)
 
         # ADX
         dx = (abs(di_plus - di_minus) / (di_plus + di_minus) * 100).fillna(0)
