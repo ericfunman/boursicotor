@@ -1957,12 +1957,23 @@ class BacktestingEngine:
         symbol: str,
         num_iterations: int = 1000,
         target_return: float = 10.0,
-        num_processes: Optional[int] = None
+        num_processes: Optional[int] = None,
+        progress_callback: Optional[callable] = None
     ) -> Tuple[Optional[Strategy], Optional[BacktestResult], List[Tuple[Strategy, BacktestResult]]]:
         """
         Exécute une optimisation parallélisée de stratégies
         
         Args:
+            df: DataFrame avec les données OHLCV
+            symbol: Symbole du ticker
+            num_iterations: Nombre de stratégies à tester
+            target_return: Retour cible en %
+            num_processes: Nombre de processus (None = auto-detect)
+            progress_callback: Fonction appelée avec (iteration, total, best_return) pour suivi progression
+        
+        Returns:
+            (best_strategy, best_result, all_results)
+        """
             df: DataFrame avec les données OHLCV
             symbol: Symbole du ticker
             num_iterations: Nombre de stratégies à tester
@@ -2055,10 +2066,15 @@ class BacktestingEngine:
                     best_return = result.total_return
                     best_strategy = strategy
                     best_result = result
+                    logger.info(f"   📈 Nouveau record à l'itération {i+1}: {best_return:.2f}%")
                 
-                # Log progression
-                if (i + 1) % 100 == 0:
-                    logger.info(f"   Progression: {i+1}/{num_iterations} | Meilleur: {best_return:.2f}%")
+                # Callback de progression pour Streamlit
+                if progress_callback:
+                    progress_callback(i + 1, num_iterations, best_return)
+                
+                # Log progression - plus fréquent pour voir l'avancement
+                if (i + 1) % 10 == 0:
+                    logger.info(f"   ⚡ Progression: {i+1}/{num_iterations} ({(i+1)/num_iterations*100:.1f}%) | Meilleur: {best_return:.2f}%")
         
         logger.info(f"✅ Optimisation terminée. Meilleur résultat: {best_return:.2f}%")
         
