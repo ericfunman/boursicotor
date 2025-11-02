@@ -1,0 +1,23 @@
+[IBGateway]
+# IB Gateway Auto-Login Configuration Template
+# Copy this file to 'ibgateway_config.ini' and fill in your credentials
+# WARNING: Do NOT commit ibgateway_config.ini to Git!
+
+# Login Credentials
+Username=YOUR_IB_USERNAME
+Password=YOUR_IB_PASSWORD
+
+# Trading Mode
+# paper = Paper Trading (simulated)
+# live = Live Trading (real money)
+TradingMode=paper
+
+# API Settings
+ReadOnlyApi=no
+
+# Auto-restart settings
+AutoRestart=yes
+AutoRestartTime=23:55
+
+# Logging
+LogLevel=Information

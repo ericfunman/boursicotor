@@ -27,6 +27,10 @@ wheels/
 .env
 .env.local
 
+# IB Gateway credentials (IMPORTANT - contains login credentials)
+ibgateway_config.ini
+ibgateway.jts
+
 # Saxo Bank tokens (IMPORTANT - contains sensitive tokens)
 .saxo_tokens
 
