@@ -51,62 +51,25 @@ echo [OK] Mise en veille desactivee
 REM Definir le chemin vers IB Gateway
 set IBGATEWAY_PATH=C:\Jts\ibgateway\1037\ibgateway.exe
 
-REM Verifier si IB Gateway est deja lance
+REM Verifier si IB Gateway est deja lance (processus Java)
 echo [2.1/4] Verification d'IB Gateway...
-tasklist /FI "IMAGENAME eq ibgateway.exe" 2>NUL | find /I /N "ibgateway.exe">NUL
+tasklist /FI "IMAGENAME eq java.exe" 2>NUL | find /I /N "java.exe">NUL
 if "%ERRORLEVEL%"=="0" (
     echo [OK] IB Gateway est deja en cours d'execution
     goto :skip_ibgateway
 )
 
-REM IB Gateway n'est pas lance
-echo [INFO] IB Gateway n'est pas lance.
-echo.
-echo ========================================
-echo  CONFIGURATION REQUISE
-echo ========================================
-echo.
-echo Pour utiliser l'API IBKR, vous devez:
-echo 1. Lancer IB Gateway MANUELLEMENT une premiere fois
-echo 2. Se connecter (ericlapinasimu / paper trading)
-echo 3. Aller dans Settings (roue dentee) ^> API ^> Settings
-echo 4. DECOCHER "Read-Only API"
-echo 5. Cliquer OK pour sauvegarder
-echo 6. Fermer IB Gateway
-echo 7. Relancer ce script
-echo.
-echo Cette configuration est permanente (a faire une seule fois).
-echo.
-echo Voulez-vous lancer IB Gateway maintenant pour le configurer ?
-echo.
-choice /C ON /M "O = Oui (lancer Gateway), N = Non (annuler)"
+REM IB Gateway n'est pas lance - utiliser IBC pour auto-login
+echo [INFO] Lancement d'IB Gateway avec IBC (auto-login)...
 
-if errorlevel 2 (
-    echo.
-    echo Script annule. Relancez-le apres avoir configure IB Gateway.
-    pause
-    exit /b 1
-)
+REM Lancer IBC
+set "IBC_LAUNCHER=C:\IBC\start_gateway.bat"
+call "%IBC_LAUNCHER%"
+echo [INFO] IB Gateway lance avec IBC (connexion automatique)
+echo [INFO] Attente de l'initialisation complete (15 secondes)...
+timeout /t 15 /nobreak >nul
 
-echo.
-echo [INFO] Lancement d'IB Gateway pour configuration manuelle...
-start "IB Gateway Configuration" "C:\Jts\ibgateway\1037\ibgateway.exe"
-echo.
-echo Configurez IB Gateway comme indique ci-dessus, puis appuyez sur une touche.
-pause
-echo.
-echo Recherche d'IB Gateway en cours d'execution...
-tasklist /FI "IMAGENAME eq java.exe" 2>NUL | find /I /N "java.exe">NUL
-if "%ERRORLEVEL%"=="0" (
-    echo [OK] IB Gateway detecte
-) else (
-    echo [ATTENTION] IB Gateway ne semble pas lance
-    echo Veuillez le demarrer manuellement et le configurer
-    pause
-    exit /b 1
-)
-
-goto :skip_ibgateway
+:skip_ibgateway
 
 REM Definir le chemin vers Redis
 set REDIS_PATH=C:\redis\redis-server.exe
