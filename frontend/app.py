@@ -1790,7 +1790,7 @@ def backtesting_page():
     
     with tab1:
         st.subheader("🔍 Recherche de Stratégie Profitable")
-        st.info("L'algorithme va tester différentes stratégies jusqu'à trouver un gain ≥ 10% (ou arrêt après 100 itérations)")
+        st.info("L'algorithme va tester différentes stratégies aléatoires pour trouver la meilleure performance. Configure les paramètres ci-dessous.")
         
         # Get tickers with collected data
         available_tickers = get_available_tickers()
@@ -1929,6 +1929,7 @@ def backtesting_page():
                     if enable_parallel:
                         # === MODE PARALLÈLE ===
                         st.info(f"🚀 Mode parallèle activé - utilisation de {cpu_count() - 1} processus")
+                        st.warning("📊 **Progression en temps réel** : Consultez les logs dans la console/terminal pour suivre l'avancement détaillé (mise à jour tous les 10 backtests)")
                         
                         engine = BacktestingEngine(
                             initial_capital=initial_capital,
@@ -1936,33 +1937,23 @@ def backtesting_page():
                             allow_short=True
                         )
                         
-                        # Callback pour mettre à jour la progression
-                        def update_progress(iteration, total, best_return):
-                            progress = iteration / total
-                            progress_bar.progress(progress)
-                            status_text.text(f"⚡ Progression: {iteration}/{total} ({progress*100:.1f}%) | Meilleur: {best_return:.2f}%")
-                            
-                            # Afficher les métriques en temps réel
-                            if iteration % 10 == 0:  # Mise à jour tous les 10
-                                with results_container.container():
-                                    col_a, col_b = st.columns(2)
-                                    with col_a:
-                                        st.metric("Progression", f"{iteration}/{total}")
-                                    with col_b:
-                                        st.metric("Meilleur retour", f"{best_return:.2f}%")
+                        # Initialiser un placeholder pour la progression
+                        progress_placeholder = st.empty()
+                        progress_placeholder.info("🚀 Démarrage de l'optimisation parallèle... Les résultats s'afficheront au fur et à mesure. Consultez les logs de la console pour le détail de la progression.")
                         
-                        # Run parallel optimization
+                        # Run parallel optimization (les logs s'affichent dans la console)
                         best_strategy, best_result, all_results = engine.run_parallel_optimization(
                             df=df,
                             symbol=selected_ticker,
                             num_iterations=max_iterations,
                             target_return=target_return,
                             num_processes=None,  # Auto-detect
-                            progress_callback=update_progress
+                            progress_callback=None  # Pas de callback (logs console uniquement)
                         )
                         
+                        progress_placeholder.empty()
                         progress_bar.progress(1.0)
-                        status_text.empty()
+                        status_text.success(f"✅ Optimisation terminée ! {len(all_results)} stratégies testées.")
                         
                         if best_result and best_strategy:
                             best_return = best_result.total_return
