@@ -50,6 +50,9 @@ logs/
 *.db
 *.sqlite
 
+# Redis
+dump.rdb
+
 # ML Models
 ml_models/trained/
 *.h5
