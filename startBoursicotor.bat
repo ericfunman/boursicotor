@@ -54,10 +54,18 @@ set IBGATEWAY_PATH=C:\Jts\ibgateway\1037\ibgateway.exe
 REM Verifier si IB Gateway est deja lance (processus Java)
 echo [2.1/4] Verification d'IB Gateway...
 tasklist /FI "IMAGENAME eq java.exe" 2>NUL | find /I /N "java.exe">NUL
-if "%ERRORLEVEL%"=="0" (
-    echo [OK] IB Gateway est deja en cours d'execution
-    goto :skip_ibgateway
-)
+if "%ERRORLEVEL%"=="0" goto :gateway_found
+tasklist /FI "IMAGENAME eq ibgateway1.exe" 2>NUL | find /I /N "ibgateway1.exe">NUL
+if "%ERRORLEVEL%"=="0" goto :gateway_found
+
+REM IB Gateway n'est pas lance
+goto :gateway_not_found
+
+:gateway_found
+echo [OK] IB Gateway est deja en cours d'execution
+goto :skip_ibgateway
+
+:gateway_not_found
 
 REM IB Gateway n'est pas lance - demander lancement manuel
 echo.
@@ -79,15 +87,18 @@ pause >nul
 
 REM Verifier que Gateway est bien lance
 tasklist /FI "IMAGENAME eq java.exe" 2>NUL | find /I /N "java.exe">NUL
-if "%ERRORLEVEL%"=="0" (
-    echo [OK] IB Gateway detecte - continuation du demarrage
-) else (
-    echo.
-    echo [ERREUR] IB Gateway n'est toujours pas detecte
-    echo Veuillez le lancer et reessayer
-    pause
-    exit /b 1
-)
+if "%ERRORLEVEL%"=="0" goto :gateway_detected
+tasklist /FI "IMAGENAME eq ibgateway1.exe" 2>NUL | find /I /N "ibgateway1.exe">NUL
+if "%ERRORLEVEL%"=="0" goto :gateway_detected
+
+echo.
+echo [ERREUR] IB Gateway n'est toujours pas detecte
+echo Veuillez le lancer et reessayer
+pause
+exit /b 1
+
+:gateway_detected
+echo [OK] IB Gateway detecte - continuation du demarrage
 
 :skip_ibgateway
 
