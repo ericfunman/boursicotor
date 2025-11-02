@@ -31,27 +31,27 @@ class IBKRCollector:
     # IBKR Historical Data Limitations (max duration per bar size)
     # Source: https://interactivebrokers.github.io/tws-api/historical_limitations.html
     IBKR_LIMITS = {
-        '1 secs': {'max_duration': '1 D', 'chunk_days': 1},      # 1 day max
-        '5 secs': {'max_duration': '2 D', 'chunk_days': 2},      # 2 days max
-        '10 secs': {'max_duration': '2 D', 'chunk_days': 2},     # 2 days max
-        '15 secs': {'max_duration': '2 D', 'chunk_days': 2},     # 2 days max
-        '30 secs': {'max_duration': '1 W', 'chunk_days': 7},     # 1 week max
-        '1 min': {'max_duration': '1 W', 'chunk_days': 7},       # 1 week max
-        '2 mins': {'max_duration': '1 W', 'chunk_days': 7},      # 1 week max
-        '3 mins': {'max_duration': '1 W', 'chunk_days': 7},      # 1 week max
-        '5 mins': {'max_duration': '1 W', 'chunk_days': 7},      # 1 week max
-        '10 mins': {'max_duration': '1 W', 'chunk_days': 7},     # 1 week max
-        '15 mins': {'max_duration': '1 W', 'chunk_days': 7},     # 1 week max
-        '20 mins': {'max_duration': '1 W', 'chunk_days': 7},     # 1 week max
-        '30 mins': {'max_duration': '1 M', 'chunk_days': 30},    # 1 month max
-        '1 hour': {'max_duration': '1 M', 'chunk_days': 30},     # 1 month max
-        '2 hours': {'max_duration': '1 M', 'chunk_days': 30},    # 1 month max
-        '3 hours': {'max_duration': '1 M', 'chunk_days': 30},    # 1 month max
-        '4 hours': {'max_duration': '1 M', 'chunk_days': 30},    # 1 month max
-        '8 hours': {'max_duration': '1 M', 'chunk_days': 30},    # 1 month max
-        '1 day': {'max_duration': '1 Y', 'chunk_days': 365},     # 1 year max
-        '1 week': {'max_duration': '1 Y', 'chunk_days': 365},    # 1 year max
-        '1 month': {'max_duration': '1 Y', 'chunk_days': 365},   # 1 year max
+        '1 secs': {'max_duration': '1 D', 'chunk_days': 1, 'recommended_max_days': 7},      # 1 day max, recommend max 1 week total
+        '5 secs': {'max_duration': '2 D', 'chunk_days': 2, 'recommended_max_days': 14},     # 2 days max, recommend max 2 weeks total
+        '10 secs': {'max_duration': '2 D', 'chunk_days': 2, 'recommended_max_days': 14},    # 2 days max
+        '15 secs': {'max_duration': '2 D', 'chunk_days': 2, 'recommended_max_days': 14},    # 2 days max
+        '30 secs': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 30},    # 1 week max
+        '1 min': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},      # 1 week max, recommend max 3 months
+        '2 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},     # 1 week max
+        '3 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},     # 1 week max
+        '5 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},     # 1 week max
+        '10 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},    # 1 week max
+        '15 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},    # 1 week max
+        '20 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},    # 1 week max
+        '30 mins': {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 180},  # 1 month max
+        '1 hour': {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 365},   # 1 month max
+        '2 hours': {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 365},  # 1 month max
+        '3 hours': {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 365},  # 1 month max
+        '4 hours': {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 365},  # 1 month max
+        '8 hours': {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 365},  # 1 month max
+        '1 day': {'max_duration': '1 Y', 'chunk_days': 365, 'recommended_max_days': 3650},  # 1 year max
+        '1 week': {'max_duration': '1 Y', 'chunk_days': 365, 'recommended_max_days': 3650}, # 1 year max
+        '1 month': {'max_duration': '1 Y', 'chunk_days': 365, 'recommended_max_days': 3650}, # 1 year max
     }
     
     def __init__(self, client_id: int = None):
@@ -283,15 +283,36 @@ class IBKRCollector:
             limit_info = self.IBKR_LIMITS[bar_size]
             requested_days = self._parse_duration_to_days(duration)
             max_chunk_days = limit_info['chunk_days']
+            recommended_max = limit_info.get('recommended_max_days', 365)
             
-            # If request is within limits, use standard method
+            # Info only (don't warn - streaming handles large requests well)
+            if requested_days > recommended_max:
+                logger.info(f"📊 Large request: {requested_days} days with {bar_size} bars → {(requested_days + max_chunk_days - 1) // max_chunk_days} chunks (streaming mode)")
+            
+            # If within limits, use standard method
             if requested_days <= max_chunk_days:
                 logger.info(f"Request within IBKR limits ({requested_days} <= {max_chunk_days} days)")
                 return self.get_historical_data(symbol, duration, bar_size, what_to_show, use_rth, exchange, currency)
             
             # Calculate chunks needed
             num_chunks = (requested_days + max_chunk_days - 1) // max_chunk_days
+            
+            # Estimate time (approx 2-3 seconds per chunk with IBKR pacing)
+            estimated_minutes = (num_chunks * 2.5) / 60
+            
+            if estimated_minutes < 1:
+                time_estimate = f"{int(num_chunks * 2.5)} secondes"
+            elif estimated_minutes < 60:
+                time_estimate = f"{int(estimated_minutes)} minutes"
+            else:
+                time_estimate = f"{estimated_minutes/60:.1f} heures"
+            
             logger.info(f"📊 Splitting request into {num_chunks} chunks ({requested_days} days / {max_chunk_days} days per chunk)")
+            logger.info(f"⏱️ Estimated collection time: ~{time_estimate}")
+            
+            # Warn for very large requests (but don't block)
+            if num_chunks > 100:
+                logger.warning(f"⚠️ Very large request: {num_chunks} chunks (~{time_estimate}). Data will be collected and saved progressively.")
             
             all_data = []
             end_date = datetime.now()
@@ -327,14 +348,19 @@ class IBKRCollector:
                     break
                 
                 try:
+                    # Format date for IBKR
+                    # Use simple format without timezone (IBKR assumes local time)
+                    end_datetime = end_date.strftime('%Y%m%d %H:%M:%S')
+                    
                     bars = self.ib.reqHistoricalData(
                         contract,
-                        endDateTime=end_date.strftime('%Y%m%d %H:%M:%S'),
+                        endDateTime=end_datetime,
                         durationStr=chunk_duration,
                         barSizeSetting=bar_size,
                         whatToShow=what_to_show,
                         useRTH=use_rth,
-                        formatDate=1
+                        formatDate=1,
+                        timeout=120  # Increase timeout to 120 seconds for large requests
                     )
                     
                     if bars:
@@ -402,22 +428,44 @@ class IBKRCollector:
     ) -> Dict[str, any]:
         """
         Save historical data to database
-        
+
         Args:
             symbol: Stock symbol
             df: DataFrame with historical data
             interval: Interval string (e.g., '1min', '1h', '1day')
             name: Stock name (optional)
             progress_callback: Optional callback function(current, total) for progress updates
-        
+
         Returns:
             Dict with success status and statistics
         """
         db = SessionLocal()
         try:
+            logger.info(f"📊 Starting database save for {symbol}: {len(df)} rows, columns: {list(df.columns)}")
+
+            # Validate DataFrame
+            if df.empty:
+                return {
+                    'success': False,
+                    'error': 'DataFrame is empty'
+                }
+
+            required_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                return {
+                    'success': False,
+                    'error': f'Missing required columns: {missing_columns}'
+                }
+
+            # Check for NaN values
+            nan_counts = df.isnull().sum()
+            if nan_counts.sum() > 0:
+                logger.warning(f"NaN values found: {nan_counts.to_dict()}")
+
             # Get or create ticker
             ticker = db.query(TickerModel).filter(TickerModel.symbol == symbol).first()
-            
+
             if not ticker:
                 ticker = TickerModel(
                     symbol=symbol,
@@ -428,54 +476,78 @@ class IBKRCollector:
                 db.commit()
                 db.refresh(ticker)
                 logger.info(f"Created new ticker: {symbol}")
-            
+
             # Save historical data
             new_records = 0
             updated_records = 0
             total_rows = len(df)
-            
+            errors = []
+
             for idx, (_, row) in enumerate(df.iterrows()):
-                # Update progress
-                if progress_callback:
-                    progress_callback(idx + 1, total_rows)
-                
-                # Check if record exists
-                existing = db.query(HistoricalData).filter(
-                    and_(
-                        HistoricalData.ticker_id == ticker.id,
-                        HistoricalData.timestamp == row['timestamp'],
-                        HistoricalData.interval == interval
-                    )
-                ).first()
-                
-                if existing:
-                    # Update existing record
-                    existing.open = float(row['open'])
-                    existing.high = float(row['high'])
-                    existing.low = float(row['low'])
-                    existing.close = float(row['close'])
-                    existing.volume = int(row['volume'])
-                    updated_records += 1
-                else:
-                    # Create new record
-                    new_record = HistoricalData(
-                        ticker_id=ticker.id,
-                        timestamp=row['timestamp'],
-                        open=float(row['open']),
-                        high=float(row['high']),
-                        low=float(row['low']),
-                        close=float(row['close']),
-                        volume=int(row['volume']),
-                        interval=interval
-                    )
-                    db.add(new_record)
-                    new_records += 1
-            
+                try:
+                    # Update progress
+                    if progress_callback:
+                        progress_callback(idx + 1, total_rows)
+
+                    # Validate row data
+                    try:
+                        timestamp = pd.to_datetime(row['timestamp'])
+                        open_price = float(row['open'])
+                        high_price = float(row['high'])
+                        low_price = float(row['low'])
+                        close_price = float(row['close'])
+                        volume_val = int(row['volume'])
+                    except (ValueError, TypeError) as e:
+                        errors.append(f"Row {idx}: Invalid data types - {e}")
+                        continue
+
+                    # Check if record exists
+                    existing = db.query(HistoricalData).filter(
+                        and_(
+                            HistoricalData.ticker_id == ticker.id,
+                            HistoricalData.timestamp == timestamp,
+                            HistoricalData.interval == interval
+                        )
+                    ).first()
+
+                    if existing:
+                        # Update existing record
+                        existing.open = open_price
+                        existing.high = high_price
+                        existing.low = low_price
+                        existing.close = close_price
+                        existing.volume = volume_val
+                        updated_records += 1
+                    else:
+                        # Create new record
+                        new_record = HistoricalData(
+                            ticker_id=ticker.id,
+                            timestamp=timestamp,
+                            open=open_price,
+                            high=high_price,
+                            low=low_price,
+                            close=close_price,
+                            volume=volume_val,
+                            interval=interval
+                        )
+                        db.add(new_record)
+                        new_records += 1
+
+                    # Commit every 1000 records to avoid memory issues
+                    if (new_records + updated_records) % 1000 == 0:
+                        db.commit()
+                        logger.info(f"Committed {new_records + updated_records}/{total_rows} records")
+
+                except Exception as e:
+                    error_msg = f"Row {idx}: {e}"
+                    logger.error(error_msg)
+                    errors.append(error_msg)
+                    continue
+
+            # Final commit
             db.commit()
-            
-            logger.info(f"✅ Saved to database: {new_records} new, {updated_records} updated")
-            
-            return {
+
+            result = {
                 'success': True,
                 'symbol': symbol,
                 'new_records': new_records,
@@ -484,10 +556,18 @@ class IBKRCollector:
                 'interval': interval,
                 'date_range': f"{df['timestamp'].min()} to {df['timestamp'].max()}"
             }
-            
+
+            if errors:
+                result['warnings'] = errors[:10]  # Log first 10 errors
+                logger.warning(f"Completed with {len(errors)} errors: {errors[:3]}")
+
+            logger.info(f"✅ Saved to database: {new_records} new, {updated_records} updated")
+
+            return result
+
         except Exception as e:
             db.rollback()
-            logger.error(f"Error saving to database: {e}")
+            logger.error(f"Error saving to database: {e}", exc_info=True)
             return {
                 'success': False,
                 'error': str(e)
@@ -495,6 +575,204 @@ class IBKRCollector:
         
         finally:
             db.close()
+    
+    def collect_and_save_streaming(
+        self,
+        symbol: str,
+        duration: str = '1 M',
+        bar_size: str = '1 min',
+        interval: str = '1min',
+        name: str = None,
+        progress_callback=None
+    ) -> Dict[str, any]:
+        """
+        Collect historical data and save to database chunk by chunk (streaming mode)
+        More memory efficient for large requests - saves each chunk immediately
+        
+        Args:
+            symbol: Stock symbol
+            duration: Duration string
+            bar_size: Bar size for IBKR API
+            interval: Interval for database storage
+            name: Stock name
+            progress_callback: Optional callback function(current, total) for progress updates
+        
+        Returns:
+            Dict with results
+        """
+        try:
+            logger.info(f"Collecting data for {symbol}: {duration} @ {bar_size} (streaming mode)")
+            
+            # Check chunking requirements
+            if bar_size not in self.IBKR_LIMITS:
+                logger.warning(f"Unknown bar size: {bar_size}, using standard method")
+                # Fall back to standard method
+                df = self.get_historical_data(symbol, duration, bar_size)
+                if df is None or df.empty:
+                    return {'success': False, 'error': 'No data received'}
+                return self.save_to_database(symbol, df, interval, name, progress_callback)
+            
+            limit_info = self.IBKR_LIMITS[bar_size]
+            requested_days = self._parse_duration_to_days(duration)
+            max_chunk_days = limit_info['chunk_days']
+            recommended_max = limit_info.get('recommended_max_days', 365)
+            
+            # Warn if excessive
+            if requested_days > recommended_max:
+                logger.warning(f"⚠️ Requested {requested_days} days exceeds recommended {recommended_max} days for {bar_size}")
+            
+            # If within limits, use standard method
+            if requested_days <= max_chunk_days:
+                logger.info(f"Request within IBKR limits ({requested_days} <= {max_chunk_days} days)")
+                df = self.get_historical_data(symbol, duration, bar_size)
+                if df is None or df.empty:
+                    return {'success': False, 'error': 'No data received'}
+                return self.save_to_database(symbol, df, interval, name, progress_callback)
+            
+            # Calculate chunks
+            num_chunks = (requested_days + max_chunk_days - 1) // max_chunk_days
+            
+            # Estimate time (approx 2-3 seconds per chunk with IBKR pacing)
+            estimated_minutes = (num_chunks * 2.5) / 60
+            
+            if estimated_minutes < 1:
+                time_estimate = f"{int(num_chunks * 2.5)} secondes"
+            elif estimated_minutes < 60:
+                time_estimate = f"{int(estimated_minutes)} minutes"
+            else:
+                time_estimate = f"{estimated_minutes/60:.1f} heures"
+            
+            logger.info(f"📊 Processing {num_chunks} chunks - saving each immediately to database")
+            logger.info(f"⏱️ Estimated time: ~{time_estimate}")
+            
+            # Warn if very large request (but don't block it)
+            if num_chunks > 100:
+                logger.warning(f"⚠️ Large request: {num_chunks} chunks (~{time_estimate}) will be processed. This may take a while but will save progressively.")
+            
+            # Initialize counters
+            total_new = 0
+            total_updated = 0
+            total_records = 0
+            errors = []
+            
+            end_date = datetime.now()
+            
+            # Process each chunk and save immediately
+            for chunk_idx in range(num_chunks):
+                try:
+                    # Calculate chunk duration
+                    remaining_days = requested_days - (chunk_idx * max_chunk_days)
+                    chunk_days = min(max_chunk_days, remaining_days)
+                    
+                    if chunk_days < 7:
+                        chunk_duration = f"{chunk_days} D"
+                    elif chunk_days < 30:
+                        chunk_duration = f"{chunk_days // 7} W"
+                    else:
+                        chunk_duration = f"{chunk_days // 30} M"
+                    
+                    logger.info(f"📦 Chunk {chunk_idx + 1}/{num_chunks}: {chunk_duration} ending {end_date.strftime('%Y-%m-%d')}")
+                    
+                    # Get chunk data
+                    if not self.connected:
+                        if not self.connect():
+                            errors.append(f"Chunk {chunk_idx + 1}: Failed to connect")
+                            continue
+                    
+                    contract = self.get_contract(symbol)
+                    if not contract:
+                        errors.append(f"Chunk {chunk_idx + 1}: Failed to get contract")
+                        continue
+                    
+                    # Request historical data for this chunk
+                    # Use simple date format (IBKR assumes local time)
+                    end_datetime = end_date.strftime('%Y%m%d %H:%M:%S')
+                    
+                    bars = self.ib.reqHistoricalData(
+                        contract,
+                        endDateTime=end_datetime,
+                        durationStr=chunk_duration,
+                        barSizeSetting=bar_size,
+                        whatToShow='TRADES',
+                        useRTH=False,
+                        formatDate=1,
+                        timeout=120
+                    )
+                    
+                    if not bars:
+                        logger.warning(f"No data for chunk {chunk_idx + 1}")
+                        self.ib.sleep(1)
+                        continue
+                    
+                    # Convert to DataFrame
+                    df_chunk = util.df(bars)
+                    if df_chunk.empty:
+                        logger.warning(f"Empty chunk {chunk_idx + 1}")
+                        self.ib.sleep(1)
+                        continue
+                    
+                    # Rename columns
+                    df_chunk = df_chunk.rename(columns={'date': 'timestamp'})
+                    if not isinstance(df_chunk['timestamp'].iloc[0], datetime):
+                        df_chunk['timestamp'] = pd.to_datetime(df_chunk['timestamp'])
+                    
+                    df_chunk = df_chunk[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
+                    
+                    logger.info(f"✅ Chunk {chunk_idx + 1}: {len(df_chunk)} bars collected")
+                    
+                    # Save chunk immediately to database
+                    save_result = self.save_to_database(symbol, df_chunk, interval, name, None)
+                    
+                    if save_result['success']:
+                        total_new += save_result['new_records']
+                        total_updated += save_result['updated_records']
+                        total_records += save_result['total_records']
+                        logger.info(f"💾 Chunk {chunk_idx + 1} saved: +{save_result['new_records']} new, +{save_result['updated_records']} updated")
+                    else:
+                        errors.append(f"Chunk {chunk_idx + 1}: {save_result.get('error')}")
+                    
+                    # Update progress
+                    if progress_callback:
+                        progress_callback(chunk_idx + 1, num_chunks)
+                    
+                    # Update end_date for next chunk
+                    if not df_chunk.empty:
+                        end_date = pd.to_datetime(df_chunk['timestamp'].min())
+                    
+                    # Pace requests
+                    if chunk_idx < num_chunks - 1:
+                        self.ib.sleep(1)
+                    
+                except Exception as e:
+                    logger.error(f"Error processing chunk {chunk_idx + 1}: {e}")
+                    errors.append(f"Chunk {chunk_idx + 1}: {e}")
+                    continue
+            
+            # Final result
+            result = {
+                'success': total_records > 0,
+                'symbol': symbol,
+                'new_records': total_new,
+                'updated_records': total_updated,
+                'total_records': total_records,
+                'interval': interval,
+                'chunks_processed': num_chunks
+            }
+            
+            if errors:
+                result['warnings'] = errors[:10]
+                logger.warning(f"Completed with {len(errors)} chunk errors")
+            
+            logger.info(f"✅ Streaming save completed: {total_new} new, {total_updated} updated, {total_records} total")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in streaming collect_and_save: {e}", exc_info=True)
+            return {
+                'success': False,
+                'error': str(e)
+            }
     
     def collect_and_save(
         self,

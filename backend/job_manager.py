@@ -4,6 +4,9 @@ Job management service for data collection
 from typing import List, Optional, Dict
 from datetime import datetime
 from sqlalchemy.orm import Session
+import subprocess
+import platform
+import time
 
 from backend.models import SessionLocal, DataCollectionJob, JobStatus
 from backend.config import logger
@@ -149,23 +152,50 @@ class JobManager:
             job = db.query(DataCollectionJob).filter(DataCollectionJob.id == job_id).first()
             
             if not job:
+                logger.warning(f"Job {job_id} not found")
                 return False
             
             if job.status not in [JobStatus.PENDING, JobStatus.RUNNING]:
+                logger.warning(f"Job {job_id} cannot be cancelled (status: {job.status.value})")
                 return False  # Cannot cancel completed/failed jobs
             
             # Revoke Celery task if it exists
             if job.celery_task_id and not job.celery_task_id.startswith('temp-'):
+                try:
+                    from backend.celery_config import celery_app
+                    # First try to revoke the task
+                    celery_app.control.revoke(job.celery_task_id, terminate=True, signal='SIGKILL')
+                    logger.info(f"Revoked Celery task {job.celery_task_id}")
+                    
+                    # On Windows, also try to kill the worker process entirely
+                    import platform
+                    if platform.system() == 'Windows':
+                        import subprocess
+                        try:
+                            subprocess.run(['taskkill', '/F', '/IM', 'celery.exe'], 
+                                         capture_output=True, timeout=5)
+                            logger.info("Force killed Celery worker process on Windows")
+                        except Exception as e2:
+                            logger.warning(f"Could not force kill worker: {e2}")
+                except Exception as e:
+                    logger.warning(f"Could not revoke Celery task: {e}")
+            
+            # Purge entire Celery queue to remove any pending tasks
+            try:
                 from backend.celery_config import celery_app
-                celery_app.control.revoke(job.celery_task_id, terminate=True)
+                celery_app.control.purge()
+                logger.info("Purged all pending tasks from Celery queue")
+            except Exception as e:
+                logger.warning(f"Could not purge Celery queue: {e}")
             
             # Update job status
             job.status = JobStatus.CANCELLED
             job.current_step = "Cancelled by user"
             job.completed_at = datetime.utcnow()
+            job.progress = 0
             db.commit()
             
-            logger.info(f"Cancelled job {job_id}")
+            logger.info(f"✅ Cancelled job {job_id}")
             return True
             
         except Exception as e:
@@ -205,3 +235,60 @@ class JobManager:
             
         finally:
             db.close()
+    
+    @staticmethod
+    def restart_celery_worker() -> bool:
+        """
+        Restart Celery worker (Windows only)
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            if platform.system() != 'Windows':
+                logger.warning("restart_celery_worker only supported on Windows")
+                return False
+            
+            import os
+            
+            # Get project root directory
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            
+            # Kill any existing celery processes
+            try:
+                subprocess.run(['taskkill', '/F', '/IM', 'celery.exe'], 
+                             capture_output=True, timeout=5)
+                logger.info("Killed existing Celery processes")
+                time.sleep(2)
+            except Exception as e:
+                logger.warning(f"Could not kill Celery processes: {e}")
+            
+            # Purge Redis queue
+            try:
+                subprocess.run(
+                    ['celery', '-A', 'backend.celery_config', 'purge', '-f'],
+                    cwd=project_root,
+                    capture_output=True,
+                    timeout=10
+                )
+                logger.info("Purged Celery queue")
+            except Exception as e:
+                logger.warning(f"Could not purge queue: {e}")
+            
+            # Build command to start Celery worker
+            # Use absolute path to avoid issues
+            activate_script = os.path.join(project_root, 'venv', 'Scripts', 'activate.bat')
+            
+            # Create command that activates venv and starts celery
+            cmd = f'start "Celery Worker - Boursicotor" cmd /k "cd /d {project_root} && call {activate_script} && celery -A backend.celery_config worker --loglevel=info --pool=solo"'
+            
+            # Execute command
+            subprocess.Popen(cmd, shell=True)
+            
+            logger.info("✅ Celery worker restart command sent")
+            time.sleep(3)  # Give it time to start
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to restart Celery worker: {e}")
+            return False
