@@ -1820,6 +1820,58 @@ def backtesting_page():
             finally:
                 db.close()
         
+        # Period selection
+        st.markdown("### 📅 Période d'analyse")
+        col_date1, col_date2, col_date3 = st.columns([2, 2, 1])
+        
+        # Get min/max dates for the ticker
+        db = SessionLocal()
+        try:
+            ticker_obj = db.query(TickerModel).filter(TickerModel.symbol == selected_ticker).first()
+            if ticker_obj:
+                min_date_query = db.query(HistoricalData.timestamp).filter(
+                    HistoricalData.ticker_id == ticker_obj.id
+                ).order_by(HistoricalData.timestamp.asc()).first()
+                max_date_query = db.query(HistoricalData.timestamp).filter(
+                    HistoricalData.ticker_id == ticker_obj.id
+                ).order_by(HistoricalData.timestamp.desc()).first()
+                
+                if min_date_query and max_date_query:
+                    min_date = min_date_query[0].date()
+                    max_date = max_date_query[0].date()
+                    
+                    with col_date1:
+                        start_date = st.date_input(
+                            "Date de début",
+                            value=max_date - pd.Timedelta(days=30),  # Default: last 30 days
+                            min_value=min_date,
+                            max_value=max_date,
+                            help="Début de la période d'analyse"
+                        )
+                    
+                    with col_date2:
+                        end_date = st.date_input(
+                            "Date de fin",
+                            value=max_date,
+                            min_value=min_date,
+                            max_value=max_date,
+                            help="Fin de la période d'analyse"
+                        )
+                    
+                    with col_date3:
+                        # Calculate number of days
+                        if start_date and end_date:
+                            days_diff = (end_date - start_date).days
+                            st.metric("Jours", f"{days_diff:,}")
+                else:
+                    start_date = None
+                    end_date = None
+            else:
+                start_date = None
+                end_date = None
+        finally:
+            db.close()
+        
         # Parallel mode option
         col_mode1, col_mode2 = st.columns([3, 1])
         with col_mode1:
@@ -1916,7 +1968,18 @@ def backtesting_page():
                     
                     df.set_index('timestamp', inplace=True)
                     
-                    st.info(f"📊 {len(df)} points chargés pour l'analyse")
+                    # Apply date filter if specified
+                    if start_date and end_date:
+                        start_datetime = pd.Timestamp(start_date)
+                        end_datetime = pd.Timestamp(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+                        df = df[(df.index >= start_datetime) & (df.index <= end_datetime)]
+                        st.info(f"📊 {len(df):,} points chargés pour l'analyse (période: {start_date} à {end_date})")
+                    else:
+                        st.info(f"📊 {len(df):,} points chargés pour l'analyse")
+                    
+                    if len(df) < 100:
+                        st.error("Pas assez de données dans la période sélectionnée (minimum 100 points requis)")
+                        return
                     
                     # Convert commission % to decimal
                     commission_decimal = commission_pct / 100
