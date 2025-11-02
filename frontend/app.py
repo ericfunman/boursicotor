@@ -1820,6 +1820,20 @@ def backtesting_page():
             finally:
                 db.close()
         
+        # Parallel mode option
+        col_mode1, col_mode2 = st.columns([3, 1])
+        with col_mode1:
+            enable_parallel = st.checkbox(
+                "🚀 Mode parallèle (utilise plusieurs CPU cores)",
+                value=True,
+                help="Accélère l'optimisation en utilisant tous les CPU disponibles (6-8x plus rapide)"
+            )
+        with col_mode2:
+            if enable_parallel:
+                from multiprocessing import cpu_count
+                num_cpus = cpu_count()
+                st.metric("CPU cores", num_cpus)
+        
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
@@ -1909,93 +1923,138 @@ def backtesting_page():
                     status_text = st.empty()
                     results_container = st.empty()
                     
-                    # Search for strategy
-                    generator = StrategyGenerator(target_return=target_return)
+                    # Convert commission % to decimal
+                    commission_decimal = commission_pct / 100
                     
-                    best_return = -np.inf
-                    best_strategy = None
-                    best_result = None
-                    iterations_done = 0
-                    
-                    for i in range(max_iterations):
-                        iterations_done = i + 1
-                        progress = (i + 1) / max_iterations
-                        progress_bar.progress(progress)
+                    if enable_parallel:
+                        # === MODE PARALLÈLE ===
+                        st.info(f"🚀 Mode parallèle activé - utilisation de {cpu_count() - 1} processus")
                         
-                        # Generate random strategy - Include EnhancedMA
-                        strategy_type = np.random.choice(['ma', 'rsi', 'multi', 'enhanced'])
-                        
-                        if strategy_type == 'ma':
-                            from backend.backtesting_engine import MovingAverageCrossover
-                            fast = np.random.randint(5, 20)
-                            slow = np.random.randint(fast + 5, 50)
-                            strategy = MovingAverageCrossover(fast_period=fast, slow_period=slow)
-                        elif strategy_type == 'rsi':
-                            from backend.backtesting_engine import RSIStrategy
-                            period = np.random.randint(10, 20)
-                            oversold = np.random.randint(20, 35)
-                            overbought = np.random.randint(65, 80)
-                            strategy = RSIStrategy(rsi_period=period, oversold=oversold, overbought=overbought)
-                        elif strategy_type == 'multi':
-                            from backend.backtesting_engine import MultiIndicatorStrategy
-                            strategy = MultiIndicatorStrategy(
-                                ma_fast=np.random.randint(5, 15),
-                                ma_slow=np.random.randint(20, 40),
-                                rsi_period=np.random.randint(10, 20),
-                                rsi_oversold=np.random.randint(20, 35),
-                                rsi_overbought=np.random.randint(65, 80)
-                            )
-                        else:  # enhanced
-                            from backend.backtesting_engine import EnhancedMovingAverageStrategy
-                            
-                            # Randomly decide which ultra-complex indicators to use
-                            use_supertrend = np.random.choice([True, False])
-                            use_parabolic_sar = np.random.choice([True, False])
-                            use_donchian = np.random.choice([True, False])
-                            use_vwap = np.random.choice([True, False])
-                            use_obv = np.random.choice([True, False])
-                            use_cmf = np.random.choice([True, False])
-                            use_elder_ray = np.random.choice([True, False])
-                            
-                            strategy = EnhancedMovingAverageStrategy(
-                                fast_period=np.random.randint(15, 25),
-                                slow_period=np.random.randint(35, 50),
-                                roc_period=np.random.choice([10, 14]),
-                                roc_threshold=np.random.uniform(1.0, 4.0),
-                                adx_period=np.random.choice([14, 20]),
-                                adx_threshold=np.random.randint(20, 35),
-                                volume_ratio_short=np.random.choice([3, 5, 10]),
-                                volume_ratio_long=np.random.choice([15, 20, 30]),
-                                volume_threshold=np.random.uniform(1.1, 1.5),
-                                momentum_period=np.random.choice([10, 14]),
-                                momentum_threshold=np.random.uniform(0.5, 2.0),
-                                bb_period=np.random.choice([20, 25]),
-                                bb_width_threshold=np.random.uniform(0.03, 0.08),
-                                use_supertrend=use_supertrend,
-                                supertrend_period=np.random.choice([10, 14, 20]) if use_supertrend else 10,
-                                supertrend_multiplier=np.random.uniform(2.0, 4.0) if use_supertrend else 3.0,
-                                use_parabolic_sar=use_parabolic_sar,
-                                use_donchian=use_donchian,
-                                donchian_period=np.random.choice([20, 30, 40]) if use_donchian else 20,
-                                donchian_threshold=np.random.uniform(0.02, 0.06) if use_donchian else 0.04,
-                                use_vwap=use_vwap,
-                                use_obv=use_obv,
-                                use_cmf=use_cmf,
-                                cmf_period=np.random.choice([14, 20, 21]) if use_cmf else 20,
-                                cmf_threshold=np.random.uniform(0.0, 0.15) if use_cmf else 0.05,
-                                use_elder_ray=use_elder_ray,
-                                elder_ray_period=np.random.choice([13, 21, 34]) if use_elder_ray else 13,
-                                min_signals=np.random.randint(2, 6)
-                            )
-                        
-                        # Run backtest with custom commission
-                        commission_decimal = commission_pct / 100  # Convert % to decimal (0.09% → 0.0009)
                         engine = BacktestingEngine(
                             initial_capital=initial_capital,
                             commission=commission_decimal,
                             allow_short=True
                         )
-                        result = engine.run_backtest(df, strategy, selected_ticker)
+                        
+                        # Run parallel optimization
+                        best_strategy, best_result, all_results = engine.run_parallel_optimization(
+                            df=df,
+                            symbol=selected_ticker,
+                            num_iterations=max_iterations,
+                            target_return=target_return,
+                            num_processes=None  # Auto-detect
+                        )
+                        
+                        progress_bar.progress(1.0)
+                        status_text.empty()
+                        
+                        if best_result and best_strategy:
+                            best_return = best_result.total_return
+                            
+                            # Save to session state
+                            st.session_state.best_strategy = best_strategy
+                            st.session_state.best_result = best_result
+                            st.session_state.best_return = best_return
+                            st.session_state.selected_ticker = selected_ticker
+                            
+                            if best_return >= target_return:
+                                st.success(f"🎯 Objectif atteint ! Meilleure stratégie : {best_return:.2f}%")
+                            else:
+                                st.warning(f"⚠️ Objectif non atteint après {max_iterations} itérations")
+                                st.info(f"Meilleur résultat obtenu : {best_return:.2f}%")
+                            
+                            st.info("📊 Résultats affichés ci-dessous")
+                        else:
+                            st.error("Aucune stratégie n'a pu être générée")
+                    
+                    else:
+                        # === MODE SÉQUENTIEL (ancien code) ===
+                        # Search for strategy
+                        generator = StrategyGenerator(target_return=target_return)
+                        
+                        best_return = -np.inf
+                        best_strategy = None
+                        best_result = None
+                        iterations_done = 0
+                        
+                        for i in range(max_iterations):
+                            iterations_done = i + 1
+                            progress = (i + 1) / max_iterations
+                            progress_bar.progress(progress)
+                            
+                            # Generate random strategy - Include EnhancedMA
+                            strategy_type = np.random.choice(['ma', 'rsi', 'multi', 'enhanced'])
+                            
+                            if strategy_type == 'ma':
+                                from backend.backtesting_engine import MovingAverageCrossover
+                                fast = np.random.randint(5, 20)
+                                slow = np.random.randint(fast + 5, 50)
+                                strategy = MovingAverageCrossover(fast_period=fast, slow_period=slow)
+                            elif strategy_type == 'rsi':
+                                from backend.backtesting_engine import RSIStrategy
+                                period = np.random.randint(10, 20)
+                                oversold = np.random.randint(20, 35)
+                                overbought = np.random.randint(65, 80)
+                                strategy = RSIStrategy(rsi_period=period, oversold=oversold, overbought=overbought)
+                            elif strategy_type == 'multi':
+                                from backend.backtesting_engine import MultiIndicatorStrategy
+                                strategy = MultiIndicatorStrategy(
+                                    ma_fast=np.random.randint(5, 15),
+                                    ma_slow=np.random.randint(20, 40),
+                                    rsi_period=np.random.randint(10, 20),
+                                    rsi_oversold=np.random.randint(20, 35),
+                                    rsi_overbought=np.random.randint(65, 80)
+                                )
+                            else:  # enhanced
+                                from backend.backtesting_engine import EnhancedMovingAverageStrategy
+                                
+                                    # Randomly decide which ultra-complex indicators to use
+                                use_supertrend = np.random.choice([True, False])
+                                use_parabolic_sar = np.random.choice([True, False])
+                                use_donchian = np.random.choice([True, False])
+                                use_vwap = np.random.choice([True, False])
+                                use_obv = np.random.choice([True, False])
+                                use_cmf = np.random.choice([True, False])
+                                use_elder_ray = np.random.choice([True, False])
+                                
+                                strategy = EnhancedMovingAverageStrategy(
+                                    fast_period=np.random.randint(15, 25),
+                                    slow_period=np.random.randint(35, 50),
+                                    roc_period=np.random.choice([10, 14]),
+                                    roc_threshold=np.random.uniform(1.0, 4.0),
+                                    adx_period=np.random.choice([14, 20]),
+                                    adx_threshold=np.random.randint(20, 35),
+                                    volume_ratio_short=np.random.choice([3, 5, 10]),
+                                    volume_ratio_long=np.random.choice([15, 20, 30]),
+                                    volume_threshold=np.random.uniform(1.1, 1.5),
+                                    momentum_period=np.random.choice([10, 14]),
+                                    momentum_threshold=np.random.uniform(0.5, 2.0),
+                                    bb_period=np.random.choice([20, 25]),
+                                    bb_width_threshold=np.random.uniform(0.03, 0.08),
+                                    use_supertrend=use_supertrend,
+                                    supertrend_period=np.random.choice([10, 14, 20]) if use_supertrend else 10,
+                                    supertrend_multiplier=np.random.uniform(2.0, 4.0) if use_supertrend else 3.0,
+                                    use_parabolic_sar=use_parabolic_sar,
+                                    use_donchian=use_donchian,
+                                    donchian_period=np.random.choice([20, 30, 40]) if use_donchian else 20,
+                                    donchian_threshold=np.random.uniform(0.02, 0.06) if use_donchian else 0.04,
+                                    use_vwap=use_vwap,
+                                    use_obv=use_obv,
+                                    use_cmf=use_cmf,
+                                    cmf_period=np.random.choice([14, 20, 21]) if use_cmf else 20,
+                                    cmf_threshold=np.random.uniform(0.0, 0.15) if use_cmf else 0.05,
+                                    use_elder_ray=use_elder_ray,
+                                    elder_ray_period=np.random.choice([13, 21, 34]) if use_elder_ray else 13,
+                                    min_signals=np.random.randint(2, 6)
+                                )
+                            
+                            # Run backtest with custom commission
+                            engine = BacktestingEngine(
+                                initial_capital=initial_capital,
+                                commission=commission_decimal,
+                                allow_short=True
+                            )
+                            result = engine.run_backtest(df, strategy, selected_ticker)
                         
                         # Update best if this result is better
                         if result.total_return > best_return:
