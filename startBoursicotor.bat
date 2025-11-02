@@ -66,8 +66,12 @@ REM Lancer IBC en arriere-plan (start au lieu de call)
 set "IBC_LAUNCHER=C:\IBC\start_gateway.bat"
 start "IB Gateway - IBC" "%IBC_LAUNCHER%"
 echo [INFO] IB Gateway lance avec IBC (connexion automatique)
-echo [INFO] Attente de l'initialisation complete (15 secondes)...
-timeout /t 15 /nobreak >nul
+echo [INFO] Attente de l'initialisation complete (20 secondes)...
+timeout /t 20 /nobreak >nul
+
+REM Configurer l'API pour desactiver Read-Only
+echo [INFO] Configuration de l'API IB Gateway...
+call "%~dp0configure_ibkr_api.bat"
 
 :skip_ibgateway
 
