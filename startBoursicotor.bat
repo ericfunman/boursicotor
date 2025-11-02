@@ -66,8 +66,8 @@ REM Lancer directement IBC (le fichier existe)
 set "IBC_LAUNCHER=C:\IBC\start_gateway.bat"
 call "%IBC_LAUNCHER%"
 echo [INFO] IB Gateway lance avec IBC (connexion automatique)
-echo [INFO] Attente de la connexion (30 secondes)...
-timeout /t 30 /nobreak >nul
+echo [INFO] Attente de la connexion (10 secondes)...
+timeout /t 10 /nobreak >nul
 
 :skip_ibgateway
 
