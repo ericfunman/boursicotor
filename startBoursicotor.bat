@@ -42,11 +42,11 @@ echo [2/4] Configuration detectee
 
 REM Empecher la mise en veille pendant l'execution
 echo [INFO] Desactivation temporaire de la mise en veille...
-powercfg /change standby-timeout-ac 0
-powercfg /change standby-timeout-dc 0
-powercfg /change monitor-timeout-ac 0
-powercfg /change monitor-timeout-dc 0
-echo [OK] Mise en veille desactivee (sera restauree a l'arret)
+powercfg /change standby-timeout-ac 0 2>NUL
+powercfg /change standby-timeout-dc 0 2>NUL
+powercfg /change monitor-timeout-ac 0 2>NUL
+powercfg /change monitor-timeout-dc 0 2>NUL
+echo [OK] Mise en veille desactivee
 
 REM Definir le chemin vers IB Gateway
 set IBGATEWAY_PATH=C:\Jts\ibgateway\1037\ibgateway.exe
@@ -56,38 +56,41 @@ echo [2.1/4] Verification d'IB Gateway...
 tasklist /FI "IMAGENAME eq ibgateway.exe" 2>NUL | find /I /N "ibgateway.exe">NUL
 if "%ERRORLEVEL%"=="0" (
     echo [OK] IB Gateway est deja en cours d'execution
-) else (
-    echo [INFO] Lancement d'IB Gateway...
-    if exist "%IBGATEWAY_PATH%" (
-        REM Lancer IB Gateway avec le fichier de configuration
-        start "IB Gateway - Boursicotor" "%IBGATEWAY_PATH%"
-        echo [INFO] IB Gateway demarre, attente de la connexion...
-        echo [INFO] Veuillez vous connecter manuellement dans IB Gateway
-        echo.
-        echo ========================================
-        echo  IMPORTANT: Connectez-vous a IB Gateway
-        echo  User: ericlapinasimu
-        echo  Mode: Paper Trading (Simule)
-        echo  Port API: 4002
-        echo ========================================
-        echo.
-        echo Appuyez sur une touche une fois connecte...
-        pause
-    ) else (
-        echo.
-        echo ========================================
-        echo  [ERREUR] IB Gateway non trouve !
-        echo ========================================
-        echo.
-        echo IB Gateway n'a pas ete trouve a: %IBGATEWAY_PATH%
-        echo.
-        echo Veuillez verifier l'installation d'IB Gateway
-        echo ou modifier le chemin dans ce script.
-        echo.
-        pause
-        exit /b 1
-    )
+    goto :skip_ibgateway
 )
+
+REM IB Gateway n'est pas lance
+echo [INFO] Lancement d'IB Gateway...
+if not exist "%IBGATEWAY_PATH%" (
+    echo.
+    echo ========================================
+    echo  [ERREUR] IB Gateway non trouve !
+    echo ========================================
+    echo.
+    echo IB Gateway n'a pas ete trouve a: %IBGATEWAY_PATH%
+    echo.
+    echo Veuillez verifier l'installation d'IB Gateway
+    echo ou modifier le chemin dans ce script.
+    echo.
+    pause
+    exit /b 1
+)
+
+REM Lancer IB Gateway
+start "IB Gateway - Boursicotor" "%IBGATEWAY_PATH%"
+echo [INFO] IB Gateway demarre, veuillez vous connecter manuellement
+echo.
+echo ========================================
+echo  IMPORTANT: Connectez-vous a IB Gateway
+echo  User: ericlapinasimu
+echo  Mode: Paper Trading (Simule)
+echo  Port API: 4002
+echo ========================================
+echo.
+echo Appuyez sur une touche une fois connecte...
+pause
+
+:skip_ibgateway
 
 REM Definir le chemin vers Redis
 set REDIS_PATH=C:\redis\redis-server.exe
@@ -112,7 +115,7 @@ if "%ERRORLEVEL%"=="0" (
         echo Redis n'a pas ete trouve a: %REDIS_PATH%
         echo.
         echo Veuillez verifier l'installation de Redis
-        echo ou modifier le chemin dans ce script ^(ligne 51^).
+        echo ou modifier le chemin dans ce script.
         echo.
         pause
         exit /b 1
@@ -125,6 +128,12 @@ tasklist /FI "WINDOWTITLE eq Celery Worker*" 2>NUL | find /I /N "python.exe">NUL
 if "%ERRORLEVEL%"=="0" (
     echo [OK] Celery Worker est deja en cours d'execution
 ) else (
+    REM Purger la queue Celery avant de demarrer
+    echo [INFO] Purge de la queue Celery...
+    call venv\Scripts\activate.bat
+    celery -A backend.celery_config purge -f 2>NUL
+    echo [OK] Queue purgee
+    
     echo [INFO] Lancement de Celery Worker...
     start "Celery Worker - Boursicotor" cmd /k "cd /d "%~dp0" && call venv\Scripts\activate.bat && celery -A backend.celery_config worker --loglevel=info --pool=solo"
     timeout /t 3 /nobreak >NUL
