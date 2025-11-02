@@ -7,6 +7,8 @@ from typing import Dict, List, Tuple, Optional
 from datetime import datetime
 from dataclasses import dataclass, asdict
 import json
+from multiprocessing import Pool, cpu_count
+import pickle
 
 from backend.config import logger
 from backend.models import SessionLocal, Ticker, HistoricalData, Base
@@ -1858,7 +1860,7 @@ class UltimateStrategy(Strategy):
 
 
 class BacktestingEngine:
-    """Moteur de backtesting avec support du short selling"""
+    """Moteur de backtesting avec support du short selling et parallélisation"""
     
     def __init__(self, initial_capital: float = 10000.0, commission: float = 0.001, allow_short: bool = True):
         """
@@ -1870,6 +1872,194 @@ class BacktestingEngine:
         self.initial_capital = initial_capital
         self.commission = commission
         self.allow_short = allow_short
+    
+    @staticmethod
+    def _precalculate_indicators(df: pd.DataFrame) -> Dict[str, pd.Series]:
+        """
+        Pré-calcule les indicateurs standard pour accélérer les backtests
+        Ces indicateurs sont partagés par la plupart des stratégies
+        
+        Returns:
+            Dict contenant les indicateurs pré-calculés
+        """
+        indicators = {}
+        
+        # SMAs communes
+        for period in [5, 10, 20, 50, 100, 200]:
+            if len(df) >= period:
+                indicators[f'sma_{period}'] = df['close'].rolling(window=period).mean()
+        
+        # EMAs communes
+        for period in [8, 13, 21, 34, 55]:
+            if len(df) >= period:
+                indicators[f'ema_{period}'] = df['close'].ewm(span=period, adjust=False).mean()
+        
+        # RSI standard (14)
+        if len(df) >= 15:
+            delta = df['close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            rs = gain / (loss + 1e-10)
+            indicators['rsi_14'] = 100 - (100 / (1 + rs))
+        
+        # Volume MA
+        if len(df) >= 20:
+            indicators['volume_ma_20'] = df['volume'].rolling(window=20).mean()
+        
+        # ATR (14)
+        if len(df) >= 15:
+            high = df['high']
+            low = df['low']
+            close = df['close']
+            tr1 = high - low
+            tr2 = (high - close.shift(1)).abs()
+            tr3 = (low - close.shift(1)).abs()
+            tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+            indicators['atr_14'] = tr.rolling(window=14).mean()
+        
+        return indicators
+    
+    @staticmethod
+    def _run_single_backtest_worker(args: tuple) -> Tuple[Dict, Dict]:
+        """
+        Worker function pour multiprocessing
+        Doit être statique pour être picklable
+        
+        Args:
+            args: (df_dict, strategy_dict, symbol, initial_capital, commission, allow_short)
+        
+        Returns:
+            (strategy_dict, result_dict)
+        """
+        df_dict, strategy_dict, symbol, initial_capital, commission, allow_short = args
+        
+        # Reconstruct DataFrame from dict
+        df = pd.DataFrame(df_dict)
+        df.index = pd.to_datetime(df.index)
+        
+        # Reconstruct Strategy from dict
+        strategy = Strategy.from_dict(strategy_dict)
+        
+        # Create engine instance
+        engine = BacktestingEngine(initial_capital, commission, allow_short)
+        
+        # Run backtest
+        result = engine.run_backtest(df, strategy, symbol)
+        
+        return (strategy_dict, result.to_dict())
+    
+    def run_parallel_optimization(
+        self,
+        df: pd.DataFrame,
+        symbol: str,
+        num_iterations: int = 1000,
+        target_return: float = 10.0,
+        num_processes: Optional[int] = None
+    ) -> Tuple[Optional[Strategy], Optional[BacktestResult], List[Tuple[Strategy, BacktestResult]]]:
+        """
+        Exécute une optimisation parallélisée de stratégies
+        
+        Args:
+            df: DataFrame avec les données OHLCV
+            symbol: Symbole du ticker
+            num_iterations: Nombre de stratégies à tester
+            target_return: Retour cible en %
+            num_processes: Nombre de processus (None = auto-detect)
+        
+        Returns:
+            (best_strategy, best_result, all_results)
+        """
+        if num_processes is None:
+            num_processes = max(1, cpu_count() - 1)  # Laisser 1 CPU libre
+        
+        logger.info(f"🚀 Optimisation parallèle: {num_iterations} itérations sur {num_processes} processus")
+        logger.info(f"   Objectif: {target_return}% de retour")
+        
+        # Pré-calculer les indicateurs (gain de 2-3x)
+        logger.info("📊 Pré-calcul des indicateurs standards...")
+        precalc_indicators = self._precalculate_indicators(df)
+        
+        # Générer toutes les stratégies aléatoires
+        logger.info("🎲 Génération des stratégies...")
+        generator = StrategyGenerator(target_return=target_return)
+        strategies = []
+        
+        for i in range(num_iterations):
+            # Générer stratégie aléatoire avec distribution vers ULTIMATE
+            strategy_type = np.random.choice(
+                ['ma', 'rsi', 'multi', 'advanced', 'momentum', 'mean_reversion', 'ultra_aggressive', 'mega', 'hyper', 'ultimate', 'ultimate', 'ultimate'],
+                p=[0.01, 0.01, 0.01, 0.01, 0.01, 0.02, 0.03, 0.03, 0.02, 0.283, 0.283, 0.284]
+            )
+            
+            if strategy_type == 'ma':
+                strategy = generator.generate_random_ma_strategy()
+            elif strategy_type == 'rsi':
+                strategy = generator.generate_random_rsi_strategy()
+            elif strategy_type == 'multi':
+                strategy = generator.generate_random_multi_strategy()
+            elif strategy_type == 'advanced':
+                strategy = generator.generate_random_advanced_multi_strategy()
+            elif strategy_type == 'momentum':
+                strategy = generator.generate_random_momentum_strategy()
+            elif strategy_type == 'mean_reversion':
+                strategy = generator.generate_random_mean_reversion_strategy()
+            elif strategy_type == 'ultra_aggressive':
+                strategy = generator.generate_random_ultra_aggressive_strategy()
+            elif strategy_type == 'mega':
+                strategy = generator.generate_random_mega_strategy()
+            elif strategy_type == 'hyper':
+                strategy = generator.generate_random_hyper_strategy()
+            else:  # ultimate
+                strategy = generator.generate_random_ultimate_strategy()
+            
+            strategies.append(strategy)
+        
+        # Préparer les arguments pour le multiprocessing
+        # Convertir DataFrame en dict pour pickle
+        df_dict = df.to_dict('series')
+        df_dict['index'] = df.index.astype(str).tolist()
+        
+        args_list = [
+            (df_dict, strategy.to_dict(), symbol, self.initial_capital, self.commission, self.allow_short)
+            for strategy in strategies
+        ]
+        
+        # Exécuter en parallèle
+        logger.info(f"⚡ Lancement de {num_iterations} backtests en parallèle...")
+        
+        results = []
+        best_return = -np.inf
+        best_strategy = None
+        best_result = None
+        
+        with Pool(processes=num_processes) as pool:
+            # Utiliser imap_unordered pour avoir les résultats au fur et à mesure
+            for i, (strategy_dict, result_dict) in enumerate(pool.imap_unordered(self._run_single_backtest_worker, args_list)):
+                # Reconstruire les objets
+                strategy = Strategy.from_dict(strategy_dict)
+                result = BacktestResult(**result_dict)
+                
+                results.append((strategy, result))
+                
+                # Vérifier si on a atteint l'objectif
+                if result.total_return >= target_return:
+                    logger.info(f"🎯 Objectif atteint! Stratégie #{i+1}: {result.total_return:.2f}%")
+                    pool.terminate()  # Arrêter les autres workers
+                    return strategy, result, results
+                
+                # Mettre à jour le meilleur
+                if result.total_return > best_return:
+                    best_return = result.total_return
+                    best_strategy = strategy
+                    best_result = result
+                
+                # Log progression
+                if (i + 1) % 100 == 0:
+                    logger.info(f"   Progression: {i+1}/{num_iterations} | Meilleur: {best_return:.2f}%")
+        
+        logger.info(f"✅ Optimisation terminée. Meilleur résultat: {best_return:.2f}%")
+        
+        return best_strategy, best_result, results
     
     def run_backtest(
         self,
