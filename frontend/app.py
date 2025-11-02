@@ -1936,13 +1936,29 @@ def backtesting_page():
                             allow_short=True
                         )
                         
+                        # Callback pour mettre à jour la progression
+                        def update_progress(iteration, total, best_return):
+                            progress = iteration / total
+                            progress_bar.progress(progress)
+                            status_text.text(f"⚡ Progression: {iteration}/{total} ({progress*100:.1f}%) | Meilleur: {best_return:.2f}%")
+                            
+                            # Afficher les métriques en temps réel
+                            if iteration % 10 == 0:  # Mise à jour tous les 10
+                                with results_container.container():
+                                    col_a, col_b = st.columns(2)
+                                    with col_a:
+                                        st.metric("Progression", f"{iteration}/{total}")
+                                    with col_b:
+                                        st.metric("Meilleur retour", f"{best_return:.2f}%")
+                        
                         # Run parallel optimization
                         best_strategy, best_result, all_results = engine.run_parallel_optimization(
                             df=df,
                             symbol=selected_ticker,
                             num_iterations=max_iterations,
                             target_return=target_return,
-                            num_processes=None  # Auto-detect
+                            num_processes=None,  # Auto-detect
+                            progress_callback=update_progress
                         )
                         
                         progress_bar.progress(1.0)
