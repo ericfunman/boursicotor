@@ -1,153 +1,303 @@
-# 📋 Guide d'Installation - Boursicotor
+# Boursicotor - Guide d'Installation# 📋 Guide d'Installation - Boursicotor
 
-Ce guide vous aidera à installer et configurer Boursicotor sur votre machine Windows.
 
-## ✅ Prérequis
 
-### 1. Python 3.10 ou supérieur
-Téléchargez et installez Python depuis [python.org](https://www.python.org/downloads/)
+## 📋 PrérequisCe guide vous aidera à installer et configurer Boursicotor sur votre machine Windows.
+
+
+
+### Logiciels requis## ✅ Prérequis
+
+- **Python 3.11+** : https://www.python.org/downloads/
+
+- **Git** : https://git-scm.com/downloads  ### 1. Python 3.10 ou supérieur
+
+- **Redis pour Windows** : https://github.com/tporadowski/redis/releases (Installer dans `C:\redis`)Téléchargez et installez Python depuis [python.org](https://www.python.org/downloads/)
+
+- **IB Gateway 10.37** : https://www.interactivebrokers.com/en/trading/ibgateway-stable.php
 
 Vérifiez l'installation :
-```bash
+
+---```bash
+
 python --version
-```
 
-### 2. PostgreSQL 14 ou supérieur
-Téléchargez et installez PostgreSQL depuis [postgresql.org](https://www.postgresql.org/download/windows/)
+## 🚀 Installation Automatique (Sur un nouveau PC)```
 
-### 3. Compte Interactive Brokers
-- Créez un compte sur [Interactive Brokers](https://www.interactivebrokers.com/)
+
+
+### 1. Cloner le repository### 2. PostgreSQL 14 ou supérieur
+
+```bashTéléchargez et installez PostgreSQL depuis [postgresql.org](https://www.postgresql.org/download/windows/)
+
+git clone https://github.com/ericfunman/boursicotor.git
+
+cd boursicotor### 3. Compte Interactive Brokers
+
+```- Créez un compte sur [Interactive Brokers](https://www.interactivebrokers.com/)
+
 - Téléchargez TWS (Trader Workstation) ou IB Gateway
-- Activez l'API dans TWS : File → Global Configuration → API → Settings
-  - Cochez "Enable ActiveX and Socket Clients"
-  - Notez le port (7497 pour paper trading, 7496 pour live)
 
-## 🚀 Installation
+### 2. Installer Python et créer l'environnement virtuel- Activez l'API dans TWS : File → Global Configuration → API → Settings
+
+```bash  - Cochez "Enable ActiveX and Socket Clients"
+
+python -m venv venv  - Notez le port (7497 pour paper trading, 7496 pour live)
+
+venv\Scripts\activate
+
+pip install -r requirements.txt## 🚀 Installation
+
+```
 
 ### Étape 1 : Configuration de l'environnement Python
 
+### 3. Créer les fichiers de configuration (CREDENTIALS)
+
 1. Ouvrez un terminal dans le dossier Boursicotor
-2. Créez un environnement virtuel :
-```bash
-python -m venv venv
+
+#### ⚠️ Fichier `.env` (à créer manuellement)2. Créez un environnement virtuel :
+
+```env```bash
+
+# PostgreSQL Database  python -m venv venv
+
+DATABASE_URL=postgresql://user:password@localhost:5432/boursicotor```
+
+
+
+# Saxo Bank API (optionnel)3. Activez l'environnement virtuel :
+
+SAXO_APP_KEY=votre_app_key```bash
+
+SAXO_APP_SECRET=votre_app_secret.\venv\Scripts\activate
+
+SAXO_REDIRECT_URI=http://localhost:5000/callback```
+
+
+
+# Environment4. Mettez à jour pip :
+
+ENVIRONMENT=development```bash
+
+```python -m pip install --upgrade pip
+
 ```
 
-3. Activez l'environnement virtuel :
-```bash
-.\venv\Scripts\activate
-```
+#### ⚠️ Fichier `ibgateway_config.ini` (à créer manuellement)
 
-4. Mettez à jour pip :
-```bash
-python -m pip install --upgrade pip
-```
+```ini### Étape 2 : Installation des dépendances
 
-### Étape 2 : Installation des dépendances
+[IBGateway]
 
-**IMPORTANT** : TA-Lib nécessite une installation spéciale sur Windows
+# Login Credentials**IMPORTANT** : TA-Lib nécessite une installation spéciale sur Windows
 
-#### Installation de TA-Lib sur Windows :
+Username=votre_username_ib
 
-1. Téléchargez le fichier wheel approprié depuis :
-   https://www.lfd.uci.edu/~gohlke/pythonlibs/#ta-lib
+Password=votre_password_ib#### Installation de TA-Lib sur Windows :
 
-   Exemple pour Python 3.10 64-bit :
-   `TA_Lib‑0.4.28‑cp310‑cp310‑win_amd64.whl`
+
+
+# Trading Mode (paper ou live)1. Téléchargez le fichier wheel approprié depuis :
+
+TradingMode=paper   https://www.lfd.uci.edu/~gohlke/pythonlibs/#ta-lib
+
+
+
+# API Settings   Exemple pour Python 3.10 64-bit :
+
+Port=4002   `TA_Lib‑0.4.28‑cp310‑cp310‑win_amd64.whl`
+
+ReadOnlyApi=no
 
 2. Installez le fichier wheel :
-```bash
-pip install chemin\vers\TA_Lib‑0.4.28‑cp310‑cp310‑win_amd64.whl
+
+# Auto-restart```bash
+
+AutoRestart=yespip install chemin\vers\TA_Lib‑0.4.28‑cp310‑cp310‑win_amd64.whl
+
+AutoRestartTime=23:55```
+
 ```
 
 3. Installez les autres dépendances :
-```bash
-pip install -r requirements.txt
-```
 
-**Si vous rencontrez des problèmes avec TA-Lib**, vous pouvez continuer sans :
-- Les indicateurs de base fonctionneront avec pandas_ta
+**🔒 Ces fichiers sont automatiquement exclus de Git (.gitignore)**```bash
+
+pip install -r requirements.txt
+
+### 4. Installer IB Gateway```
+
+1. Télécharger IB Gateway 10.37
+
+2. Installer dans `C:\Jts\ibgateway\1037`**Si vous rencontrez des problèmes avec TA-Lib**, vous pouvez continuer sans :
+
+3. ⚠️ Choisir **"Offline"** (pas auto-update)- Les indicateurs de base fonctionneront avec pandas_ta
+
 - Commentez `ta-lib==0.4.28` dans requirements.txt
 
-### Étape 3 : Configuration de PostgreSQL
+### 5. Installer Redis
+
+1. Télécharger depuis https://github.com/tporadowski/redis/releases### Étape 3 : Configuration de PostgreSQL
+
+2. Extraire dans `C:\redis`
 
 1. Lancez pgAdmin ou utilisez psql
-2. Créez la base de données :
-```sql
-CREATE DATABASE boursicotor;
-```
+
+### 6. Installer IBC (Auto-login pour IB Gateway)2. Créez la base de données :
+
+```bash```sql
+
+install_ibc.batCREATE DATABASE boursicotor;
+
+``````
+
+Ce script installe automatiquement IBC et configure l'auto-login.
 
 3. (Optionnel) Créez un utilisateur dédié :
-```sql
+
+---```sql
+
 CREATE USER boursicotor_user WITH PASSWORD 'votre_mot_de_passe';
-GRANT ALL PRIVILEGES ON DATABASE boursicotor TO boursicotor_user;
+
+## ▶️ DémarrageGRANT ALL PRIVILEGES ON DATABASE boursicotor TO boursicotor_user;
+
 ```
 
-### Étape 4 : Configuration de l'application
+### Lancement automatique
 
-1. Copiez le fichier de configuration exemple :
+```bash### Étape 4 : Configuration de l'application
+
+startBoursicotor.bat
+
+```1. Copiez le fichier de configuration exemple :
+
 ```bash
-copy .env.example .env
-```
 
-2. Éditez `.env` avec vos paramètres :
-```env
+Le script démarre automatiquement :copy .env.example .env
+
+✅ IB Gateway (avec auto-login)  ```
+
+✅ Redis  
+
+✅ Celery Worker  2. Éditez `.env` avec vos paramètres :
+
+✅ Streamlit → http://localhost:8501```env
+
 # PostgreSQL
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=boursicotor
-DB_USER=postgres
+
+### ArrêtDB_HOST=localhost
+
+```bashDB_PORT=5432
+
+stopBoursicotor.batDB_NAME=boursicotor
+
+```DB_USER=postgres
+
 DB_PASSWORD=votre_mot_de_passe
 
+---
+
 # Interactive Brokers
-IBKR_HOST=127.0.0.1
+
+## 📁 Fichiers de configuration requisIBKR_HOST=127.0.0.1
+
 IBKR_PORT=7497  # 7497 pour paper trading, 7496 pour live
-IBKR_CLIENT_ID=1
-IBKR_ACCOUNT=votre_compte_ibkr
+
+**À créer manuellement sur chaque PC :**IBKR_CLIENT_ID=1
+
+- `.env` → Variables d'environnement (DB, Saxo API)IBKR_ACCOUNT=votre_compte_ibkr
+
+- `ibgateway_config.ini` → Credentials IB Gateway
 
 # Trading (laisser en mode paper trading au début)
-PAPER_TRADING=True
-MAX_POSITION_SIZE=10000
+
+**Générés automatiquement :**PAPER_TRADING=True
+
+- `C:\IBC\config.ini` → Configuration IBC (par install_ibc.bat)MAX_POSITION_SIZE=10000
+
 RISK_PER_TRADE=0.02
-STOP_LOSS_PERCENT=0.05
+
+**⚠️ NE JAMAIS COMMITER ces fichiers !** (déjà dans .gitignore)STOP_LOSS_PERCENT=0.05
+
 ```
+
+---
 
 ### Étape 5 : Initialisation de la base de données
 
+## 🔑 Où récupérer les credentials ?
+
 ```bash
-python database\init_db.py
+
+### Interactive Brokerspython database\init_db.py
+
+- **Username** : Votre login IB```
+
+- **Password** : Votre mot de passe IB
+
+- **TradingMode** : `paper` (simulation, port 4002) ou `live` (réel, port 4001)Vous devriez voir :
+
 ```
 
-Vous devriez voir :
-```
-✅ Database tables created successfully
-✅ Initial tickers added successfully
-✅ Database initialization completed
+### Saxo Bank API✅ Database tables created successfully
+
+1. Créer une app sur https://www.developer.saxo/✅ Initial tickers added successfully
+
+2. Récupérer `SAXO_APP_KEY` et `SAXO_APP_SECRET`✅ Database initialization completed
+
 ```
 
-## 🎮 Lancement de l'application
+### PostgreSQL
 
-### 1. Démarrez TWS ou IB Gateway
+- Configurer `DATABASE_URL` dans `.env` (optionnel)## 🎮 Lancement de l'application
+
+
+
+---### 1. Démarrez TWS ou IB Gateway
+
 - Lancez TWS (Trader Workstation) ou IB Gateway
-- Connectez-vous avec vos identifiants
+
+## 🛠️ Dépannage- Connectez-vous avec vos identifiants
+
 - Assurez-vous que l'API est activée
 
-### 2. Lancez Boursicotor
+**IB Gateway ne se lance pas :**
+
+→ Réexécuter `install_ibc.bat`### 2. Lancez Boursicotor
+
 ```bash
-streamlit run frontend\app.py
-```
 
-L'application s'ouvrira automatiquement dans votre navigateur à l'adresse :
-`http://localhost:8501`
+**Redis ne démarre pas :**streamlit run frontend\app.py
 
-## 🧪 Vérification de l'installation
+→ Vérifier `C:\redis\redis-server.exe` existe```
 
-### Test de connexion à la base de données :
-```bash
-python -c "from backend.models import SessionLocal; db = SessionLocal(); print('✅ Database OK'); db.close()"
+
+
+**Celery Worker erreur :**L'application s'ouvrira automatiquement dans votre navigateur à l'adresse :
+
+→ Vérifier que Redis est bien démarré`http://localhost:8501`
+
+
+
+---## 🧪 Vérification de l'installation
+
+
+
+## 📦 Mise à jour### Test de connexion à la base de données :
+
+```bash```bash
+
+git pull origin mainpython -c "from backend.models import SessionLocal; db = SessionLocal(); print('✅ Database OK'); db.close()"
+
+pip install -r requirements.txt```
+
 ```
 
 ### Test de connexion IBKR :
-```bash
+
+Les fichiers de configuration (`.env`, `ibgateway_config.ini`) sont préservés.```bash
+
 python brokers\ibkr_client.py
 ```
 
