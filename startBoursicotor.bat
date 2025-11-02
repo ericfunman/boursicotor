@@ -70,7 +70,7 @@ if not exist "%IBC_LAUNCHER%" (
     echo  [ATTENTION] IBC non installe !
     echo ========================================
     echo.
-    echo IBC (IB Controller) permet la connexion automatique.
+    echo IBC ^(IB Controller^) autorise la connexion automatique.
     echo Sans IBC, vous devrez vous connecter manuellement.
     echo.
     echo Pour installer IBC, executez: install_ibc.bat
