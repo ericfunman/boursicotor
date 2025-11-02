@@ -2438,6 +2438,9 @@ class BacktestingEngine:
         if total_return < -90 or len(trades) > 1000:
             avg_profit = sum(t.profit for t in trades) / len(trades) if trades else 0
             print(f"WARNING: Suspicious backtest - return: {total_return:.2f}%, trades: {len(trades)}, avg_profit_per_trade: {avg_profit:.4f}, final_capital: {final_capital:.2f}, allow_short: {self.allow_short}", flush=True)
+        elif len(trades) > 100:
+            avg_profit = sum(t.profit for t in trades) / len(trades) if trades else 0
+            print(f"INFO: Backtest - return: {total_return:.2f}%, trades: {len(trades)}, avg_profit_per_trade: {avg_profit:.4f}", flush=True)
         
         winning_trades = sum(1 for t in trades if t.profit > 0)
         losing_trades = sum(1 for t in trades if t.profit <= 0)
