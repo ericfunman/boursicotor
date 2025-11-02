@@ -2418,8 +2418,9 @@ class BacktestingEngine:
         total_return = ((final_capital - self.initial_capital) / self.initial_capital) * 100
         
         # Debug log for suspicious results
-        if total_return < -90:
-            print(f"WARNING: Suspicious return {total_return:.2f}% - trades: {len(trades)}, final_capital: {final_capital:.2f}, initial: {self.initial_capital}", flush=True)
+        if total_return < -90 or len(trades) > 1000:
+            avg_profit = sum(t.profit for t in trades) / len(trades) if trades else 0
+            print(f"WARNING: Suspicious backtest - return: {total_return:.2f}%, trades: {len(trades)}, avg_profit_per_trade: {avg_profit:.4f}, final_capital: {final_capital:.2f}, allow_short: {self.allow_short}", flush=True)
         
         winning_trades = sum(1 for t in trades if t.profit > 0)
         losing_trades = sum(1 for t in trades if t.profit <= 0)
