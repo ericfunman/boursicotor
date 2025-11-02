@@ -6,12 +6,17 @@ echo   IBC (IB Controller) Installation
 echo ========================================
 echo.
 
+REM Get script directory
+set "SCRIPT_DIR=%~dp0"
+if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
+
 REM Configuration
 set "IBC_VERSION=3.20.0"
 set "IBC_URL=https://github.com/IbcAlpha/IBC/releases/download/%IBC_VERSION%/IBCWin-%IBC_VERSION%.zip"
 set "INSTALL_DIR=C:\IBC"
 set "DOWNLOAD_FILE=%TEMP%\IBC.zip"
 set "IB_GATEWAY_DIR=C:\Jts\ibgateway\1037"
+set "CONFIG_FILE=%SCRIPT_DIR%\ibgateway_config.ini"
 
 REM Check if IBC already installed
 if exist "%INSTALL_DIR%\Scripts\StartIBC.bat" (
@@ -49,11 +54,13 @@ del "%DOWNLOAD_FILE%" 2>nul
 :configure_only
 REM Read credentials from ibgateway_config.ini
 echo [4/5] Configuring IBC with your credentials...
-set "CONFIG_FILE=%~dp0ibgateway_config.ini"
 
 if not exist "%CONFIG_FILE%" (
+    echo.
     echo [ERROR] Configuration file not found: %CONFIG_FILE%
     echo [ERROR] Please create ibgateway_config.ini first
+    echo.
+    pause
     exit /b 1
 )
 
@@ -73,11 +80,17 @@ for /f "usebackq tokens=1,2 delims==" %%a in ("%CONFIG_FILE%") do (
 
 REM Validate credentials
 if not defined IB_USERNAME (
+    echo.
     echo [ERROR] Username not found in config file
+    echo.
+    pause
     exit /b 1
 )
 if not defined IB_PASSWORD (
+    echo.
     echo [ERROR] Password not found in config file
+    echo.
+    pause
     exit /b 1
 )
 
