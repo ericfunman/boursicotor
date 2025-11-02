@@ -1865,16 +1865,18 @@ class UltimateStrategy(Strategy):
 class BacktestingEngine:
     """Moteur de backtesting avec support du short selling et parallélisation"""
     
-    def __init__(self, initial_capital: float = 10000.0, commission: float = 0.001, allow_short: bool = True):
+    def __init__(self, initial_capital: float = 10000.0, commission: float = 0.001, allow_short: bool = True, min_hold_minutes: int = 0):
         """
         Args:
             initial_capital: Capital initial
             commission: Commission par trade (0.001 = 0.1%)
             allow_short: Permet le short selling (True = Long + Short, False = Long uniquement)
+            min_hold_minutes: Temps minimum en minutes entre deux trades (anti-sur-trading)
         """
         self.initial_capital = initial_capital
         self.commission = commission
         self.allow_short = allow_short
+        self.min_hold_minutes = min_hold_minutes
     
     @staticmethod
     def _precalculate_indicators(df: pd.DataFrame) -> Dict[str, pd.Series]:
@@ -1949,7 +1951,7 @@ class BacktestingEngine:
             logging.getLogger(logger_name).disabled = True
         
         try:
-            df_dict, strategy_dict, symbol, initial_capital, commission, allow_short = args
+            df_dict, strategy_dict, symbol, initial_capital, commission, allow_short, min_hold_minutes = args
             
             # Reconstruct DataFrame from dict
             df = pd.DataFrame(df_dict)
@@ -1959,7 +1961,7 @@ class BacktestingEngine:
             strategy = Strategy.from_dict(strategy_dict)
             
             # Create engine instance
-            engine = BacktestingEngine(initial_capital, commission, allow_short)
+            engine = BacktestingEngine(initial_capital, commission, allow_short, min_hold_minutes)
             
             # Run backtest (désactiver vectorisation temporairement - bug à corriger)
             result = engine.run_backtest(df, strategy, symbol, use_vectorized=False)
@@ -2044,7 +2046,7 @@ class BacktestingEngine:
         df_dict['index'] = df.index.astype(str).tolist()
         
         args_list = [
-            (df_dict, strategy.to_dict(), symbol, self.initial_capital, self.commission, self.allow_short)
+            (df_dict, strategy.to_dict(), symbol, self.initial_capital, self.commission, self.allow_short, self.min_hold_minutes)
             for strategy in strategies
         ]
         
@@ -2274,6 +2276,7 @@ class BacktestingEngine:
         
         entry_price = None
         entry_date = None
+        last_trade_time = None  # Pour le filtre anti-sur-trading
         
         # Convert to numpy arrays for faster access (except dates)
         close_prices = df['close'].values
@@ -2285,6 +2288,18 @@ class BacktestingEngine:
             current_price = close_prices[i]
             current_date = df_index[i]
             signal = signal_values[i]
+            
+            # Anti-sur-trading: skip if not enough time passed since last trade
+            if last_trade_time is not None and self.min_hold_minutes > 0:
+                time_diff = (current_date - last_trade_time).total_seconds() / 60
+                if time_diff < self.min_hold_minutes:
+                    # Update equity curve even if not trading
+                    if position > 0:
+                        total_equity = capital + (position * current_price)
+                    else:
+                        total_equity = capital
+                    equity_curve.append(total_equity)
+                    continue
             
             # Buy signal (Long)
             if signal == 1 and position == 0:
@@ -2323,6 +2338,8 @@ class BacktestingEngine:
                     # logger.debug(f"  CLOSE LONG: {position} shares @ {current_price:.2f} | Profit: {profit:.2f}€ ({profit_pct:.2f}%)")
                     position = 0
                     entry_price = None
+                    entry_date = None
+                    last_trade_time = current_date  # Update last trade time
                     entry_date = None
                 
                 # Open short position if allowed and no position

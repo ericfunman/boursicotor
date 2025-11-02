@@ -1929,6 +1929,18 @@ def backtesting_page():
             )
         
         with col4:
+            min_hold_minutes = st.number_input(
+                "Min. temps entre trades (min)",
+                min_value=0,
+                max_value=1440,
+                value=5,
+                step=1,
+                help="Temps minimum à attendre entre deux trades pour éviter le sur-trading"
+            )
+        
+        col5, col6 = st.columns(2)
+        
+        with col5:
             max_iterations = st.number_input(
                 "Max itérations",
                 min_value=10,
@@ -2004,7 +2016,8 @@ def backtesting_page():
                             engine = BacktestingEngine(
                                 initial_capital=initial_capital,
                                 commission=commission_decimal,
-                                allow_short=False  # Désactiver short temporairement - bug à corriger
+                                allow_short=False,  # Désactiver short temporairement - bug à corriger
+                                min_hold_minutes=min_hold_minutes
                             )
                             
                             # Run parallel optimization (les logs s'affichent dans la console)
@@ -2128,7 +2141,8 @@ def backtesting_page():
                             engine = BacktestingEngine(
                                 initial_capital=initial_capital,
                                 commission=commission_decimal,
-                                allow_short=False  # Désactiver short temporairement - bug à corriger
+                                allow_short=False,  # Désactiver short temporairement - bug à corriger
+                                min_hold_minutes=min_hold_minutes
                             )
                             result = engine.run_backtest(df, strategy, selected_ticker)
                         
