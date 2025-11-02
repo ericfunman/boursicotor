@@ -539,48 +539,55 @@ def data_collection_page():
                                 if not hasattr(collector, 'ib') or not collector.ib:
                                     st.error("❌ La connexion IBKR n'est pas active. Reconnectez-vous depuis la sidebar.")
                                 else:
-                                    # Search for contracts with timeout protection
-                                    from ib_insync import Stock
-                                    import asyncio
-                                    
+                                    # Search using a simple dedicated method
                                     try:
-                                        # Use asyncio timeout for the request
-                                        contracts = collector.ib.reqMatchingSymbols(search_query)
+                                        from ib_insync import IB
                                         
-                                        # Wait a bit for the response
-                                        collector.ib.sleep(2)
-                                    except asyncio.TimeoutError:
-                                        st.error("⏱️ La recherche a pris trop de temps. Vérifiez votre connexion IBKR et réessayez.")
-                                        contracts = []
+                                        # Create a temporary connection for search
+                                        search_ib = IB()
+                                        
+                                        # Connect using same settings as collector
+                                        search_ib.connect('127.0.0.1', 4002, clientId=99)
+                                        
+                                        # Perform search
+                                        contracts = search_ib.reqMatchingSymbols(search_query)
+                                        
+                                        # Wait for response
+                                        search_ib.sleep(2)
+                                        
+                                        # Disconnect temporary connection
+                                        search_ib.disconnect()
+                                        
                                     except Exception as search_error:
                                         st.error(f"❌ Erreur lors de la recherche IBKR : {str(search_error)}")
                                         st.info("💡 Essayez de saisir le symbole manuellement ci-dessous")
                                         contracts = []
                                     
                                     if contracts:
-                                        # Filter for French stocks only
-                                        french_exchanges = ['SBF', 'EURONEXT', 'ENEXT.BE', 'AEB']
+                                        # Filter for stocks only
                                         options = []
                                         
-                                        for contract in contracts:
-                                            cd = contract.contract
+                                        for contract_desc in contracts:
+                                            cd = contract_desc.contract
                                             
-                                            # Filter: only stocks (STK) on French/European exchanges
-                                            if (hasattr(cd, 'secType') and cd.secType == 'STK' and
-                                                hasattr(cd, 'symbol') and hasattr(cd, 'primaryExchange') and
-                                                cd.primaryExchange in french_exchanges):
-                                                
+                                            # Filter: only stocks (STK)
+                                            if hasattr(cd, 'secType') and cd.secType == 'STK' and hasattr(cd, 'symbol'):
                                                 # Get company description if available
-                                                desc = contract.contract.longName if hasattr(contract.contract, 'longName') else search_query.title()
-                                                label = f"{cd.symbol} - {desc} ({cd.primaryExchange})"
-                                                options.append((label, cd.symbol, cd.primaryExchange, desc))
+                                                desc = contract_desc.contract.longName if hasattr(contract_desc.contract, 'longName') else search_query.title()
+                                                
+                                                # Get exchange info
+                                                exchange = getattr(cd, 'primaryExchange', 'N/A')
+                                                currency = getattr(cd, 'currency', 'N/A')
+                                                
+                                                label = f"{cd.symbol} - {desc} ({exchange}, {currency})"
+                                                options.append((label, cd.symbol, exchange, desc))
                                         
                                         if options:
                                             st.session_state.ibkr_search_results = options
-                                            st.success(f"✅ {len(options)} action(s) française(s) trouvée(s)")
+                                            st.success(f"✅ {len(options)} action(s) trouvée(s)")
                                         else:
                                             st.session_state.ibkr_search_results = []
-                                            st.warning(f"❌ Aucune action française trouvée pour '{search_query}'. Essayez un autre terme ou utilisez la saisie manuelle ci-dessous.")
+                                            st.warning(f"❌ Aucune action trouvée pour '{search_query}'. Essayez un autre terme ou utilisez la saisie manuelle ci-dessous.")
                                     else:
                                         st.session_state.ibkr_search_results = []
                                         st.info("ℹ️ Aucun résultat trouvé. Utilisez la saisie manuelle ci-dessous.")
