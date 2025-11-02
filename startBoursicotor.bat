@@ -144,7 +144,7 @@ echo.
 echo Appuyez sur Ctrl+C pour arreter Streamlit uniquement
 echo.
 
-streamlit run frontend/app.py
+venv\Scripts\streamlit.exe run frontend\app.py
 
 REM Si Streamlit s'arrete
 echo.
