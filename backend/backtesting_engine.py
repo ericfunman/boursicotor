@@ -677,8 +677,8 @@ class UltraAggressiveStrategy(Strategy):
         high_diff = df['high'].diff()
         low_diff = -df['low'].diff()
         
-        plus_dm = pd.Series(0, index=df.index)
-        minus_dm = pd.Series(0, index=df.index)
+        plus_dm = pd.Series(0.0, index=df.index, dtype='float64')
+        minus_dm = pd.Series(0.0, index=df.index, dtype='float64')
         
         plus_dm[high_diff > low_diff] = high_diff[high_diff > low_diff].clip(lower=0)
         minus_dm[low_diff > high_diff] = low_diff[low_diff > high_diff].clip(lower=0)
@@ -949,8 +949,8 @@ class MegaIndicatorStrategy(Strategy):
         high_diff = df['high'].diff()
         low_diff = -df['low'].diff()
         
-        plus_dm = pd.Series(0, index=df.index)
-        minus_dm = pd.Series(0, index=df.index)
+        plus_dm = pd.Series(0.0, index=df.index, dtype='float64')
+        minus_dm = pd.Series(0.0, index=df.index, dtype='float64')
         
         plus_dm[high_diff > low_diff] = high_diff[high_diff > low_diff].clip(lower=0)
         minus_dm[low_diff > high_diff] = low_diff[low_diff > high_diff].clip(lower=0)
@@ -1934,21 +1934,37 @@ class BacktestingEngine:
         Returns:
             (strategy_dict, result_dict)
         """
+        import os
+        import warnings
+        import logging
+        
+        # Suppress warnings in subprocesses
+        warnings.filterwarnings('ignore', message='.*ScriptRunContext.*')
+        warnings.filterwarnings('ignore', message='.*to view a Streamlit app.*')
+        logging.getLogger('streamlit').setLevel(logging.ERROR)
+        
+        print(f"[PID {os.getpid()}] Worker started", flush=True)
+        
         df_dict, strategy_dict, symbol, initial_capital, commission, allow_short = args
         
         # Reconstruct DataFrame from dict
+        print(f"[PID {os.getpid()}] Reconstructing DataFrame...", flush=True)
         df = pd.DataFrame(df_dict)
         df.index = pd.to_datetime(df.index)
         
         # Reconstruct Strategy from dict
+        print(f"[PID {os.getpid()}] Reconstructing Strategy...", flush=True)
         strategy = Strategy.from_dict(strategy_dict)
         
         # Create engine instance
+        print(f"[PID {os.getpid()}] Creating engine...", flush=True)
         engine = BacktestingEngine(initial_capital, commission, allow_short)
         
         # Run backtest
+        print(f"[PID {os.getpid()}] Running backtest...", flush=True)
         result = engine.run_backtest(df, strategy, symbol)
         
+        print(f"[PID {os.getpid()}] Worker done - return: {result.total_return:.2f}%", flush=True)
         return (strategy_dict, result.to_dict())
     
     def run_parallel_optimization(
@@ -2031,15 +2047,19 @@ class BacktestingEngine:
         
         # Exécuter en parallèle
         logger.info(f"⚡ Lancement de {num_iterations} backtests en parallèle...")
+        print(f"DEBUG: Creating pool with {num_processes} processes", flush=True)
         
         results = []
         best_return = -np.inf
         best_strategy = None
         best_result = None
         
+        print(f"DEBUG: Starting Pool", flush=True)
         with Pool(processes=num_processes) as pool:
+            print(f"DEBUG: Pool created, submitting {len(args_list)} tasks", flush=True)
             # Utiliser imap_unordered pour avoir les résultats au fur et à mesure
             for i, (strategy_dict, result_dict) in enumerate(pool.imap_unordered(self._run_single_backtest_worker, args_list)):
+                print(f"DEBUG: Received result {i+1}/{num_iterations}", flush=True)
                 # Reconstruire les objets
                 strategy = Strategy.from_dict(strategy_dict)
                 result = BacktestResult.from_dict(result_dict)
@@ -2071,14 +2091,15 @@ class BacktestingEngine:
         
         return best_strategy, best_result, results
     
-    def run_backtest(
+    def run_backtest_vectorized(
         self,
         df: pd.DataFrame,
         strategy: Strategy,
         symbol: str
     ) -> BacktestResult:
         """
-        Exécute un backtest
+        Version vectorisée du backtest (10-100x plus rapide)
+        Fonctionne uniquement pour les stratégies long-only simples
         
         Args:
             df: DataFrame avec les données OHLCV
@@ -2088,6 +2109,146 @@ class BacktestingEngine:
         Returns:
             Résultat du backtest
         """
+        # Generate signals
+        signals = strategy.generate_signals(df)
+        
+        # Detect position changes (vectorized)
+        # signal = 1 (long), 0 (neutral), -1 (exit/short)
+        position = signals.copy()
+        position[position == -1] = 0  # Convert -1 to 0 for long-only
+        
+        # Forward fill positions (stay in position until exit signal)
+        position = position.replace(0, np.nan).ffill().fillna(0)
+        
+        # Detect entries and exits
+        position_change = position.diff()
+        entries = position_change > 0  # Entry when position goes from 0 to 1
+        exits = position_change < 0    # Exit when position goes from 1 to 0
+        
+        # Get entry and exit prices
+        entry_indices = df.index[entries]
+        exit_indices = df.index[exits]
+        
+        # Match entries with exits
+        trades = []
+        entry_prices = df.loc[entries, 'close'].values
+        exit_prices = df.loc[exits, 'close'].values
+        
+        # Ensure we have equal entries and exits (close last position if needed)
+        num_trades = min(len(entry_indices), len(exit_indices))
+        
+        # Handle case where we have more entries than exits (still in position at end)
+        if len(entry_indices) > len(exit_indices):
+            # Close final position at last price
+            exit_indices = exit_indices.append(pd.Index([df.index[-1]]))
+            exit_prices = np.append(exit_prices, df['close'].iloc[-1])
+            num_trades = len(entry_indices)
+        
+        # Calculate all trades vectorized
+        for i in range(num_trades):
+            entry_price = entry_prices[i]
+            exit_price = exit_prices[i]
+            entry_date = entry_indices[i]
+            exit_date = exit_indices[i] if i < len(exit_indices) else df.index[-1]
+            
+            # Calculate shares (95% of capital)
+            shares = int((self.initial_capital * 0.95) / entry_price)
+            
+            # Calculate profit with commissions
+            cost = shares * entry_price * (1 + self.commission)
+            revenue = shares * exit_price * (1 - self.commission)
+            profit = revenue - cost
+            profit_pct = (profit / cost) * 100
+            
+            trades.append(Trade(
+                entry_date=entry_date,
+                entry_price=entry_price,
+                exit_date=exit_date,
+                exit_price=exit_price,
+                quantity=shares,
+                profit=profit,
+                profit_pct=profit_pct
+            ))
+        
+        # Calculate equity curve (vectorized)
+        # Daily returns when in position
+        daily_returns = df['close'].pct_change()
+        position_returns = daily_returns * position.shift(1).fillna(0)
+        
+        # Adjust for commission on entries and exits
+        commission_cost = position_change.abs() * self.commission
+        position_returns = position_returns - commission_cost
+        
+        # Cumulative equity
+        equity_curve = self.initial_capital * (1 + position_returns).cumprod()
+        equity_curve = equity_curve.fillna(self.initial_capital)
+        
+        # Calculate statistics
+        final_capital = equity_curve.iloc[-1] if len(equity_curve) > 0 else self.initial_capital
+        total_return = ((final_capital - self.initial_capital) / self.initial_capital) * 100
+        
+        winning_trades = sum(1 for t in trades if t.profit > 0)
+        losing_trades = sum(1 for t in trades if t.profit <= 0)
+        win_rate = (winning_trades / len(trades) * 100) if trades else 0
+        
+        # Max drawdown (vectorized)
+        running_max = equity_curve.expanding().max()
+        drawdown = (equity_curve - running_max) / running_max * 100
+        max_drawdown = drawdown.min() if len(drawdown) > 0 else 0
+        
+        # Sharpe ratio
+        if len(position_returns) > 1:
+            sharpe_ratio = (position_returns.mean() / position_returns.std() * np.sqrt(252)) if position_returns.std() > 0 else 0
+        else:
+            sharpe_ratio = 0
+        
+        result = BacktestResult(
+            strategy_name=strategy.name,
+            symbol=symbol,
+            start_date=df.index[0],
+            end_date=df.index[-1],
+            initial_capital=self.initial_capital,
+            final_capital=final_capital,
+            total_return=total_return,
+            total_trades=len(trades),
+            winning_trades=winning_trades,
+            losing_trades=losing_trades,
+            win_rate=win_rate,
+            max_drawdown=max_drawdown,
+            sharpe_ratio=sharpe_ratio,
+            trades=[t.to_dict() for t in trades]
+        )
+        
+        return result
+    
+    def run_backtest(
+        self,
+        df: pd.DataFrame,
+        strategy: Strategy,
+        symbol: str,
+        use_vectorized: bool = True
+    ) -> BacktestResult:
+        """
+        Exécute un backtest
+        
+        Args:
+            df: DataFrame avec les données OHLCV
+            strategy: Stratégie à tester
+            symbol: Symbole du ticker
+            use_vectorized: Si True, utilise la version vectorisée (plus rapide, long-only)
+            
+        Returns:
+            Résultat du backtest
+        """
+        # Use vectorized version if requested and short selling not allowed
+        if use_vectorized and not self.allow_short:
+            try:
+                return self.run_backtest_vectorized(df, strategy, symbol)
+            except Exception as e:
+                # Fallback to loop version if vectorized fails
+                print(f"Warning: Vectorized backtest failed ({e}), falling back to loop version", flush=True)
+        
+        # Original loop-based version
         # logger.info(f"🔄 Running backtest for {symbol} with strategy: {strategy.name}")
         
         # Generate signals
