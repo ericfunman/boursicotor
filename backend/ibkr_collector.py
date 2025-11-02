@@ -467,7 +467,7 @@ class IBKRCollector:
             from sqlalchemy import func
             
             # Get ticker
-            ticker = db.query(Ticker).filter(Ticker.symbol == symbol).first()
+            ticker = db.query(TickerModel).filter(TickerModel.symbol == symbol).first()
             if not ticker:
                 return {
                     'has_data': False,
