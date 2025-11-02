@@ -62,9 +62,9 @@ if "%ERRORLEVEL%"=="0" (
 REM IB Gateway n'est pas lance - utiliser IBC pour auto-login
 echo [INFO] Lancement d'IB Gateway avec IBC (auto-login)...
 
-REM Lancer IBC
+REM Lancer IBC en arriere-plan (start au lieu de call)
 set "IBC_LAUNCHER=C:\IBC\start_gateway.bat"
-call "%IBC_LAUNCHER%"
+start "IB Gateway - IBC" "%IBC_LAUNCHER%"
 echo [INFO] IB Gateway lance avec IBC (connexion automatique)
 echo [INFO] Attente de l'initialisation complete (15 secondes)...
 timeout /t 15 /nobreak >nul
