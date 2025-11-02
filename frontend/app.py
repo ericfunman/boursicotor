@@ -1810,13 +1810,13 @@ def backtesting_page():
             )
         
         with col2:
-            # Get date range for ticker
+            # Get total count for ticker (will be updated after date selection)
             db = SessionLocal()
             try:
                 ticker_obj = db.query(TickerModel).filter(TickerModel.symbol == selected_ticker).first()
                 if ticker_obj:
-                    count = db.query(HistoricalData).filter(HistoricalData.ticker_id == ticker_obj.id).count()
-                    st.metric("Points de données", f"{count:,}")
+                    total_count = db.query(HistoricalData).filter(HistoricalData.ticker_id == ticker_obj.id).count()
+                    st.metric("Points totaux", f"{total_count:,}")
             finally:
                 db.close()
         
@@ -1859,10 +1859,21 @@ def backtesting_page():
                         )
                     
                     with col_date3:
-                        # Calculate number of days
+                        # Calculate number of days and points in selected period
                         if start_date and end_date:
                             days_diff = (end_date - start_date).days
-                            st.metric("Jours", f"{days_diff:,}")
+                            
+                            # Count actual data points in the selected period
+                            start_datetime = pd.Timestamp(start_date)
+                            end_datetime = pd.Timestamp(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+                            
+                            filtered_count = db.query(HistoricalData).filter(
+                                HistoricalData.ticker_id == ticker_obj.id,
+                                HistoricalData.timestamp >= start_datetime,
+                                HistoricalData.timestamp <= end_datetime
+                            ).count()
+                            
+                            st.metric("Points période", f"{filtered_count:,}", delta=f"{days_diff} jours")
                 else:
                     start_date = None
                     end_date = None
