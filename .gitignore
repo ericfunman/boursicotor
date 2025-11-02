@@ -31,6 +31,9 @@ wheels/
 ibgateway_config.ini
 ibgateway.jts
 
+# IBC installation (auto-installed, contains credentials)
+C:/IBC/
+
 # Saxo Bank tokens (IMPORTANT - contains sensitive tokens)
 .saxo_tokens
 
