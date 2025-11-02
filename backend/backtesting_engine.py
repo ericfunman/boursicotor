@@ -91,16 +91,15 @@ class Strategy:
     @staticmethod
     def from_dict(data: Dict):
         """Create strategy from dictionary"""
-        if data['name'] == 'RandomStrategy':
-            return RandomStrategy(**data['parameters'])
-        elif data['name'] == 'MovingAverageCrossover':
-            return MovingAverageCrossover(**data['parameters'])
-        elif data['name'] == 'RSIStrategy':
-            return RSIStrategy(**data['parameters'])
-        elif data['name'] == 'MultiIndicatorStrategy':
-            return MultiIndicatorStrategy(**data['parameters'])
-        else:
-            raise ValueError(f"Unknown strategy: {data['name']}")
+        strategy_name = data['name']
+        
+        # Try to get the class from globals (handles all defined strategies)
+        strategy_class = globals().get(strategy_name)
+        
+        if strategy_class is None or not issubclass(strategy_class, Strategy):
+            raise ValueError(f"Unknown strategy: {strategy_name}")
+        
+        return strategy_class(**data['parameters'])
 
 
 class RandomStrategy(Strategy):
