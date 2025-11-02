@@ -2151,9 +2151,10 @@ def backtesting_page():
                         objective_status = "🎯 Objectif atteint!" if best_return >= target_return else "⏳ Recherche en cours..."
                         status_text.text(f"{objective_status} | Itération {iterations_done}/{max_iterations} | Meilleur: {best_return:.2f}%")
                     
-                    # All iterations complete - display best result
-                    progress_bar.progress(1.0)
-                    status_text.empty()
+                    # All iterations complete - display best result (mode séquentiel uniquement)
+                    if not enable_parallel:
+                        progress_bar.progress(1.0)
+                        status_text.empty()
                     
                     if best_result and best_strategy:
                         # Save to session state for persistence across reruns
