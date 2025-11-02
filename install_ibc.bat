@@ -121,7 +121,7 @@ echo AllowBlindTrading=no >> "%IBC_CONFIG%"
 echo DismissPasswordExpiryWarning=yes >> "%IBC_CONFIG%"
 echo DismissNSEComplianceNotice=yes >> "%IBC_CONFIG%"
 echo SaveTwsSettingsAt= >> "%IBC_CONFIG%"
-echo IbDir=%IB_GATEWAY_DIR% >> "%IBC_CONFIG%"
+echo IbDir= >> "%IBC_CONFIG%"
 echo StoreSettingsOnServer=no >> "%IBC_CONFIG%"
 echo MinimizeMainWindow=yes >> "%IBC_CONFIG%"
 echo ExistingSessionDetectedAction=primary >> "%IBC_CONFIG%"
@@ -130,7 +130,7 @@ echo ReadOnlyLogin=no >> "%IBC_CONFIG%"
 echo ReadOnlyApi=no >> "%IBC_CONFIG%"
 echo FIX=no >> "%IBC_CONFIG%"
 echo IbAutoRestartTime= >> "%IBC_CONFIG%"
-echo LogComponents=never >> "%IBC_CONFIG%"
+echo LogComponents= >> "%IBC_CONFIG%"
 
 echo [SUCCESS] IBC configuration created at %IBC_CONFIG%
 
@@ -141,12 +141,11 @@ echo @echo off > "%LAUNCHER%"
 echo REM IB Gateway Launcher with IBC >> "%LAUNCHER%"
 echo. >> "%LAUNCHER%"
 echo set "IBC_PATH=%INSTALL_DIR%" >> "%LAUNCHER%"
-echo set "TWS_PATH=%IB_GATEWAY_DIR%" >> "%LAUNCHER%"
+echo set "TWS_PATH=C:\Jts" >> "%LAUNCHER%"
 echo set "CONFIG_PATH=%IBC_CONFIG%" >> "%LAUNCHER%"
-echo set "JAVA_PATH=%IB_GATEWAY_DIR%\jre\bin" >> "%LAUNCHER%"
 echo. >> "%LAUNCHER%"
 echo cd /d "%%IBC_PATH%%" >> "%LAUNCHER%"
-echo start "" "%%IBC_PATH%%\Scripts\StartIBC.bat" "%%TWS_PATH%%" "%%CONFIG_PATH%%" gateway latestversion >> "%LAUNCHER%"
+echo start "" "%%IBC_PATH%%\Scripts\StartIBC.bat" 1037 /Gateway /TwsPath:%%TWS_PATH%% /Config:%%CONFIG_PATH%% >> "%LAUNCHER%"
 
 echo.
 echo ========================================
