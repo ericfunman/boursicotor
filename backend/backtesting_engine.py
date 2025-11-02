@@ -1939,13 +1939,14 @@ class BacktestingEngine:
         import logging
         import sys
         
-        # Suppress ALL warnings in subprocesses
+        # Suppress ALL warnings and Streamlit output in subprocesses
         warnings.filterwarnings('ignore')
-        logging.getLogger('streamlit').setLevel(logging.CRITICAL)
+        os.environ['STREAMLIT_SERVER_HEADLESS'] = 'true'
         
-        # Redirect stderr to devnull to suppress Streamlit warnings
-        original_stderr = sys.stderr
-        sys.stderr = open(os.devnull, 'w')
+        # Disable all logging from streamlit
+        for logger_name in ['streamlit', 'streamlit.runtime', 'streamlit.watcher']:
+            logging.getLogger(logger_name).setLevel(logging.CRITICAL)
+            logging.getLogger(logger_name).disabled = True
         
         try:
             df_dict, strategy_dict, symbol, initial_capital, commission, allow_short = args
@@ -1960,14 +1961,14 @@ class BacktestingEngine:
             # Create engine instance
             engine = BacktestingEngine(initial_capital, commission, allow_short)
             
-            # Run backtest (use vectorized version by default)
-            result = engine.run_backtest(df, strategy, symbol, use_vectorized=True)
+            # Run backtest (désactiver vectorisation temporairement - bug à corriger)
+            result = engine.run_backtest(df, strategy, symbol, use_vectorized=False)
             
             return (strategy_dict, result.to_dict())
-        finally:
-            # Restore stderr
-            sys.stderr.close()
-            sys.stderr = original_stderr
+        except Exception as e:
+            # En cas d'erreur, retourner un résultat vide
+            print(f"Error in worker: {e}", flush=True)
+            raise
     
     def run_parallel_optimization(
         self,
@@ -2268,11 +2269,16 @@ class BacktestingEngine:
         entry_price = None
         entry_date = None
         
-        # Simulate trading
+        # Convert to numpy arrays for faster access
+        close_prices = df['close'].values
+        dates = df.index.values
+        signal_values = signals.values
+        
+        # Simulate trading - optimized loop
         for i in range(len(df)):
-            current_price = df['close'].iloc[i]
-            current_date = df.index[i]
-            signal = signals.iloc[i]
+            current_price = close_prices[i]
+            current_date = dates[i]
+            signal = signal_values[i]
             
             # Buy signal (Long)
             if signal == 1 and position == 0:
@@ -2371,8 +2377,8 @@ class BacktestingEngine:
         
         # Close any remaining position
         if position != 0:
-            current_price = df['close'].iloc[-1]
-            current_date = df.index[-1]
+            current_price = close_prices[-1]
+            current_date = dates[-1]
             
             if position > 0:
                 # Close long
