@@ -2016,7 +2016,7 @@ def backtesting_page():
                             engine = BacktestingEngine(
                                 initial_capital=initial_capital,
                                 commission=commission_decimal,
-                                allow_short=False,  # Désactiver short temporairement - bug à corriger
+                                allow_short=True,  # Short réactivé
                                 min_hold_minutes=min_hold_minutes
                             )
                             
@@ -2141,7 +2141,7 @@ def backtesting_page():
                             engine = BacktestingEngine(
                                 initial_capital=initial_capital,
                                 commission=commission_decimal,
-                                allow_short=False,  # Désactiver short temporairement - bug à corriger
+                                allow_short=True,  # Short réactivé
                                 min_hold_minutes=min_hold_minutes
                             )
                             result = engine.run_backtest(df, strategy, selected_ticker)
