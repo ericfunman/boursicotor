@@ -1974,15 +1974,6 @@ class BacktestingEngine:
         Returns:
             (best_strategy, best_result, all_results)
         """
-            df: DataFrame avec les données OHLCV
-            symbol: Symbole du ticker
-            num_iterations: Nombre de stratégies à tester
-            target_return: Retour cible en %
-            num_processes: Nombre de processus (None = auto-detect)
-        
-        Returns:
-            (best_strategy, best_result, all_results)
-        """
         if num_processes is None:
             num_processes = max(1, cpu_count() - 1)  # Laisser 1 CPU libre
         
