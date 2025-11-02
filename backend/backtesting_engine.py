@@ -1937,28 +1937,37 @@ class BacktestingEngine:
         import os
         import warnings
         import logging
+        import sys
         
-        # Suppress warnings in subprocesses
-        warnings.filterwarnings('ignore', message='.*ScriptRunContext.*')
-        warnings.filterwarnings('ignore', message='.*to view a Streamlit app.*')
-        logging.getLogger('streamlit').setLevel(logging.ERROR)
+        # Suppress ALL warnings in subprocesses
+        warnings.filterwarnings('ignore')
+        logging.getLogger('streamlit').setLevel(logging.CRITICAL)
         
-        df_dict, strategy_dict, symbol, initial_capital, commission, allow_short = args
+        # Redirect stderr to devnull to suppress Streamlit warnings
+        original_stderr = sys.stderr
+        sys.stderr = open(os.devnull, 'w')
         
-        # Reconstruct DataFrame from dict
-        df = pd.DataFrame(df_dict)
-        df.index = pd.to_datetime(df.index)
-        
-        # Reconstruct Strategy from dict
-        strategy = Strategy.from_dict(strategy_dict)
-        
-        # Create engine instance
-        engine = BacktestingEngine(initial_capital, commission, allow_short)
-        
-        # Run backtest (use vectorized version by default)
-        result = engine.run_backtest(df, strategy, symbol, use_vectorized=True)
-        
-        return (strategy_dict, result.to_dict())
+        try:
+            df_dict, strategy_dict, symbol, initial_capital, commission, allow_short = args
+            
+            # Reconstruct DataFrame from dict
+            df = pd.DataFrame(df_dict)
+            df.index = pd.to_datetime(df.index)
+            
+            # Reconstruct Strategy from dict
+            strategy = Strategy.from_dict(strategy_dict)
+            
+            # Create engine instance
+            engine = BacktestingEngine(initial_capital, commission, allow_short)
+            
+            # Run backtest (use vectorized version by default)
+            result = engine.run_backtest(df, strategy, symbol, use_vectorized=True)
+            
+            return (strategy_dict, result.to_dict())
+        finally:
+            # Restore stderr
+            sys.stderr.close()
+            sys.stderr = original_stderr
     
     def run_parallel_optimization(
         self,
@@ -1989,9 +1998,9 @@ class BacktestingEngine:
         logger.info(f"🚀 Optimisation parallèle: {num_iterations} itérations sur {num_processes} processus")
         logger.info(f"   Objectif: {target_return}% de retour")
         
-        # Pré-calculer les indicateurs (gain de 2-3x)
-        logger.info("📊 Pré-calcul des indicateurs standards...")
-        precalc_indicators = self._precalculate_indicators(df)
+        # Note: Pré-calcul des indicateurs désactivé car la vectorisation est plus efficace
+        # et évite de bloquer l'interface Streamlit pendant le calcul
+        # precalc_indicators = self._precalculate_indicators(df)
         
         # Générer toutes les stratégies aléatoires
         logger.info("🎲 Génération des stratégies...")
@@ -2098,6 +2107,9 @@ class BacktestingEngine:
         Returns:
             Résultat du backtest
         """
+        import time
+        start_time = time.time()
+        
         # Generate signals
         signals = strategy.generate_signals(df)
         
@@ -2190,6 +2202,10 @@ class BacktestingEngine:
             sharpe_ratio = (position_returns.mean() / position_returns.std() * np.sqrt(252)) if position_returns.std() > 0 else 0
         else:
             sharpe_ratio = 0
+        
+        elapsed = time.time() - start_time
+        if elapsed > 1:  # Log if backtest took more than 1 second
+            print(f"[VECTORIZED] Backtest took {elapsed:.2f}s for {len(df)} points", flush=True)
         
         result = BacktestResult(
             strategy_name=strategy.name,
