@@ -1943,28 +1943,21 @@ class BacktestingEngine:
         warnings.filterwarnings('ignore', message='.*to view a Streamlit app.*')
         logging.getLogger('streamlit').setLevel(logging.ERROR)
         
-        print(f"[PID {os.getpid()}] Worker started", flush=True)
-        
         df_dict, strategy_dict, symbol, initial_capital, commission, allow_short = args
         
         # Reconstruct DataFrame from dict
-        print(f"[PID {os.getpid()}] Reconstructing DataFrame...", flush=True)
         df = pd.DataFrame(df_dict)
         df.index = pd.to_datetime(df.index)
         
         # Reconstruct Strategy from dict
-        print(f"[PID {os.getpid()}] Reconstructing Strategy...", flush=True)
         strategy = Strategy.from_dict(strategy_dict)
         
         # Create engine instance
-        print(f"[PID {os.getpid()}] Creating engine...", flush=True)
         engine = BacktestingEngine(initial_capital, commission, allow_short)
         
-        # Run backtest
-        print(f"[PID {os.getpid()}] Running backtest...", flush=True)
-        result = engine.run_backtest(df, strategy, symbol)
+        # Run backtest (use vectorized version by default)
+        result = engine.run_backtest(df, strategy, symbol, use_vectorized=True)
         
-        print(f"[PID {os.getpid()}] Worker done - return: {result.total_return:.2f}%", flush=True)
         return (strategy_dict, result.to_dict())
     
     def run_parallel_optimization(
@@ -2047,19 +2040,15 @@ class BacktestingEngine:
         
         # Exécuter en parallèle
         logger.info(f"⚡ Lancement de {num_iterations} backtests en parallèle...")
-        print(f"DEBUG: Creating pool with {num_processes} processes", flush=True)
         
         results = []
         best_return = -np.inf
         best_strategy = None
         best_result = None
         
-        print(f"DEBUG: Starting Pool", flush=True)
         with Pool(processes=num_processes) as pool:
-            print(f"DEBUG: Pool created, submitting {len(args_list)} tasks", flush=True)
             # Utiliser imap_unordered pour avoir les résultats au fur et à mesure
             for i, (strategy_dict, result_dict) in enumerate(pool.imap_unordered(self._run_single_backtest_worker, args_list)):
-                print(f"DEBUG: Received result {i+1}/{num_iterations}", flush=True)
                 # Reconstruire les objets
                 strategy = Strategy.from_dict(strategy_dict)
                 result = BacktestResult.from_dict(result_dict)
