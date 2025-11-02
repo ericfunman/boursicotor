@@ -48,6 +48,47 @@ powercfg /change monitor-timeout-ac 0
 powercfg /change monitor-timeout-dc 0
 echo [OK] Mise en veille desactivee (sera restauree a l'arret)
 
+REM Definir le chemin vers IB Gateway
+set IBGATEWAY_PATH=C:\Jts\ibgateway\1037\ibgateway.exe
+
+REM Verifier si IB Gateway est deja lance
+echo [2.1/4] Verification d'IB Gateway...
+tasklist /FI "IMAGENAME eq ibgateway.exe" 2>NUL | find /I /N "ibgateway.exe">NUL
+if "%ERRORLEVEL%"=="0" (
+    echo [OK] IB Gateway est deja en cours d'execution
+) else (
+    echo [INFO] Lancement d'IB Gateway...
+    if exist "%IBGATEWAY_PATH%" (
+        REM Lancer IB Gateway avec le fichier de configuration
+        start "IB Gateway - Boursicotor" "%IBGATEWAY_PATH%"
+        echo [INFO] IB Gateway demarre, attente de la connexion...
+        echo [INFO] Veuillez vous connecter manuellement dans IB Gateway
+        echo.
+        echo ========================================
+        echo  IMPORTANT: Connectez-vous a IB Gateway
+        echo  User: ericlapinasimu
+        echo  Mode: Paper Trading (Simule)
+        echo  Port API: 4002
+        echo ========================================
+        echo.
+        echo Appuyez sur une touche une fois connecte...
+        pause
+    ) else (
+        echo.
+        echo ========================================
+        echo  [ERREUR] IB Gateway non trouve !
+        echo ========================================
+        echo.
+        echo IB Gateway n'a pas ete trouve a: %IBGATEWAY_PATH%
+        echo.
+        echo Veuillez verifier l'installation d'IB Gateway
+        echo ou modifier le chemin dans ce script.
+        echo.
+        pause
+        exit /b 1
+    )
+)
+
 REM Definir le chemin vers Redis
 set REDIS_PATH=C:\redis\redis-server.exe
 
