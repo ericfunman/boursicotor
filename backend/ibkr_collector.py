@@ -925,6 +925,10 @@ class IBKRCollector:
             
             # Process each chunk
             for chunk_idx in range(num_chunks):
+                # Update progress callback
+                if progress_callback:
+                    progress_callback(chunk_idx + 1, num_chunks)
+                
                 try:
                     remaining_days = gap_days - (chunk_idx * max_chunk_days)
                     chunk_days = min(max_chunk_days, remaining_days)
