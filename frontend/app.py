@@ -204,7 +204,7 @@ def main():
         
         with col1:
             if not st.session_state.global_ibkr_connected:
-                if st.button("🔌 Connecter", type="primary", use_container_width=True, key="sidebar_connect"):
+                if st.button("🔌 Connecter", type="primary", width='stretch', key="sidebar_connect"):
                     with st.spinner("Connexion..."):
                         success, message = connect_global_ibkr()
                         if success:
@@ -213,7 +213,7 @@ def main():
                         else:
                             st.error(message)
             else:
-                if st.button("🔌 Déconnecter", use_container_width=True, key="sidebar_disconnect"):
+                if st.button("🔌 Déconnecter", width='stretch', key="sidebar_disconnect"):
                     disconnect_global_ibkr()
                     st.success("Déconnecté")
                     st.rerun()
@@ -370,7 +370,7 @@ def dashboard_page():
             if positions:
                 import pandas as pd
                 positions_df = pd.DataFrame(positions)
-                st.dataframe(positions_df, use_container_width=True)
+                st.dataframe(positions_df, width='stretch')
             else:
                 st.info("ℹ️ Aucune position ouverte")
             
@@ -407,7 +407,7 @@ def dashboard_page():
                     })
                 
                 import pandas as pd
-                st.dataframe(pd.DataFrame(trades_data), use_container_width=True)
+                st.dataframe(pd.DataFrame(trades_data), width='stretch')
             else:
                 st.info("ℹ️ Aucun trade récent. Passez des ordres dans l'onglet 'Trading' !")
         
@@ -748,7 +748,7 @@ def data_collection_page():
                 if selected_duration in ["2 ans", "5 ans", "10 ans", "Maximum"]:
                     st.warning("⚠️ Intervalle 1 heure: données limitées au-delà de quelques mois")
         # Collect button - Create async job with Celery
-        if st.button("📊 Collecter les données", type="primary", use_container_width=True):
+        if st.button("📊 Collecter les données", type="primary", width='stretch'):
             try:
                 from backend.job_manager import JobManager
                 from backend.tasks import collect_data_yahoo, collect_data_ibkr
@@ -1050,7 +1050,7 @@ def data_collection_page():
     
     # Interpolation button
     if target_interval_interp:
-        if st.button("🚀 Démarrer l'interpolation", type="primary", use_container_width=True):
+        if st.button("🚀 Démarrer l'interpolation", type="primary", width='stretch'):
             with st.spinner(f"Interpolation de {selected_ticker_interp} de {source_interval_interp} vers {target_interval_interp}..."):
                 try:
                     from backend.data_interpolator import DataInterpolator
@@ -1174,7 +1174,7 @@ def data_collection_page():
                 key="viz_end_date"
             )
     
-    if st.button("📊 Afficher le graphique", use_container_width=True):
+    if st.button("📊 Afficher le graphique", width='stretch'):
         from backend.data_collector import DataCollector
         import plotly.graph_objects as go
         from datetime import datetime, timedelta
@@ -1240,7 +1240,7 @@ def data_collection_page():
                         hovermode='x'
                     )
                     
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
                     
                     # Volume chart
                     fig_volume = go.Figure(data=[go.Bar(
@@ -1257,7 +1257,7 @@ def data_collection_page():
                         height=200
                     )
                     
-                    st.plotly_chart(fig_volume, use_container_width=True)
+                    st.plotly_chart(fig_volume, width='stretch')
                     
                     # Statistics
                     col1, col2, col3, col4 = st.columns(4)
@@ -1486,7 +1486,7 @@ def jobs_monitoring_page():
                 
                 import pandas as pd
                 df = pd.DataFrame(table_data)
-                st.dataframe(df, use_container_width=True, hide_index=True)
+                st.dataframe(df, width='stretch', hide_index=True)
         
         # Cleanup section
         st.markdown("---")
@@ -1648,10 +1648,10 @@ def technical_analysis_page():
                 height=500
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             # Data table
-            st.dataframe(df.tail(20), use_container_width=True)
+            st.dataframe(df.tail(20), width='stretch')
         else:
             st.info("Aucune donnée disponible pour ce ticker. Téléchargez des données d'abord.")
 
@@ -1748,7 +1748,7 @@ def technical_analysis_page():
     fig.add_trace(go.Bar(x=df.index, y=df['volume'], name='Volume'), row=4, col=1)
     
     fig.update_layout(height=1000, showlegend=True, xaxis=dict(rangeslider=dict(visible=False)))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
     
     # Indicator values
     st.subheader("📊 Valeurs actuelles des indicateurs")
@@ -1861,7 +1861,7 @@ def backtesting_page():
             )
         
         # Button to start optimization
-        if st.button("🚀 Lancer la recherche", type="primary", use_container_width=True):
+        if st.button("🚀 Lancer la recherche", type="primary", width='stretch'):
             # Clear previous results
             st.session_state.best_strategy = None
             st.session_state.best_result = None
@@ -2093,7 +2093,7 @@ def backtesting_page():
             # Debug info
             st.caption(f"📝 Nom actuel : {strategy_name}")
             
-            if st.button("💾 Sauvegarder la stratégie", type="primary", key="save_strategy_btn", use_container_width=True):
+            if st.button("💾 Sauvegarder la stratégie", type="primary", key="save_strategy_btn", width='stretch'):
                 # Log button click
                 logger.info(f"Save button clicked for strategy: {strategy_name}")
                 
@@ -2143,7 +2143,7 @@ def backtesting_page():
                 trades_df = pd.DataFrame(best_result.trades)
                 trades_df['entry_date'] = pd.to_datetime(trades_df['entry_date'])
                 trades_df['exit_date'] = pd.to_datetime(trades_df['exit_date'])
-                st.dataframe(trades_df, use_container_width=True)
+                st.dataframe(trades_df, width='stretch')
     
     with tab2:
         st.subheader("💾 Stratégies Sauvegardées")
@@ -2193,7 +2193,7 @@ def backtesting_page():
                         if st.button(f"📊 Voir backtests", key=f"view_{strat['id']}"):
                             backtests = StrategyManager.get_strategy_backtests(strat['id'])
                             if backtests:
-                                st.dataframe(pd.DataFrame(backtests), use_container_width=True)
+                                st.dataframe(pd.DataFrame(backtests), width='stretch')
                     
                     with col_b:
                         if st.button(f"🗑️ Supprimer", key=f"delete_{strat['id']}", type="secondary"):
@@ -2286,7 +2286,7 @@ def backtesting_page():
             finally:
                 db.close()
             
-            if st.button("▶️ Lancer le backtest", type="primary", use_container_width=True):
+            if st.button("▶️ Lancer le backtest", type="primary", width='stretch'):
                 from datetime import datetime
                 
                 with st.spinner("Exécution du backtest..."):
@@ -2328,7 +2328,7 @@ def backtesting_page():
                             trades_df = pd.DataFrame(result.trades)
                             trades_df['entry_date'] = pd.to_datetime(trades_df['entry_date'])
                             trades_df['exit_date'] = pd.to_datetime(trades_df['exit_date'])
-                            st.dataframe(trades_df, use_container_width=True)
+                            st.dataframe(trades_df, width='stretch')
                         
                         # Save replayed strategy option
                         st.markdown("---")
@@ -2343,7 +2343,7 @@ def backtesting_page():
                             )
                         
                         with col2:
-                            if st.button("💾 Sauvegarder", type="primary", use_container_width=True):
+                            if st.button("💾 Sauvegarder", type="primary", width='stretch'):
                                 try:
                                     # Get original strategy
                                     from backend.strategy_manager import StrategyManager
@@ -2993,7 +2993,7 @@ def live_prices_page():
                     
                     # Update chart without key to prevent scroll
                     with chart_placeholder.container():
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
                     
                     # Display indicators below chart - always show the panel
                     with indicators_placeholder.container():
@@ -3085,7 +3085,7 @@ def live_prices_page():
                                         'Profit %': f"{t['profit_pct']:.2f}%"
                                     })
                                 
-                                st.dataframe(pd.DataFrame(trade_data), use_container_width=True)
+                                st.dataframe(pd.DataFrame(trade_data), width='stretch')
                             else:
                                 st.info("ℹ️ Aucun trade complet détecté avec cette stratégie (signaux d'achat sans vente correspondante).")
 
@@ -3129,7 +3129,7 @@ def trading_page():
         
         with col_connect1:
             if not st.session_state.ibkr_connected:
-                if st.button("🔌 Connecter à IBKR", type="primary", use_container_width=True):
+                if st.button("🔌 Connecter à IBKR", type="primary", width='stretch'):
                     try:
                         with st.spinner("Connexion à IB Gateway..."):
                             st.session_state.ibkr_collector = IBKRCollector()
@@ -3142,7 +3142,7 @@ def trading_page():
                     except Exception as e:
                         st.error(f"❌ Erreur: {e}")
             else:
-                if st.button("🔌 Déconnecter", use_container_width=True):
+                if st.button("🔌 Déconnecter", width='stretch'):
                     if st.session_state.ibkr_collector:
                         st.session_state.ibkr_collector.disconnect()
                     st.session_state.ibkr_collector = None
@@ -3214,7 +3214,7 @@ def trading_page():
             
             if positions:
                 positions_df = pd.DataFrame(positions)
-                st.dataframe(positions_df, use_container_width=True)
+                st.dataframe(positions_df, width='stretch')
             else:
                 st.info("ℹ️ Aucune position ouverte")
         
@@ -3263,7 +3263,7 @@ def trading_page():
                 limit_price = st.number_input("Prix limite", min_value=0.01, value=10.00, step=0.01, format="%.2f")
             
             # Submit order button
-            if st.button("📤 Envoyer l'ordre", type="primary", use_container_width=True):
+            if st.button("📤 Envoyer l'ordre", type="primary", width='stretch'):
                 try:
                     with st.spinner("Envoi de l'ordre..."):
                         # Get contract
@@ -3337,7 +3337,7 @@ def trading_page():
                     })
                 
                 orders_df = pd.DataFrame(orders_data)
-                st.dataframe(orders_df, use_container_width=True)
+                st.dataframe(orders_df, width='stretch')
                 
                 # Cancel order section
                 if st.checkbox("Annuler un ordre"):
@@ -3388,7 +3388,7 @@ def trading_page():
                     })
                 
                 fills_df = pd.DataFrame(fills_data)
-                st.dataframe(fills_df, use_container_width=True)
+                st.dataframe(fills_df, width='stretch')
             else:
                 st.info("ℹ️ Aucun trade exécuté")
         
