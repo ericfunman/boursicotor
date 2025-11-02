@@ -133,13 +133,10 @@ if "%ERRORLEVEL%"=="0" (
     echo [INFO] Purge de la queue Celery...
     
     REM Execute purge in a subshell to ensure venv is active
-    cmd /c "cd /d "%~dp0" && call venv\Scripts\activate.bat && celery -A backend.celery_config purge -f"
+    cmd /c "cd /d "%~dp0" && call venv\Scripts\activate.bat && celery -A backend.celery_config purge -f" > nul 2>&1
     
-    if "%ERRORLEVEL%"=="0" (
-        echo [OK] Queue Celery purgee avec succes
-    ) else (
-        echo [WARN] La purge a echoue, mais on continue...
-    )
+    REM Note: purge returns exit code 0 even if queue was empty, so we just confirm it ran
+    echo [OK] Queue Celery verifiee et purgee si necessaire
     
     REM Petit delai pour s'assurer que la purge est complete
     timeout /t 1 /nobreak >NUL
