@@ -1,7 +1,7 @@
 @echo off
 REM ========================================
 REM  Boursicotor - Stop Script
-REM  Arrete tous les services (Redis, Celery, Streamlit)
+REM  Arrete tous les services (IB Gateway, Redis, Celery, Streamlit)
 REM ========================================
 
 echo.
@@ -20,7 +20,7 @@ if "%ERRORLEVEL%"=="0" (
 )
 
 REM Arreter Celery (processus Python avec celery worker)
-echo [2/3] Arret de Celery Worker...
+echo [2/4] Arret de Celery Worker...
 for /f "tokens=2" %%a in ('tasklist /FI "WINDOWTITLE eq Celery Worker*" /NH /FO CSV 2^>NUL ^| find "cmd.exe"') do (
     taskkill /F /PID %%~a 2>NUL
 )
@@ -29,12 +29,21 @@ wmic process where "commandline like '%%celery%%worker%%'" delete 2>NUL
 echo [OK] Celery Worker arrete
 
 REM Arreter Redis
-echo [3/3] Arret de Redis...
+echo [3/4] Arret de Redis...
 taskkill /F /IM redis-server.exe 2>NUL
 if "%ERRORLEVEL%"=="0" (
     echo [OK] Redis arrete
 ) else (
     echo [INFO] Redis n'etait pas en cours d'execution
+)
+
+REM Arreter IB Gateway
+echo [4/4] Arret d'IB Gateway...
+taskkill /F /IM java.exe 2>NUL
+if "%ERRORLEVEL%"=="0" (
+    echo [OK] IB Gateway arrete
+) else (
+    echo [INFO] IB Gateway n'etait pas en cours d'execution
 )
 
 REM Restaurer les parametres de mise en veille (30 min sur secteur, 15 min sur batterie)
