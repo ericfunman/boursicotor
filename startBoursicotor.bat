@@ -59,19 +59,35 @@ if "%ERRORLEVEL%"=="0" (
     goto :skip_ibgateway
 )
 
-REM IB Gateway n'est pas lance - utiliser IBC pour auto-login
-echo [INFO] Lancement d'IB Gateway avec IBC (auto-login)...
+REM IB Gateway n'est pas lance - demander lancement manuel
+echo.
+echo ========================================
+echo  IB Gateway requis
+echo ========================================
+echo.
+echo [INFO] IB Gateway n'est pas lance.
+echo.
+echo VEUILLEZ LANCER IB GATEWAY MANUELLEMENT :
+echo 1. Double-cliquez sur l'icone IB Gateway sur votre bureau
+echo    OU lancez : C:\Jts\ibgateway\1037\ibgateway.exe
+echo 2. Connectez-vous avec vos identifiants (ericlapinasimu)
+echo 3. Choisissez Paper Trading
+echo 4. Laissez IB Gateway ouvert
+echo.
+echo Une fois connecte, appuyez sur une touche pour continuer...
+pause >nul
 
-REM Lancer IBC en arriere-plan (start au lieu de call)
-set "IBC_LAUNCHER=C:\IBC\start_gateway.bat"
-start "IB Gateway - IBC" "%IBC_LAUNCHER%"
-echo [INFO] IB Gateway lance avec IBC (connexion automatique)
-echo [INFO] Attente de l'initialisation complete (20 secondes)...
-timeout /t 20 /nobreak >nul
-
-REM Configurer l'API pour desactiver Read-Only
-echo [INFO] Configuration de l'API IB Gateway...
-call "%~dp0configure_ibkr_api.bat"
+REM Verifier que Gateway est bien lance
+tasklist /FI "IMAGENAME eq java.exe" 2>NUL | find /I /N "java.exe">NUL
+if "%ERRORLEVEL%"=="0" (
+    echo [OK] IB Gateway detecte - continuation du demarrage
+) else (
+    echo.
+    echo [ERREUR] IB Gateway n'est toujours pas detecte
+    echo Veuillez le lancer et reessayer
+    pause
+    exit /b 1
+)
 
 :skip_ibgateway
 
