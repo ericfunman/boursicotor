@@ -2056,6 +2056,12 @@ class BacktestingEngine:
         best_strategy = None
         best_result = None
         
+        # Suppress warnings before creating pool
+        import os
+        import warnings
+        os.environ['STREAMLIT_SERVER_HEADLESS'] = 'true'
+        warnings.filterwarnings('ignore')
+        
         with Pool(processes=num_processes) as pool:
             # Utiliser imap_unordered pour avoir les résultats au fur et à mesure
             for i, (strategy_dict, result_dict) in enumerate(pool.imap_unordered(self._run_single_backtest_worker, args_list)):
@@ -2269,15 +2275,15 @@ class BacktestingEngine:
         entry_price = None
         entry_date = None
         
-        # Convert to numpy arrays for faster access
+        # Convert to numpy arrays for faster access (except dates)
         close_prices = df['close'].values
-        dates = df.index.values
         signal_values = signals.values
+        df_index = df.index  # Keep as pandas index for proper datetime handling
         
         # Simulate trading - optimized loop
         for i in range(len(df)):
             current_price = close_prices[i]
-            current_date = dates[i]
+            current_date = df_index[i]
             signal = signal_values[i]
             
             # Buy signal (Long)
@@ -2378,7 +2384,7 @@ class BacktestingEngine:
         # Close any remaining position
         if position != 0:
             current_price = close_prices[-1]
-            current_date = dates[-1]
+            current_date = df_index[-1]
             
             if position > 0:
                 # Close long
