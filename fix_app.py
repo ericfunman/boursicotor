@@ -1,0 +1,139 @@
+"""
+Script to fix the data collection page with proper IBKR and Yahoo configuration
+"""
+
+# Read the file
+with open('frontend/app.py', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# Find and replace the buggy section
+# Look for the section starting with "# Duration and interval options depend on source"
+# and replace it entirely
+
+search_text = '''        # Duration and interval options depend on source
+        if use_ibkr:'''
+
+replacement_text = '''        # Duration and interval options depend on source
+        if use_ibkr:
+            # IBKR options
+            st.markdown("**IBKR / Lynx** - Périodes et intervalles")
+            st.info("💼 IBKR fournit des données temps réel sans limitation d'API")
+            
+            duration_options = {
+                "1 jour": "1 D",
+                "3 jours": "3 D",
+                "1 semaine": "1 W",
+                "2 semaines": "2 W",
+                "1 mois": "1 M",
+                "3 mois": "3 M",
+                "6 mois": "6 M",
+                "1 an": "1 Y",
+                "2 ans": "2 Y"
+            }
+            selected_duration = st.selectbox(
+                "Période",
+                list(duration_options.keys()),
+                index=4,  # Default: 1 mois
+                help="IBKR: Données temps réel et historiques"
+            )
+            period = duration_options[selected_duration]
+            
+            # Interval options for IBKR
+            interval_options = {
+                "1 minute": "1 min",
+                "5 minutes": "5 mins",
+                "15 minutes": "15 mins",
+                "30 minutes": "30 mins",
+                "1 heure": "1 hour",
+                "1 jour": "1 day"
+            }
+            selected_interval = st.selectbox(
+                "Intervalle",
+                list(interval_options.keys()),
+                index=0,  # Default: 1 minute
+                help="IBKR: Support complet des intervalles"
+            )
+            interval = interval_options[selected_interval]
+            
+        elif use_yahoo:
+            # Yahoo Finance options
+            st.markdown("**Yahoo Finance** - Périodes et intervalles")
+            st.info("📊 Yahoo Finance fournit des données historiques gratuites (délai 15min)")
+            
+            duration_options = {
+                "1 jour": "1d",
+                "5 jours": "5d",
+                "1 mois": "1mo",
+                "3 mois": "3mo",
+                "6 mois": "6mo",
+                "1 an": "1y",
+                "2 ans": "2y",
+                "5 ans": "5y",
+                "10 ans": "10y",
+                "Maximum": "max"
+            }
+            selected_duration = st.selectbox(
+                "Période",
+                list(duration_options.keys()),
+                index=7,  # Default: 5 ans
+                help="Yahoo Finance: 1d à max (26+ ans disponibles)"
+            )
+            period = duration_options[selected_duration]
+            
+            # Interval options for Yahoo
+            interval_options = {
+                "1 minute": "1m",
+                "2 minutes": "2m",
+                "5 minutes": "5m",
+                "15 minutes": "15m",
+                "30 minutes": "30m",
+                "1 heure": "1h",
+                "1 jour": "1d",
+                "1 semaine": "1wk",
+                "1 mois": "1mo"
+            }
+            selected_interval = st.selectbox(
+                "Intervalle",
+                list(interval_options.keys()),
+                index=6,  # Default: 1 jour
+                help="⚠️ Limitations Yahoo:\\n1m: max 7 jours\\n2-30m: max 60 jours\\n1h+: plusieurs mois\\n1d+: illimité"
+            )
+            interval = interval_options[selected_interval]
+            
+            # Warning for intraday limitations
+            if interval == "1m":
+                if selected_duration not in ["1 jour", "5 jours"]:
+                    st.error("❌ Intervalle 1 minute limité à 7 jours maximum par Yahoo Finance")
+            elif interval in ["2m", "5m", "15m", "30m"]:
+                if selected_duration in ["3 mois", "6 mois", "1 an", "2 ans", "5 ans", "10 ans", "Maximum"]:
+                    st.warning("⚠️ Ces intervalles sont limités à 60 jours maximum par Yahoo Finance")
+            elif interval == "1h":
+                if selected_duration in ["2 ans", "5 ans", "10 ans", "Maximum"]:
+                    st.warning("⚠️ Intervalle 1 heure: données limitées au-delà de quelques mois")'''
+
+# Find the position
+pos = content.find(search_text)
+if pos == -1:
+    print("ERROR: Could not find search text!")
+    print("Looking for:", search_text[:100])
+else:
+    print(f"Found at position {pos}")
+    # Find the end (next line that starts with "        # Collect button" or similar)
+    end_marker = "\n        # Collect button"
+    end_pos = content.find(end_marker, pos)
+    
+    if end_pos == -1:
+        print("ERROR: Could not find end marker!")
+    else:
+        print(f"End at position {end_pos}")
+        # Replace
+        new_content = content[:pos] + replacement_text + content[end_pos:]
+        
+        # Write back
+        with open('frontend/app_fixed.py', 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        
+        print("✅ Fixed content written to frontend/app_fixed.py")
+        print("Review it, then run:")
+        print("  mv frontend/app.py frontend/app_backup.py")
+        print("  mv frontend/app_fixed.py frontend/app.py")
