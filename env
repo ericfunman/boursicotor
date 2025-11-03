@@ -1,0 +1,54 @@
+# Database Configuration (SQLite - plus simple pour démarrer)
+DB_TYPE=sqlite
+DB_NAME=boursicotor.db
+
+# PostgreSQL (à configurer plus tard)
+# DB_TYPE=postgresql
+# DB_HOST=localhost
+# DB_PORT=5432
+# DB_NAME=boursicotor
+# DB_USER=postgres
+# DB_PASSWORD=bouh806
+
+# Interactive Brokers / Lynx Configuration
+IBKR_HOST=127.0.0.1
+IBKR_PORT=4002  # IB Gateway paper trading: 4002, live: 4001
+# IBKR_CLIENT_ID=1  # Commenté - Streamlit utilise client_id=1, Celery génère aléatoirement
+IBKR_ACCOUNT=DU0118471  # Lynx paper trading account
+
+# Saxo Bank Configuration
+SAXO_USER_ID=21405228
+SAXO_PASSWORD=i06d
+SAXO_APP_KEY=58b75680517c42c3997aa8b303ba9a0c
+SAXO_APP_SECRET=d87c703300ad475485c431e0fcdfc804
+SAXO_AUTH_URL=https://sim.logonvalidation.net/authorize
+SAXO_TOKEN_URL=https://sim.logonvalidation.net/token
+SAXO_BASE_URL=https://gateway.saxobank.com/sim/openapi
+SAXO_REDIRECT_URI=http://localhost:8501/callback
+# SAXO_BASE_URL=https://gateway.saxobank.com/openapi  # Production
+
+# Trading Configuration
+PAPER_TRADING=True
+MAX_POSITION_SIZE=10000  # EUR
+RISK_PER_TRADE=0.02  # 2%
+STOP_LOSS_PERCENT=0.05  # 5%
+
+# Data Collection
+DEFAULT_INTERVAL=1min
+DATA_RETENTION_DAYS=365
+
+# ML Models
+MODEL_RETRAIN_INTERVAL=7  # days
+CONFIDENCE_THRESHOLD=0.75
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FILE=logs/boursicotor.log
+
+# API
+API_HOST=0.0.0.0
+API_PORT=8000
+
+# External API Keys
+ALPHA_VANTAGE_API_KEY=XM65AY0JLFL9AC3F
+POLYGON_API_KEY=AJwwXfRYuj8BlXmKn8Go1AonlACscLE1
