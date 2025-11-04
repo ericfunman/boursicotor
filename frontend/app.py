@@ -192,7 +192,7 @@ def main():
             "Navigation",
             ["📊 Dashboard", "💾 Collecte de Données", "📜 Historique des collectes",
              "📈 Analyse Technique", "💹 Cours Live", "🔙 Backtesting",
-             "📚 Indicateurs", "🤖 Trading Automatique", "⚙️ Paramètres"]
+             "📚 Indicateurs", "📝 Passage d'Ordres", "🤖 Trading Automatique", "⚙️ Paramètres"]
         )
         
         st.markdown("---")
@@ -254,6 +254,8 @@ def main():
         backtesting_page()
     elif page == "📚 Indicateurs":
         indicators_page()
+    elif page == "📝 Passage d'Ordres":
+        order_placement_page()
     elif page == "🤖 Trading Automatique":
         auto_trading_page()
     elif page == "⚙️ Paramètres":
@@ -3550,6 +3552,484 @@ def trading_page():
     except ImportError:
         st.error("❌ Module ib_insync non installé")
         st.code("pip install ib_insync")
+    
+    except Exception as e:
+        st.error(f"❌ Erreur: {e}")
+        import traceback
+        st.code(traceback.format_exc())
+
+
+def order_placement_page():
+    """
+    Dedicated page for order placement and management
+    Integrated with database tracking and IBKR execution
+    """
+    st.header("📝 Passage d'Ordres")
+    
+    try:
+        from backend.order_manager import OrderManager
+        from backend.models import OrderStatus, SessionLocal
+        from backend.ibkr_collector import IBKRCollector
+        from sqlalchemy import func
+        
+        # Initialize session state
+        if 'order_manager' not in st.session_state:
+            st.session_state.order_manager = None
+        
+        # Check IBKR connection
+        init_global_ibkr_connection()
+        
+        # IBKR Connection Status
+        col_status1, col_status2, col_status3 = st.columns([2, 1, 1])
+        
+        with col_status1:
+            if st.session_state.get('ibkr_connected', False):
+                st.success("🟢 Connecté à IBKR")
+            else:
+                st.warning("🟡 Non connecté à IBKR - Les ordres seront enregistrés mais non exécutés")
+        
+        with col_status2:
+            if st.button("🔄 Rafraîchir"):
+                st.rerun()
+        
+        with col_status3:
+            # Initialize OrderManager
+            ibkr_collector = st.session_state.get('ibkr_collector')
+            if not st.session_state.order_manager or st.session_state.order_manager.ibkr_collector != ibkr_collector:
+                st.session_state.order_manager = OrderManager(ibkr_collector)
+            
+            # Sync button
+            if st.session_state.get('ibkr_connected', False):
+                if st.button("🔄 Sync IBKR"):
+                    with st.spinner("Synchronisation..."):
+                        count = st.session_state.order_manager.sync_with_ibkr()
+                        st.success(f"✅ {count} ordres synchronisés")
+                        st.rerun()
+        
+        st.markdown("---")
+        
+        # Tabs
+        tab1, tab2, tab3, tab4 = st.tabs(["📝 Nouvel Ordre", "📋 Ordres en Cours", "📜 Historique", "📊 Statistiques"])
+        
+        # ========== TAB 1: NOUVEL ORDRE ==========
+        with tab1:
+            st.subheader("📝 Créer un Nouvel Ordre")
+            
+            col_form1, col_form2 = st.columns([2, 1])
+            
+            with col_form1:
+                # Get available tickers
+                db = SessionLocal()
+                try:
+                    from backend.models import Ticker
+                    tickers = db.query(Ticker).filter(Ticker.is_active == True).order_by(Ticker.symbol).all()
+                    ticker_options = {f"{t.symbol} - {t.name}": t.symbol for t in tickers}
+                    
+                    if not ticker_options:
+                        st.warning("⚠️ Aucune action en base. Ajoutez des actions via 'Collecte de Données'.")
+                        selected_symbol = st.text_input("Symbole (saisie manuelle)", value="WLN")
+                    else:
+                        selected_display = st.selectbox("Action", list(ticker_options.keys()))
+                        selected_symbol = ticker_options[selected_display]
+                finally:
+                    db.close()
+                
+                # Order parameters
+                col_action, col_qty = st.columns(2)
+                
+                with col_action:
+                    action = st.selectbox("Action", ["BUY", "SELL"], help="BUY = Acheter, SELL = Vendre")
+                
+                with col_qty:
+                    quantity = st.number_input("Quantité", min_value=1, value=10, step=1)
+                
+                # Order type
+                order_type = st.selectbox(
+                    "Type d'Ordre",
+                    ["MARKET", "LIMIT", "STOP", "STOP_LIMIT"],
+                    help="""
+                    - MARKET: Exécution immédiate au prix du marché
+                    - LIMIT: Exécution au prix limite ou mieux
+                    - STOP: Ordre stop-loss (devient market si prix atteint)
+                    - STOP_LIMIT: Ordre stop-limit combiné
+                    """
+                )
+                
+                # Conditional price inputs
+                limit_price = None
+                stop_price = None
+                
+                if order_type in ["LIMIT", "STOP_LIMIT"]:
+                    limit_price = st.number_input(
+                        "Prix Limite €",
+                        min_value=0.01,
+                        value=10.00,
+                        step=0.01,
+                        format="%.2f",
+                        help="Prix maximum (achat) ou minimum (vente)"
+                    )
+                
+                if order_type in ["STOP", "STOP_LIMIT"]:
+                    stop_price = st.number_input(
+                        "Prix Stop €",
+                        min_value=0.01,
+                        value=9.50,
+                        step=0.01,
+                        format="%.2f",
+                        help="Prix de déclenchement de l'ordre"
+                    )
+                
+                # Strategy selection (optional)
+                db = SessionLocal()
+                try:
+                    from backend.models import Strategy
+                    strategies = db.query(Strategy).all()
+                    strategy_options = {"Aucune": None}
+                    strategy_options.update({s.name: s.id for s in strategies})
+                    
+                    selected_strategy_name = st.selectbox("Stratégie (optionnel)", list(strategy_options.keys()))
+                    strategy_id = strategy_options[selected_strategy_name]
+                finally:
+                    db.close()
+                
+                # Notes
+                notes = st.text_area("Notes (optionnel)", help="Commentaires ou raison de l'ordre")
+                
+                # Paper trade toggle
+                is_paper = st.checkbox("Mode Simulation (Paper Trade)", value=True, help="Cochez pour simuler sans argent réel")
+                
+                # Submit button
+                st.markdown("---")
+                
+                col_submit1, col_submit2 = st.columns([2, 1])
+                
+                with col_submit1:
+                    if st.button("📤 Envoyer l'Ordre", type="primary", use_container_width=True):
+                        try:
+                            with st.spinner("Création de l'ordre..."):
+                                order_manager = st.session_state.order_manager
+                                
+                                order = order_manager.create_order(
+                                    symbol=selected_symbol,
+                                    action=action,
+                                    quantity=quantity,
+                                    order_type=order_type,
+                                    limit_price=limit_price,
+                                    stop_price=stop_price,
+                                    strategy_id=strategy_id,
+                                    notes=notes,
+                                    is_paper_trade=is_paper
+                                )
+                                
+                                if order:
+                                    st.success(f"✅ Ordre créé avec succès! (ID: {order.id})")
+                                    st.json({
+                                        'ID': order.id,
+                                        'Symbol': selected_symbol,
+                                        'Action': action,
+                                        'Quantity': quantity,
+                                        'Type': order_type,
+                                        'Status': order.status.value,
+                                        'IBKR Order ID': order.ibkr_order_id
+                                    })
+                                    
+                                    # Wait a bit for IBKR processing
+                                    if order.ibkr_order_id:
+                                        import time
+                                        time.sleep(1)
+                                    
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Échec de la création de l'ordre")
+                        
+                        except Exception as e:
+                            st.error(f"❌ Erreur: {e}")
+                            import traceback
+                            st.code(traceback.format_exc())
+                
+                with col_submit2:
+                    # Estimate cost
+                    if limit_price and order_type in ["LIMIT", "STOP_LIMIT"]:
+                        estimated_cost = quantity * limit_price
+                        st.metric("💰 Coût Estimé", f"{estimated_cost:.2f} €")
+            
+            with col_form2:
+                st.markdown("### 📋 Guide")
+                st.markdown("""
+                **Types d'ordres**:
+                
+                🔵 **MARKET**
+                - Exécution immédiate
+                - Au meilleur prix disponible
+                - Garanti d'être exécuté
+                
+                🟢 **LIMIT**
+                - Prix maximum (achat)
+                - Prix minimum (vente)
+                - Peut ne pas être exécuté
+                
+                🟡 **STOP**
+                - Stop-loss
+                - Devient MARKET si prix atteint
+                - Protection contre pertes
+                
+                🟣 **STOP_LIMIT**
+                - Stop-loss + prix limite
+                - Plus de contrôle
+                - Peut ne pas être exécuté
+                
+                ---
+                
+                ⚠️ **Mode Simulation**
+                
+                Les ordres en mode simulation sont enregistrés dans la base de données mais **utilisent de l'argent fictif**.
+                
+                Décochez pour trader avec de l'argent réel.
+                """)
+        
+        # ========== TAB 2: ORDRES EN COURS ==========
+        with tab2:
+            st.subheader("📋 Ordres en Cours")
+            
+            order_manager = st.session_state.order_manager
+            
+            # Get pending and submitted orders
+            pending_orders = order_manager.get_orders(
+                status=OrderStatus.PENDING,
+                limit=50
+            )
+            submitted_orders = order_manager.get_orders(
+                status=OrderStatus.SUBMITTED,
+                limit=50
+            )
+            
+            all_active = pending_orders + submitted_orders
+            
+            if all_active:
+                # Display orders table
+                orders_data = []
+                for order in all_active:
+                    db = SessionLocal()
+                    try:
+                        from backend.models import Ticker
+                        ticker = db.query(Ticker).filter(Ticker.id == order.ticker_id).first()
+                        
+                        orders_data.append({
+                            'ID': order.id,
+                            'IBKR ID': order.ibkr_order_id or '-',
+                            'Symbole': ticker.symbol if ticker else 'N/A',
+                            'Action': order.action,
+                            'Type': order.order_type,
+                            'Qté': order.quantity,
+                            'Prix Limite': f"{order.limit_price:.2f} €" if order.limit_price else '-',
+                            'Prix Stop': f"{order.stop_price:.2f} €" if order.stop_price else '-',
+                            'Status': order.status.value,
+                            'Créé': order.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                        })
+                    finally:
+                        db.close()
+                
+                orders_df = pd.DataFrame(orders_data)
+                st.dataframe(orders_df, use_container_width=True, hide_index=True)
+                
+                # Cancel order section
+                st.markdown("---")
+                st.subheader("❌ Annuler un Ordre")
+                
+                col_cancel1, col_cancel2 = st.columns([2, 1])
+                
+                with col_cancel1:
+                    order_id_to_cancel = st.number_input(
+                        "ID de l'ordre à annuler",
+                        min_value=1,
+                        step=1,
+                        help="Saisissez l'ID depuis le tableau ci-dessus"
+                    )
+                
+                with col_cancel2:
+                    if st.button("❌ Annuler", type="secondary", use_container_width=True):
+                        try:
+                            with st.spinner("Annulation..."):
+                                success = order_manager.cancel_order(order_id_to_cancel)
+                                if success:
+                                    st.success(f"✅ Ordre {order_id_to_cancel} annulé")
+                                    import time
+                                    time.sleep(1)
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Échec de l'annulation")
+                        except Exception as e:
+                            st.error(f"❌ Erreur: {e}")
+            
+            else:
+                st.info("ℹ️ Aucun ordre en cours")
+        
+        # ========== TAB 3: HISTORIQUE ==========
+        with tab3:
+            st.subheader("📜 Historique des Ordres")
+            
+            # Filters
+            col_filter1, col_filter2, col_filter3 = st.columns(3)
+            
+            with col_filter1:
+                filter_symbol = st.text_input("Filtrer par symbole", placeholder="Ex: WLN")
+            
+            with col_filter2:
+                filter_status = st.selectbox(
+                    "Filtrer par status",
+                    ["Tous", "FILLED", "CANCELLED", "PENDING", "SUBMITTED", "ERROR"]
+                )
+            
+            with col_filter3:
+                limit = st.number_input("Nombre max", min_value=10, max_value=500, value=100, step=10)
+            
+            # Get orders
+            order_manager = st.session_state.order_manager
+            
+            status_filter = None
+            if filter_status != "Tous":
+                status_filter = OrderStatus[filter_status]
+            
+            symbol_filter = filter_symbol if filter_symbol else None
+            
+            orders = order_manager.get_orders(
+                ticker_symbol=symbol_filter,
+                status=status_filter,
+                limit=limit
+            )
+            
+            if orders:
+                orders_data = []
+                db = SessionLocal()
+                try:
+                    from backend.models import Ticker, Strategy
+                    
+                    for order in orders:
+                        ticker = db.query(Ticker).filter(Ticker.id == order.ticker_id).first()
+                        strategy = db.query(Strategy).filter(Strategy.id == order.strategy_id).first() if order.strategy_id else None
+                        
+                        # Calculate P&L for filled orders
+                        pnl_str = '-'
+                        if order.status == OrderStatus.FILLED and order.avg_fill_price:
+                            # This is simplified - real P&L needs matching buy/sell orders
+                            pnl_str = f"{order.avg_fill_price * order.filled_quantity:.2f} €"
+                        
+                        orders_data.append({
+                            'ID': order.id,
+                            'Date': order.created_at.strftime('%Y-%m-%d %H:%M'),
+                            'Symbole': ticker.symbol if ticker else 'N/A',
+                            'Action': order.action,
+                            'Type': order.order_type,
+                            'Qté': order.quantity,
+                            'Rempli': order.filled_quantity if order.filled_quantity else 0,
+                            'Prix Moy': f"{order.avg_fill_price:.2f} €" if order.avg_fill_price else '-',
+                            'Commission': f"{order.commission:.2f} €" if order.commission else '0.00 €',
+                            'Status': order.status.value,
+                            'Stratégie': strategy.name if strategy else '-',
+                            'Paper': '✅' if order.is_paper_trade else '❌'
+                        })
+                finally:
+                    db.close()
+                
+                orders_df = pd.DataFrame(orders_data)
+                
+                # Display with color coding
+                st.dataframe(
+                    orders_df,
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                # Export button
+                csv = orders_df.to_csv(index=False)
+                st.download_button(
+                    label="📥 Télécharger CSV",
+                    data=csv,
+                    file_name=f"orders_history_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+            
+            else:
+                st.info("ℹ️ Aucun ordre dans l'historique")
+        
+        # ========== TAB 4: STATISTIQUES ==========
+        with tab4:
+            st.subheader("📊 Statistiques des Ordres")
+            
+            order_manager = st.session_state.order_manager
+            
+            # Overall statistics
+            stats = order_manager.get_order_statistics()
+            
+            if stats:
+                col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
+                
+                with col_stat1:
+                    st.metric("📝 Total Ordres", stats.get('total_orders', 0))
+                
+                with col_stat2:
+                    st.metric("✅ Exécutés", stats.get('filled', 0))
+                
+                with col_stat3:
+                    st.metric("⏳ En Cours", stats.get('pending', 0))
+                
+                with col_stat4:
+                    fill_rate = stats.get('fill_rate', 0)
+                    st.metric("📈 Taux d'Exécution", f"{fill_rate:.1f}%")
+                
+                st.markdown("---")
+                
+                col_stat5, col_stat6 = st.columns(2)
+                
+                with col_stat5:
+                    total_vol = stats.get('total_volume', 0)
+                    st.metric("💰 Volume Total", f"{total_vol:,.2f} €")
+                
+                with col_stat6:
+                    total_comm = stats.get('total_commission', 0)
+                    st.metric("💸 Commissions Totales", f"{total_comm:,.2f} €")
+                
+                # Statistics by ticker
+                st.markdown("---")
+                st.subheader("📊 Par Action")
+                
+                db = SessionLocal()
+                try:
+                    from backend.models import Ticker, Order
+                    
+                    # Query orders grouped by ticker
+                    ticker_stats_query = db.query(
+                        Ticker.symbol,
+                        func.count(Order.id).label('total'),
+                        func.sum(func.case((Order.status == OrderStatus.FILLED, 1), else_=0)).label('filled'),
+                        func.sum(func.case((Order.status == OrderStatus.FILLED, Order.filled_quantity * Order.avg_fill_price), else_=0)).label('volume')
+                    ).join(Order).group_by(Ticker.symbol).all()
+                    
+                    if ticker_stats_query:
+                        ticker_stats_data = []
+                        for row in ticker_stats_query:
+                            ticker_stats_data.append({
+                                'Symbole': row.symbol,
+                                'Total Ordres': row.total,
+                                'Exécutés': row.filled,
+                                'Taux': f"{(row.filled / row.total * 100):.1f}%" if row.total > 0 else '0%',
+                                'Volume': f"{row.volume:,.2f} €" if row.volume else '0.00 €'
+                            })
+                        
+                        ticker_stats_df = pd.DataFrame(ticker_stats_data)
+                        st.dataframe(ticker_stats_df, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Aucune statistique disponible")
+                
+                finally:
+                    db.close()
+            
+            else:
+                st.info("ℹ️ Aucune statistique disponible")
+    
+    except ImportError as e:
+        st.error(f"❌ Module manquant: {e}")
+        st.code("pip install ib_insync sqlalchemy")
     
     except Exception as e:
         st.error(f"❌ Erreur: {e}")
