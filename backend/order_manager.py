@@ -66,14 +66,17 @@ class OrderManager:
             Created Order object or None
         """
         try:
+            logger.info(f"=== CREATE ORDER START: {action} {quantity} {symbol} @ {order_type} ===")
+            
             # Get ticker from database
+            logger.info("Step 1: Querying database for ticker...")
             ticker = self.db.query(Ticker).filter(Ticker.symbol == symbol).first()
             if not ticker:
                 logger.error(f"Ticker {symbol} not found in database")
                 self._close_db()
                 return None
             
-            logger.info(f"Ticker {symbol} found: ID={ticker.id}, Name={ticker.name}")
+            logger.info(f"Step 1 OK: Ticker {symbol} found: ID={ticker.id}, Name={ticker.name}")
             
             # Validate order parameters
             if order_type in ["LIMIT", "STOP_LIMIT"] and limit_price is None:
@@ -86,7 +89,7 @@ class OrderManager:
                 self._close_db()
                 return None
             
-            logger.info(f"Creating order: {action} {quantity} {symbol} @ {order_type}")
+            logger.info("Step 2: Validation OK, creating Order object...")
             
             # Create order record in database
             order = Order(
@@ -104,41 +107,51 @@ class OrderManager:
                 created_at=datetime.utcnow()
             )
             
-            logger.info("Order object created, adding to DB...")
+            logger.info("Step 2 OK: Order object created")
+            logger.info("Step 3: Adding order to database...")
             
             self.db.add(order)
+            
+            logger.info("Step 3a: Committing to database...")
             self.db.commit()
+            
+            logger.info("Step 3b: Refreshing order from database...")
             self.db.refresh(order)
             
-            logger.info(f"Order created in DB: ID={order.id}, Status={order.status.value}")
+            logger.info(f"Step 3 OK: Order created in DB with ID={order.id}, Status={order.status.value}")
             
             # Place order with IBKR if collector is available
             if self.ibkr_collector and self.ibkr_collector.connected:
-                logger.info(f"IBKR connected, placing order {order.id}...")
+                logger.info(f"Step 4: IBKR is connected, placing order {order.id}...")
                 success = self._place_order_with_ibkr(order, ticker)
                 if not success:
-                    logger.error(f"Failed to place order {order.id} with IBKR")
+                    logger.error(f"Step 4 FAILED: Could not place order {order.id} with IBKR")
                     order.status = OrderStatus.ERROR
                     order.status_message = "Failed to submit to IBKR"
                     self.db.commit()
+                else:
+                    logger.info(f"Step 4 OK: Order {order.id} placed with IBKR")
             else:
-                logger.warning(f"IBKR not connected - order {order.id} saved but not submitted")
+                logger.warning(f"Step 4 SKIPPED: IBKR not connected - order {order.id} saved locally only")
                 order.status_message = "IBKR not connected"
                 self.db.commit()
             
-            logger.info(f"Order {order.id} creation complete. Final status: {order.status.value}")
-            
-            # Close DB session before returning
+            logger.info(f"Step 5: Closing database session...")
             self._close_db()
+            
+            logger.info(f"=== CREATE ORDER COMPLETE: Order {order.id}, Status={order.status.value} ===")
             
             return order
             
         except Exception as e:
-            logger.error(f"Error creating order: {e}")
+            logger.error(f"!!! EXCEPTION in create_order: {e}")
             import traceback
             logger.error(traceback.format_exc())
-            self.db.rollback()
-            self._close_db()
+            try:
+                self.db.rollback()
+                self._close_db()
+            except:
+                pass
             return None
     
     def _place_order_with_ibkr(self, order: Order, ticker: Ticker) -> bool:
