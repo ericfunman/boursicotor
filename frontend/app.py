@@ -3710,6 +3710,14 @@ def order_placement_page():
                             with st.spinner("Création de l'ordre..."):
                                 order_manager = st.session_state.order_manager
                                 
+                                # Debug: Vérifier que order_manager existe
+                                if not order_manager:
+                                    st.error("❌ OrderManager non initialisé")
+                                    st.stop()
+                                
+                                # Debug: Afficher les paramètres
+                                st.info(f"🔍 Création ordre: {action} {quantity} {selected_symbol} @ {order_type}")
+                                
                                 order = order_manager.create_order(
                                     symbol=selected_symbol,
                                     action=action,
@@ -3731,6 +3739,7 @@ def order_placement_page():
                                         'Quantity': quantity,
                                         'Type': order_type,
                                         'Status': order.status.value,
+                                        'Status Message': order.status_message,
                                         'IBKR Order ID': order.ibkr_order_id
                                     })
                                     
@@ -3741,7 +3750,7 @@ def order_placement_page():
                                     
                                     st.rerun()
                                 else:
-                                    st.error("❌ Échec de la création de l'ordre")
+                                    st.error("❌ Échec de la création de l'ordre - order_manager.create_order() a retourné None")
                         
                         except Exception as e:
                             st.error(f"❌ Erreur: {e}")

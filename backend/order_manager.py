@@ -65,6 +65,8 @@ class OrderManager:
                 logger.error(f"Ticker {symbol} not found in database")
                 return None
             
+            logger.info(f"Ticker {symbol} found: ID={ticker.id}, Name={ticker.name}")
+            
             # Validate order parameters
             if order_type in ["LIMIT", "STOP_LIMIT"] and limit_price is None:
                 logger.error("Limit price required for LIMIT/STOP_LIMIT orders")
@@ -73,6 +75,8 @@ class OrderManager:
             if order_type in ["STOP", "STOP_LIMIT"] and stop_price is None:
                 logger.error("Stop price required for STOP/STOP_LIMIT orders")
                 return None
+            
+            logger.info(f"Creating order: {action} {quantity} {symbol} @ {order_type}")
             
             # Create order record in database
             order = Order(
@@ -90,28 +94,36 @@ class OrderManager:
                 created_at=datetime.utcnow()
             )
             
+            logger.info("Order object created, adding to DB...")
+            
             self.db.add(order)
             self.db.commit()
             self.db.refresh(order)
             
-            logger.info(f"Order created: {order.id} - {action} {quantity} {symbol} @ {order_type}")
+            logger.info(f"Order created in DB: ID={order.id}, Status={order.status.value}")
             
             # Place order with IBKR if collector is available
             if self.ibkr_collector and self.ibkr_collector.connected:
+                logger.info(f"IBKR connected, placing order {order.id}...")
                 success = self._place_order_with_ibkr(order, ticker)
                 if not success:
+                    logger.error(f"Failed to place order {order.id} with IBKR")
                     order.status = OrderStatus.ERROR
                     order.status_message = "Failed to submit to IBKR"
                     self.db.commit()
             else:
-                logger.warning("IBKR not connected - order saved but not submitted")
+                logger.warning(f"IBKR not connected - order {order.id} saved but not submitted")
                 order.status_message = "IBKR not connected"
                 self.db.commit()
+            
+            logger.info(f"Order {order.id} creation complete. Final status: {order.status.value}")
             
             return order
             
         except Exception as e:
             logger.error(f"Error creating order: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             self.db.rollback()
             return None
     
