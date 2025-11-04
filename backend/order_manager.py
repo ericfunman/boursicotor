@@ -142,10 +142,14 @@ class OrderManager:
             #     order.status_message = "IBKR not connected"
             #     self.db.commit()
             
+            # Capture order details BEFORE closing session to avoid DetachedInstanceError
+            order_id = order.id
+            order_status = order.status.value
+            
             logger.info(f"Step 5: Closing database session...")
             self._close_db()
             
-            logger.info(f"=== CREATE ORDER COMPLETE: Order {order.id}, Status={order.status.value} ===")
+            logger.info(f"=== CREATE ORDER COMPLETE: Order {order_id}, Status={order_status} ===")
             
             return order
             
