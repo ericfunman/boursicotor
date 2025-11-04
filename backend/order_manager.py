@@ -166,6 +166,7 @@ class OrderManager:
             True if successful, False otherwise
         """
         try:
+            logger.info(f"Step 4a: Getting contract for {ticker.symbol}...")
             # Get contract
             contract = self.ibkr_collector.get_contract(
                 ticker.symbol,
@@ -174,18 +175,27 @@ class OrderManager:
             )
             
             if not contract:
-                logger.error(f"Could not get contract for {ticker.symbol}")
+                logger.error(f"Step 4a FAILED: Could not get contract for {ticker.symbol}")
                 return False
+            
+            logger.info(f"Step 4a OK: Contract obtained for {ticker.symbol}")
+            logger.info(f"Step 4b: Creating IBKR order object...")
             
             # Create IBKR order object
             ib_order = self._create_ib_order(order)
             
             if not ib_order:
-                logger.error("Failed to create IBKR order object")
+                logger.error("Step 4b FAILED: Could not create IBKR order object")
                 return False
             
-            # Place order
+            logger.info(f"Step 4b OK: IBKR order object created (type={order.order_type})")
+            logger.info(f"Step 4c: Placing order with IBKR...")
+            
+            # Place order - THIS CAN BLOCK!
             trade = self.ibkr_collector.ib.placeOrder(contract, ib_order)
+            
+            logger.info(f"Step 4c OK: placeOrder() returned, trade object received")
+            logger.info(f"Step 4d: Updating order with IBKR IDs...")
             
             # Update order with IBKR IDs
             order.ibkr_order_id = ib_order.orderId
@@ -194,17 +204,23 @@ class OrderManager:
             order.submitted_at = datetime.utcnow()
             order.status_message = "Submitted to IBKR"
             
+            logger.info(f"Step 4e: Committing order update to DB...")
             self.db.commit()
             
-            logger.info(f"Order {order.id} submitted to IBKR with ID {ib_order.orderId}")
+            logger.info(f"Step 4 COMPLETE: Order {order.id} submitted to IBKR with ID {ib_order.orderId}")
             
             return True
             
         except Exception as e:
-            logger.error(f"Error placing order with IBKR: {e}")
+            logger.error(f"!!! EXCEPTION in _place_order_with_ibkr: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             order.status = OrderStatus.ERROR
             order.status_message = str(e)
-            self.db.commit()
+            try:
+                self.db.commit()
+            except:
+                pass
             return False
             # Place order
             trade = self.ibkr_collector.ib.placeOrder(contract, ib_order)
