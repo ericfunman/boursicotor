@@ -3706,53 +3706,55 @@ def order_placement_page():
                 
                 with col_submit1:
                     if st.button("📤 Envoyer l'Ordre", type="primary", use_container_width=True):
+                        error_occurred = False
                         try:
-                            with st.spinner("Création de l'ordre..."):
-                                order_manager = st.session_state.order_manager
+                            # Debug: Vérifier que order_manager existe
+                            order_manager = st.session_state.order_manager
+                            if not order_manager:
+                                st.error("❌ OrderManager non initialisé")
+                                st.stop()
+                            
+                            # Debug: Afficher les paramètres
+                            st.info(f"🔍 Création ordre: {action} {quantity} {selected_symbol} @ {order_type}")
+                            
+                            # Créer l'ordre (sans spinner pour voir les erreurs)
+                            order = order_manager.create_order(
+                                symbol=selected_symbol,
+                                action=action,
+                                quantity=quantity,
+                                order_type=order_type,
+                                limit_price=limit_price,
+                                stop_price=stop_price,
+                                strategy_id=strategy_id,
+                                notes=notes,
+                                is_paper_trade=is_paper
+                            )
+                            
+                            if order:
+                                st.success(f"✅ Ordre créé avec succès! (ID: {order.id})")
+                                st.json({
+                                    'ID': order.id,
+                                    'Symbol': selected_symbol,
+                                    'Action': action,
+                                    'Quantity': quantity,
+                                    'Type': order_type,
+                                    'Status': order.status.value,
+                                    'Status Message': order.status_message,
+                                    'IBKR Order ID': order.ibkr_order_id
+                                })
                                 
-                                # Debug: Vérifier que order_manager existe
-                                if not order_manager:
-                                    st.error("❌ OrderManager non initialisé")
-                                    st.stop()
+                                # Wait a bit for IBKR processing
+                                if order.ibkr_order_id:
+                                    import time
+                                    time.sleep(1)
                                 
-                                # Debug: Afficher les paramètres
-                                st.info(f"🔍 Création ordre: {action} {quantity} {selected_symbol} @ {order_type}")
-                                
-                                order = order_manager.create_order(
-                                    symbol=selected_symbol,
-                                    action=action,
-                                    quantity=quantity,
-                                    order_type=order_type,
-                                    limit_price=limit_price,
-                                    stop_price=stop_price,
-                                    strategy_id=strategy_id,
-                                    notes=notes,
-                                    is_paper_trade=is_paper
-                                )
-                                
-                                if order:
-                                    st.success(f"✅ Ordre créé avec succès! (ID: {order.id})")
-                                    st.json({
-                                        'ID': order.id,
-                                        'Symbol': selected_symbol,
-                                        'Action': action,
-                                        'Quantity': quantity,
-                                        'Type': order_type,
-                                        'Status': order.status.value,
-                                        'Status Message': order.status_message,
-                                        'IBKR Order ID': order.ibkr_order_id
-                                    })
-                                    
-                                    # Wait a bit for IBKR processing
-                                    if order.ibkr_order_id:
-                                        import time
-                                        time.sleep(1)
-                                    
-                                    st.rerun()
-                                else:
-                                    st.error("❌ Échec de la création de l'ordre - order_manager.create_order() a retourné None")
+                                st.rerun()
+                            else:
+                                st.error("❌ Échec de la création de l'ordre - order_manager.create_order() a retourné None")
+                                st.warning("⚠️ Vérifiez les logs dans le terminal Streamlit pour plus de détails")
                         
                         except Exception as e:
+                            error_occurred = True
                             st.error(f"❌ Erreur: {e}")
                             import traceback
                             st.code(traceback.format_exc())
