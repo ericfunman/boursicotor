@@ -22,12 +22,19 @@ class OrderManager:
             ibkr_collector: IBKRCollector instance for order execution
         """
         self.ibkr_collector = ibkr_collector
-        self.db: Session = SessionLocal()
     
-    def __del__(self):
-        """Cleanup database session"""
-        if hasattr(self, 'db'):
-            self.db.close()
+    @property
+    def db(self):
+        """Get a new database session each time (Streamlit-safe)"""
+        if not hasattr(self, '_db') or self._db is None:
+            self._db = SessionLocal()
+        return self._db
+    
+    def _close_db(self):
+        """Close current database session"""
+        if hasattr(self, '_db') and self._db is not None:
+            self._db.close()
+            self._db = None
     
     def create_order(
         self,
@@ -63,6 +70,7 @@ class OrderManager:
             ticker = self.db.query(Ticker).filter(Ticker.symbol == symbol).first()
             if not ticker:
                 logger.error(f"Ticker {symbol} not found in database")
+                self._close_db()
                 return None
             
             logger.info(f"Ticker {symbol} found: ID={ticker.id}, Name={ticker.name}")
@@ -70,10 +78,12 @@ class OrderManager:
             # Validate order parameters
             if order_type in ["LIMIT", "STOP_LIMIT"] and limit_price is None:
                 logger.error("Limit price required for LIMIT/STOP_LIMIT orders")
+                self._close_db()
                 return None
             
             if order_type in ["STOP", "STOP_LIMIT"] and stop_price is None:
                 logger.error("Stop price required for STOP/STOP_LIMIT orders")
+                self._close_db()
                 return None
             
             logger.info(f"Creating order: {action} {quantity} {symbol} @ {order_type}")
@@ -118,6 +128,9 @@ class OrderManager:
             
             logger.info(f"Order {order.id} creation complete. Final status: {order.status.value}")
             
+            # Close DB session before returning
+            self._close_db()
+            
             return order
             
         except Exception as e:
@@ -125,6 +138,7 @@ class OrderManager:
             import traceback
             logger.error(traceback.format_exc())
             self.db.rollback()
+            self._close_db()
             return None
     
     def _place_order_with_ibkr(self, order: Order, ticker: Ticker) -> bool:
@@ -157,6 +171,28 @@ class OrderManager:
                 logger.error("Failed to create IBKR order object")
                 return False
             
+            # Place order
+            trade = self.ibkr_collector.ib.placeOrder(contract, ib_order)
+            
+            # Update order with IBKR IDs
+            order.ibkr_order_id = ib_order.orderId
+            order.perm_id = ib_order.permId if hasattr(ib_order, 'permId') else None
+            order.status = OrderStatus.SUBMITTED
+            order.submitted_at = datetime.utcnow()
+            order.status_message = "Submitted to IBKR"
+            
+            self.db.commit()
+            
+            logger.info(f"Order {order.id} submitted to IBKR with ID {ib_order.orderId}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error placing order with IBKR: {e}")
+            order.status = OrderStatus.ERROR
+            order.status_message = str(e)
+            self.db.commit()
+            return False
             # Place order
             trade = self.ibkr_collector.ib.placeOrder(contract, ib_order)
             
