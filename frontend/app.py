@@ -3583,7 +3583,8 @@ def order_placement_page():
         col_status1, col_status2, col_status3 = st.columns([2, 1, 1])
         
         with col_status1:
-            if st.session_state.get('ibkr_connected', False):
+            # Use the GLOBAL connection state
+            if st.session_state.get('global_ibkr_connected', False):
                 st.success("🟢 Connecté à IBKR")
             else:
                 st.warning("🟡 Non connecté à IBKR - Les ordres seront enregistrés mais non exécutés")
@@ -3593,13 +3594,13 @@ def order_placement_page():
                 st.rerun()
         
         with col_status3:
-            # Initialize OrderManager
-            ibkr_collector = st.session_state.get('ibkr_collector')
+            # Initialize OrderManager with GLOBAL IBKR collector
+            ibkr_collector = st.session_state.get('global_ibkr')
             if not st.session_state.order_manager or st.session_state.order_manager.ibkr_collector != ibkr_collector:
                 st.session_state.order_manager = OrderManager(ibkr_collector)
             
             # Sync button
-            if st.session_state.get('ibkr_connected', False):
+            if st.session_state.get('global_ibkr_connected', False):
                 if st.button("🔄 Sync IBKR"):
                     with st.spinner("Synchronisation..."):
                         count = st.session_state.order_manager.sync_with_ibkr()
