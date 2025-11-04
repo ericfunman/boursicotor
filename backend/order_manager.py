@@ -121,20 +121,26 @@ class OrderManager:
             logger.info(f"Step 3 OK: Order created in DB with ID={order.id}, Status={order.status.value}")
             
             # Place order with IBKR if collector is available
-            if self.ibkr_collector and self.ibkr_collector.connected:
-                logger.info(f"Step 4: IBKR is connected, placing order {order.id}...")
-                success = self._place_order_with_ibkr(order, ticker)
-                if not success:
-                    logger.error(f"Step 4 FAILED: Could not place order {order.id} with IBKR")
-                    order.status = OrderStatus.ERROR
-                    order.status_message = "Failed to submit to IBKR"
-                    self.db.commit()
-                else:
-                    logger.info(f"Step 4 OK: Order {order.id} placed with IBKR")
-            else:
-                logger.warning(f"Step 4 SKIPPED: IBKR not connected - order {order.id} saved locally only")
-                order.status_message = "IBKR not connected"
-                self.db.commit()
+            # TEMPORARY: Skip IBKR to test if that's blocking
+            logger.warning(f"Step 4 SKIPPED (TEMPORARY): Not placing order with IBKR for testing")
+            order.status_message = "IBKR submission temporarily disabled for debugging"
+            self.db.commit()
+            
+            # Commented out for debugging
+            # if self.ibkr_collector and self.ibkr_collector.connected:
+            #     logger.info(f"Step 4: IBKR is connected, placing order {order.id}...")
+            #     success = self._place_order_with_ibkr(order, ticker)
+            #     if not success:
+            #         logger.error(f"Step 4 FAILED: Could not place order {order.id} with IBKR")
+            #         order.status = OrderStatus.ERROR
+            #         order.status_message = "Failed to submit to IBKR"
+            #         self.db.commit()
+            #     else:
+            #         logger.info(f"Step 4 OK: Order {order.id} placed with IBKR")
+            # else:
+            #     logger.warning(f"Step 4 SKIPPED: IBKR not connected - order {order.id} saved locally only")
+            #     order.status_message = "IBKR not connected"
+            #     self.db.commit()
             
             logger.info(f"Step 5: Closing database session...")
             self._close_db()
