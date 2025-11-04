@@ -6,6 +6,8 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from ib_insync import Stock, MarketOrder, LimitOrder, StopOrder, StopLimitOrder, Order as IBOrder, Trade as IBTrade
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+import threading
 
 from backend.models import Order, OrderStatus, Ticker, Strategy, SessionLocal
 from backend.config import logger
@@ -22,6 +24,8 @@ class OrderManager:
             ibkr_collector: IBKRCollector instance for order execution
         """
         self.ibkr_collector = ibkr_collector
+        self._executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="IBKR_Order")
+        self._pending_submissions = {}  # {order_id: Future}
     
     @property
     def db(self):
@@ -120,27 +124,19 @@ class OrderManager:
             
             logger.info(f"Step 3 OK: Order created in DB with ID={order.id}, Status={order.status.value}")
             
-            # Place order with IBKR if collector is available
-            # TEMPORARY: Skip IBKR to test if that's blocking
-            logger.warning(f"Step 4 SKIPPED (TEMPORARY): Not placing order with IBKR for testing")
-            order.status_message = "IBKR submission temporarily disabled for debugging"
-            self.db.commit()
-            
-            # Commented out for debugging
-            # if self.ibkr_collector and self.ibkr_collector.connected:
-            #     logger.info(f"Step 4: IBKR is connected, placing order {order.id}...")
-            #     success = self._place_order_with_ibkr(order, ticker)
-            #     if not success:
-            #         logger.error(f"Step 4 FAILED: Could not place order {order.id} with IBKR")
-            #         order.status = OrderStatus.ERROR
-            #         order.status_message = "Failed to submit to IBKR"
-            #         self.db.commit()
-            #     else:
-            #         logger.info(f"Step 4 OK: Order {order.id} placed with IBKR")
-            # else:
-            #     logger.warning(f"Step 4 SKIPPED: IBKR not connected - order {order.id} saved locally only")
-            #     order.status_message = "IBKR not connected"
-            #     self.db.commit()
+            # Place order with IBKR if collector is available - using background thread to avoid blocking
+            if self.ibkr_collector and self.ibkr_collector.ib.isConnected():
+                logger.info(f"Step 4: IBKR connected, submitting order {order.id} in background...")
+                # Submit order in background thread with timeout
+                future = self._executor.submit(self._place_order_with_ibkr_async, order.id, ticker.id)
+                self._pending_submissions[order.id] = future
+                order.status_message = "Submitting to IBKR..."
+                self.db.commit()
+                logger.info(f"Step 4 OK: Order {order.id} queued for IBKR submission")
+            else:
+                logger.warning(f"Step 4 SKIPPED: IBKR not connected - order {order.id} saved locally only")
+                order.status_message = "IBKR not connected - order saved locally"
+                self.db.commit()
             
             # Capture order details BEFORE closing session to avoid DetachedInstanceError
             order_id = order.id
@@ -232,28 +228,87 @@ class OrderManager:
             except:
                 pass
             return False
-            # Place order
+    
+    def _place_order_with_ibkr_async(self, order_id: int, ticker_id: int) -> bool:
+        """
+        Async wrapper for IBKR order placement - runs in background thread
+        Uses a new DB session to avoid conflicts with main thread
+        
+        Args:
+            order_id: Order ID to submit
+            ticker_id: Ticker ID for the order
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        db = SessionLocal()  # New session for this thread
+        try:
+            logger.info(f"[Thread] Starting IBKR submission for order {order_id}")
+            
+            # Get order and ticker from DB
+            order = db.query(Order).filter(Order.id == order_id).first()
+            ticker = db.query(Ticker).filter(Ticker.id == ticker_id).first()
+            
+            if not order or not ticker:
+                logger.error(f"[Thread] Order {order_id} or Ticker {ticker_id} not found in DB")
+                return False
+            
+            # Get contract
+            contract = self.ibkr_collector.get_contract(
+                ticker.symbol,
+                exchange='SMART',
+                currency=ticker.currency
+            )
+            
+            if not contract:
+                logger.error(f"[Thread] Could not get contract for {ticker.symbol}")
+                order.status = OrderStatus.ERROR
+                order.status_message = "Could not create IBKR contract"
+                db.commit()
+                return False
+            
+            # Create IBKR order
+            ib_order = self._create_ib_order(order)
+            if not ib_order:
+                logger.error(f"[Thread] Could not create IBKR order object")
+                order.status = OrderStatus.ERROR
+                order.status_message = "Could not create IBKR order"
+                db.commit()
+                return False
+            
+            logger.info(f"[Thread] Calling IBKR placeOrder() for order {order_id}...")
+            
+            # Place order (blocking call, but we're in a background thread)
             trade = self.ibkr_collector.ib.placeOrder(contract, ib_order)
             
-            # Update order with IBKR IDs
+            logger.info(f"[Thread] placeOrder() completed for order {order_id}")
+            
+            # Update order with IBKR details
             order.ibkr_order_id = ib_order.orderId
             order.perm_id = ib_order.permId if hasattr(ib_order, 'permId') else None
             order.status = OrderStatus.SUBMITTED
             order.submitted_at = datetime.utcnow()
-            order.status_message = "Submitted to IBKR"
+            order.status_message = f"Submitted to IBKR (ID: {ib_order.orderId})"
+            db.commit()
             
-            self.db.commit()
-            
-            logger.info(f"Order {order.id} submitted to IBKR with ID {ib_order.orderId}")
-            
+            logger.info(f"[Thread] Order {order_id} successfully submitted to IBKR with ID {ib_order.orderId}")
             return True
             
         except Exception as e:
-            logger.error(f"Error placing order with IBKR: {e}")
-            order.status = OrderStatus.ERROR
-            order.status_message = str(e)
-            self.db.commit()
+            logger.error(f"[Thread] Error submitting order {order_id} to IBKR: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            try:
+                order = db.query(Order).filter(Order.id == order_id).first()
+                if order:
+                    order.status = OrderStatus.ERROR
+                    order.status_message = f"IBKR error: {str(e)}"
+                    db.commit()
+            except:
+                pass
             return False
+        finally:
+            db.close()
     
     def _create_ib_order(self, order: Order) -> Optional[IBOrder]:
         """
@@ -290,6 +345,38 @@ class OrderManager:
         except Exception as e:
             logger.error(f"Error creating IB order: {e}")
             return None
+    
+    def check_pending_submissions(self, timeout: float = 0.1) -> Dict[int, str]:
+        """
+        Check status of pending IBKR submissions
+        
+        Args:
+            timeout: How long to wait for each submission (in seconds)
+        
+        Returns:
+            Dict of {order_id: status} for completed submissions
+        """
+        completed = {}
+        to_remove = []
+        
+        for order_id, future in self._pending_submissions.items():
+            try:
+                if future.done():
+                    try:
+                        result = future.result(timeout=timeout)
+                        completed[order_id] = "success" if result else "failed"
+                    except Exception as e:
+                        logger.error(f"Background submission for order {order_id} failed: {e}")
+                        completed[order_id] = "error"
+                    to_remove.append(order_id)
+            except Exception as e:
+                logger.error(f"Error checking submission status for order {order_id}: {e}")
+        
+        # Clean up completed submissions
+        for order_id in to_remove:
+            del self._pending_submissions[order_id]
+        
+        return completed
     
     def update_order_status(self, order_id: int, ib_trade: IBTrade) -> bool:
         """
