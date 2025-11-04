@@ -190,9 +190,9 @@ def main():
         # Page selection
         page = st.radio(
             "Navigation",
-            ["📊 Dashboard", "💾 Collecte de Données", "� Historique des collectes",
-             "📈 Analyse Technique", "� Cours Live", "�🔙 Backtesting", 
-             "🤖 Trading Automatique", "⚙️ Paramètres"]
+            ["📊 Dashboard", "💾 Collecte de Données", "📜 Historique des collectes",
+             "📈 Analyse Technique", "💹 Cours Live", "🔙 Backtesting",
+             "📚 Indicateurs", "🤖 Trading Automatique", "⚙️ Paramètres"]
         )
         
         st.markdown("---")
@@ -244,14 +244,16 @@ def main():
         dashboard_page()
     elif page == "💾 Collecte de Données":
         data_collection_page()
-    elif page == "� Historique des collectes":
+    elif page == "📜 Historique des collectes":
         jobs_monitoring_page()
-    elif page == "�📈 Analyse Technique":
+    elif page == "📈 Analyse Technique":
         technical_analysis_page()
-    elif page == "� Cours Live":
+    elif page == "💹 Cours Live":
         live_prices_page()
-    elif page == "�🔙 Backtesting":
+    elif page == "🔙 Backtesting":
         backtesting_page()
+    elif page == "📚 Indicateurs":
+        indicators_page()
     elif page == "🤖 Trading Automatique":
         auto_trading_page()
     elif page == "⚙️ Paramètres":
@@ -3553,6 +3555,464 @@ def trading_page():
         st.error(f"❌ Erreur: {e}")
         import traceback
         st.code(traceback.format_exc())
+
+
+def indicators_page():
+    """Page d'explication des indicateurs techniques"""
+    st.header("📚 Indicateurs Techniques")
+    st.write("Guide complet des indicateurs utilisés dans les stratégies de trading")
+    
+    # Tabs pour les différentes catégories
+    tab1, tab2, tab3, tab4 = st.tabs(["📈 Tendance", "⚡ Momentum", "📊 Volatilité", "📦 Volume"])
+    
+    # ========== INDICATEURS DE TENDANCE ==========
+    with tab1:
+        st.subheader("📈 Indicateurs de Tendance")
+        st.write("Ces indicateurs aident à identifier la direction et la force d'une tendance.")
+        
+        # SMA (Simple Moving Average)
+        with st.expander("🔵 SMA - Moyenne Mobile Simple", expanded=True):
+            st.markdown("""
+            **Définition**: Moyenne arithmétique des prix sur une période donnée.
+            
+            **Calcul**: 
+            ```
+            SMA = (P1 + P2 + ... + Pn) / n
+            ```
+            où P = prix de clôture, n = période
+            
+            **Périodes courantes**:
+            - SMA 20: Tendance court terme
+            - SMA 50: Tendance moyen terme  
+            - SMA 200: Tendance long terme
+            
+            **Interprétation**:
+            - 📈 **Signal haussier**: Prix > SMA ou croisement SMA courte > SMA longue (Golden Cross)
+            - 📉 **Signal baissier**: Prix < SMA ou croisement SMA courte < SMA longue (Death Cross)
+            - 📊 **Support/Résistance**: La SMA agit souvent comme niveau de support (tendance haussière) ou résistance (tendance baissière)
+            
+            **Avantages**: Simple, élimine le bruit, identifie les tendances
+            **Inconvénients**: Retard important, moins sensible aux changements récents
+            """)
+        
+        # EMA (Exponential Moving Average)
+        with st.expander("🟢 EMA - Moyenne Mobile Exponentielle"):
+            st.markdown("""
+            **Définition**: Moyenne mobile qui donne plus de poids aux prix récents.
+            
+            **Calcul**:
+            ```
+            Multiplicateur = 2 / (n + 1)
+            EMA = Prix_actuel × Multiplicateur + EMA_précédent × (1 - Multiplicateur)
+            ```
+            
+            **Périodes courantes**:
+            - EMA 12 et EMA 26: Utilisées pour le MACD
+            - EMA 9: Signal line du MACD
+            - EMA 50 et EMA 200: Tendances moyen/long terme
+            
+            **Interprétation**:
+            - 📈 **Signal haussier**: Prix > EMA, pente EMA ascendante
+            - 📉 **Signal baissier**: Prix < EMA, pente EMA descendante
+            - ⚡ **Réactivité**: Réagit plus vite que la SMA aux changements
+            
+            **Avantages**: Plus réactive, suit mieux les tendances récentes
+            **Inconvénients**: Peut générer plus de faux signaux
+            """)
+        
+        # MACD
+        with st.expander("🔶 MACD - Moving Average Convergence Divergence"):
+            st.markdown("""
+            **Définition**: Indicateur de momentum basé sur la différence entre deux EMA.
+            
+            **Calcul**:
+            ```
+            MACD Line = EMA(12) - EMA(26)
+            Signal Line = EMA(9) du MACD Line
+            Histogramme = MACD Line - Signal Line
+            ```
+            
+            **Interprétation**:
+            - 📈 **Signal d'achat**: 
+              - MACD croise au-dessus de la Signal Line
+              - Histogramme passe en positif
+              - MACD croise au-dessus de zéro
+            - 📉 **Signal de vente**:
+              - MACD croise en-dessous de la Signal Line
+              - Histogramme passe en négatif
+              - MACD croise en-dessous de zéro
+            - 🔀 **Divergence**: 
+              - Divergence haussière: Prix fait des plus bas mais MACD remonte
+              - Divergence baissière: Prix fait des plus hauts mais MACD baisse
+            
+            **Avantages**: Combine tendance et momentum, identifie les divergences
+            **Inconvénients**: Peut donner des signaux tardifs en marché volatile
+            """)
+        
+        # ADX
+        with st.expander("🟣 ADX - Average Directional Index"):
+            st.markdown("""
+            **Définition**: Mesure la force d'une tendance (sans indiquer sa direction).
+            
+            **Calcul**: Basé sur le Directional Movement Index (DMI)
+            ```
+            +DI = Mouvement directionnel haussier
+            -DI = Mouvement directionnel baissier
+            ADX = EMA de la différence absolue entre +DI et -DI
+            ```
+            
+            **Interprétation des valeurs**:
+            - ADX < 20: ❌ Pas de tendance, marché en consolidation
+            - ADX 20-25: ⚠️ Tendance faible
+            - ADX 25-50: ✅ Tendance forte
+            - ADX > 50: 🔥 Tendance très forte
+            
+            **Interprétation avec DI**:
+            - 📈 **Tendance haussière forte**: ADX > 25 et +DI > -DI
+            - 📉 **Tendance baissière forte**: ADX > 25 et -DI > +DI
+            
+            **Avantages**: Identifie la force de la tendance, évite les faux signaux en range
+            **Inconvénients**: Ne donne pas la direction, peut être en retard
+            """)
+    
+    # ========== INDICATEURS DE MOMENTUM ==========
+    with tab2:
+        st.subheader("⚡ Indicateurs de Momentum")
+        st.write("Ces indicateurs mesurent la vitesse et la force des mouvements de prix.")
+        
+        # RSI
+        with st.expander("🔴 RSI - Relative Strength Index", expanded=True):
+            st.markdown("""
+            **Définition**: Oscillateur qui mesure la vitesse et l'amplitude des mouvements de prix.
+            
+            **Calcul**:
+            ```
+            RS = Moyenne des gains / Moyenne des pertes (sur 14 périodes)
+            RSI = 100 - (100 / (1 + RS))
+            ```
+            
+            **Zones clés**:
+            - RSI > 70: 🔥 Zone de surachat (potentiel retournement baissier)
+            - RSI 30-70: ⚖️ Zone neutre
+            - RSI < 30: ❄️ Zone de survente (potentiel retournement haussier)
+            
+            **Interprétation**:
+            - 📈 **Signal d'achat**:
+              - RSI sort de la zone de survente (> 30)
+              - Divergence haussière: Prix fait des plus bas mais RSI remonte
+            - 📉 **Signal de vente**:
+              - RSI sort de la zone de surachat (< 70)
+              - Divergence baissière: Prix fait des plus hauts mais RSI baisse
+            
+            **Avantages**: Identifie surachat/survente, détecte les divergences
+            **Inconvénients**: Peut rester en zone extrême longtemps en tendance forte
+            """)
+        
+        # Stochastic
+        with st.expander("🟡 Stochastique - Stochastic Oscillator"):
+            st.markdown("""
+            **Définition**: Compare le prix de clôture à sa fourchette de prix sur une période.
+            
+            **Calcul**:
+            ```
+            %K = 100 × (Close - Low14) / (High14 - Low14)
+            %D = SMA(3) de %K (signal line)
+            ```
+            
+            **Zones clés**:
+            - Stoch > 80: 🔥 Surachat
+            - Stoch 20-80: ⚖️ Zone neutre
+            - Stoch < 20: ❄️ Survente
+            
+            **Interprétation**:
+            - 📈 **Signal d'achat**:
+              - %K croise au-dessus de %D en zone de survente
+              - Sortie de la zone < 20
+            - 📉 **Signal de vente**:
+              - %K croise en-dessous de %D en zone de surachat
+              - Sortie de la zone > 80
+            
+            **Types**:
+            - **Fast Stochastic**: %K brut (plus réactif, plus de bruit)
+            - **Slow Stochastic**: %K lissé (moins de faux signaux)
+            
+            **Avantages**: Très sensible, bons signaux en range
+            **Inconvénients**: Beaucoup de faux signaux en tendance
+            """)
+        
+        # CCI
+        with st.expander("🔵 CCI - Commodity Channel Index"):
+            st.markdown("""
+            **Définition**: Mesure l'écart du prix par rapport à sa moyenne statistique.
+            
+            **Calcul**:
+            ```
+            TP = (High + Low + Close) / 3 (Typical Price)
+            CCI = (TP - SMA(TP)) / (0.015 × Mean Deviation)
+            ```
+            
+            **Zones clés**:
+            - CCI > +100: 🔥 Surachat, tendance haussière forte
+            - CCI -100 à +100: ⚖️ Zone neutre
+            - CCI < -100: ❄️ Survente, tendance baissière forte
+            
+            **Interprétation**:
+            - 📈 **Signal d'achat**: CCI croise au-dessus de -100
+            - 📉 **Signal de vente**: CCI croise en-dessous de +100
+            - ⚡ **Momentum**: Valeurs extrêmes (>200 ou <-200) indiquent un mouvement fort
+            
+            **Avantages**: Identifie les mouvements cycliques, bon pour le timing
+            **Inconvénients**: Peut donner beaucoup de signaux en marché volatile
+            """)
+        
+        # Williams %R
+        with st.expander("🟢 Williams %R"):
+            st.markdown("""
+            **Définition**: Oscillateur de momentum similaire au Stochastique.
+            
+            **Calcul**:
+            ```
+            %R = -100 × (High14 - Close) / (High14 - Low14)
+            ```
+            
+            **Zones clés**:
+            - %R > -20: 🔥 Surachat
+            - %R -20 à -80: ⚖️ Zone neutre
+            - %R < -80: ❄️ Survente
+            
+            **Interprétation**:
+            - 📈 **Signal d'achat**: 
+              - %R sort de -80 (survente)
+              - Divergence haussière
+            - 📉 **Signal de vente**:
+              - %R sort de -20 (surachat)
+              - Divergence baissière
+            
+            **Avantages**: Très réactif, identifie bien les retournements
+            **Inconvénients**: Beaucoup de faux signaux, nécessite confirmation
+            """)
+        
+        # ROC
+        with st.expander("🟣 ROC - Rate of Change"):
+            st.markdown("""
+            **Définition**: Mesure le pourcentage de changement du prix sur une période.
+            
+            **Calcul**:
+            ```
+            ROC = ((Prix_actuel - Prix_n_périodes) / Prix_n_périodes) × 100
+            ```
+            
+            **Interprétation**:
+            - ROC > 0: 📈 Momentum haussier
+            - ROC = 0: ⚖️ Pas de changement
+            - ROC < 0: 📉 Momentum baissier
+            - ⚡ Valeurs extrêmes: Momentum très fort (attention au retournement)
+            
+            **Utilisation**:
+            - Identifier les divergences
+            - Confirmer les tendances
+            - Détecter les zones de surachat/survente
+            
+            **Avantages**: Simple, détecte bien l'accélération/décélération
+            **Inconvénients**: Sensible aux gaps, peut être erratique
+            """)
+    
+    # ========== INDICATEURS DE VOLATILITÉ ==========
+    with tab3:
+        st.subheader("📊 Indicateurs de Volatilité")
+        st.write("Ces indicateurs mesurent l'amplitude des variations de prix.")
+        
+        # Bollinger Bands
+        with st.expander("🔵 Bandes de Bollinger", expanded=True):
+            st.markdown("""
+            **Définition**: Enveloppe de volatilité autour d'une moyenne mobile.
+            
+            **Calcul**:
+            ```
+            Bande Moyenne = SMA(20)
+            Bande Supérieure = SMA(20) + (2 × Écart-type)
+            Bande Inférieure = SMA(20) - (2 × Écart-type)
+            ```
+            
+            **Interprétation**:
+            - 📏 **Largeur des bandes**:
+              - Bandes larges: Forte volatilité
+              - Bandes étroites: Faible volatilité (squeeze, précède souvent un mouvement fort)
+            
+            - 📈 **Signaux d'achat**:
+              - Prix touche la bande inférieure (survente)
+              - Rebond sur la bande inférieure
+              - Squeeze suivi d'un breakout haussier
+            
+            - 📉 **Signaux de vente**:
+              - Prix touche la bande supérieure (surachat)
+              - Rejet de la bande supérieure
+              - Squeeze suivi d'un breakout baissier
+            
+            - 🎯 **Walking the bands**: En forte tendance, le prix peut "marcher" le long d'une bande
+            
+            **Avantages**: Adaptatif à la volatilité, identifie surachat/survente
+            **Inconvénients**: Peut donner des faux signaux en tendance forte
+            """)
+        
+        # ATR
+        with st.expander("🟢 ATR - Average True Range"):
+            st.markdown("""
+            **Définition**: Mesure la volatilité moyenne en calculant la fourchette réelle des prix.
+            
+            **Calcul**:
+            ```
+            True Range = Max de:
+              - High - Low
+              - |High - Close_précédent|
+              - |Low - Close_précédent|
+            
+            ATR = EMA(14) du True Range
+            ```
+            
+            **Interprétation**:
+            - 📈 **ATR élevé**: Forte volatilité, grands mouvements, risque élevé
+            - 📉 **ATR faible**: Faible volatilité, petits mouvements, consolidation
+            - 📊 **Tendance ATR**:
+              - ATR montant: Volatilité en augmentation
+              - ATR descendant: Volatilité en diminution
+            
+            **Utilisation**:
+            - ⚙️ **Dimensionnement de position**: Ajuster la taille selon la volatilité
+            - 🎯 **Stop-loss**: Placer le stop à 2-3× ATR du prix d'entrée
+            - 📊 **Filtrage**: Ne trader que si ATR > seuil (éviter les marchés calmes)
+            
+            **Avantages**: Mesure objective de la volatilité, utile pour le risk management
+            **Inconvénients**: Ne donne pas de direction, seulement l'amplitude
+            """)
+    
+    # ========== INDICATEURS DE VOLUME ==========
+    with tab4:
+        st.subheader("📦 Indicateurs de Volume")
+        st.write("Ces indicateurs analysent le volume des transactions pour confirmer les mouvements.")
+        
+        # OBV
+        with st.expander("🔵 OBV - On-Balance Volume", expanded=True):
+            st.markdown("""
+            **Définition**: Indicateur de momentum basé sur le volume cumulé.
+            
+            **Calcul**:
+            ```
+            Si Close > Close_précédent: OBV = OBV_précédent + Volume
+            Si Close < Close_précédent: OBV = OBV_précédent - Volume
+            Si Close = Close_précédent: OBV = OBV_précédent
+            ```
+            
+            **Interprétation**:
+            - 📈 **Signal haussier**:
+              - OBV en hausse: Pression acheteuse
+              - OBV monte + Prix monte: Confirmation de la tendance haussière
+              - Divergence haussière: Prix baisse mais OBV monte (accumulation)
+            
+            - 📉 **Signal baissier**:
+              - OBV en baisse: Pression vendeuse
+              - OBV baisse + Prix baisse: Confirmation de la tendance baissière
+              - Divergence baissière: Prix monte mais OBV baisse (distribution)
+            
+            - 🔀 **Divergences**: Très importantes pour anticiper les retournements
+            
+            **Avantages**: Confirme les tendances, détecte l'accumulation/distribution
+            **Inconvénients**: Peut être erratique sur les petites timeframes
+            """)
+        
+        # Volume SMA
+        with st.expander("🟢 Volume SMA - Moyenne Mobile du Volume"):
+            st.markdown("""
+            **Définition**: Moyenne mobile appliquée au volume pour identifier les niveaux anormaux.
+            
+            **Calcul**:
+            ```
+            Volume SMA = SMA(Volume, période)
+            Période courante: 20 périodes
+            ```
+            
+            **Interprétation**:
+            - 📊 **Volume > SMA**: 
+              - ⚡ Activité élevée, intérêt fort
+              - Confirme la validité du mouvement de prix
+            
+            - 📉 **Volume < SMA**:
+              - 😴 Activité faible, manque de conviction
+              - Mouvement de prix moins fiable
+            
+            **Utilisation avec les prix**:
+            - 📈 **Volume fort + Prix monte**: Tendance haussière saine
+            - 📉 **Volume fort + Prix baisse**: Tendance baissière saine
+            - ⚠️ **Volume faible + Prix monte**: Tendance fragile (risque de retournement)
+            - ⚠️ **Volume faible + Prix baisse**: Correction technique (pas de panique)
+            
+            **Avantages**: Simple, identifie les pics d'activité
+            **Inconvénients**: Retard inhérent aux moyennes mobiles
+            """)
+        
+        # Volume Ratio
+        with st.expander("🟣 Ratio de Volume"):
+            st.markdown("""
+            **Définition**: Ratio entre le volume actuel et sa moyenne.
+            
+            **Calcul**:
+            ```
+            Volume Ratio = Volume / SMA(Volume, 20)
+            ```
+            
+            **Interprétation**:
+            - Ratio > 2.0: 🔥 Volume extrêmement élevé (2× la moyenne)
+            - Ratio > 1.5: ⚡ Volume très élevé
+            - Ratio 0.8-1.2: ⚖️ Volume normal
+            - Ratio < 0.5: 😴 Volume très faible
+            
+            **Signaux**:
+            - 📈 **Breakout valide**: Ratio > 1.5 lors de la cassure
+            - 🎯 **Point d'entrée**: Ratio élevé confirme le momentum
+            - ⚠️ **Faux signal**: Mouvement sans volume (ratio < 0.8)
+            
+            **Avantages**: Normalise le volume, facile à interpréter
+            **Inconvénients**: Sensible aux pics isolés
+            """)
+    
+    # Section bonus: Combinaisons d'indicateurs
+    st.markdown("---")
+    st.subheader("🎯 Combinaisons Efficaces")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        **📈 Stratégie Trend-Following**:
+        - SMA 50 et SMA 200 (direction)
+        - ADX > 25 (force de tendance)
+        - Volume > SMA (confirmation)
+        
+        **⚡ Stratégie Momentum**:
+        - RSI + Stochastique (surachat/survente)
+        - MACD (timing d'entrée)
+        - OBV (confirmation volume)
+        """)
+    
+    with col2:
+        st.markdown("""
+        **📊 Stratégie Mean-Reversion**:
+        - Bollinger Bands (zones extrêmes)
+        - RSI < 30 ou > 70 (survente/surachat)
+        - Volume faible (manque de conviction)
+        
+        **🔀 Stratégie Breakout**:
+        - Bollinger Squeeze (consolidation)
+        - Volume Ratio > 1.5 (confirmation)
+        - ADX montant (tendance naissante)
+        """)
+    
+    # Note importante
+    st.info("""
+    💡 **Conseil**: Aucun indicateur n'est parfait. Utilisez toujours plusieurs indicateurs 
+    complémentaires pour confirmer vos signaux et réduire les faux signaux. 
+    La combinaison tendance + momentum + volume est souvent la plus fiable.
+    """)
 
 
 def settings_page():
