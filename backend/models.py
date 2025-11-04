@@ -179,6 +179,71 @@ class Backtest(Base):
     strategy = relationship("Strategy", back_populates="backtests")
 
 
+class OrderStatus(enum.Enum):
+    """Order status enumeration"""
+    PENDING = "pending"
+    SUBMITTED = "submitted"
+    FILLED = "filled"
+    PARTIALLY_FILLED = "partially_filled"
+    CANCELLED = "cancelled"
+    REJECTED = "rejected"
+    ERROR = "error"
+
+
+class Order(Base):
+    """Live trading orders"""
+    __tablename__ = "orders"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Order identification
+    ibkr_order_id = Column(Integer, unique=True, index=True)  # IBKR's order ID
+    perm_id = Column(Integer)  # IBKR's permanent order ID
+    
+    # Order details
+    ticker_id = Column(Integer, ForeignKey("tickers.id"), nullable=False, index=True)
+    strategy_id = Column(Integer, ForeignKey("strategies.id"), index=True)
+    
+    # Order parameters
+    action = Column(String(10), nullable=False)  # BUY, SELL
+    order_type = Column(String(20), nullable=False)  # MARKET, LIMIT, STOP, STOP_LIMIT
+    quantity = Column(Integer, nullable=False)
+    limit_price = Column(Float)  # For LIMIT and STOP_LIMIT orders
+    stop_price = Column(Float)  # For STOP and STOP_LIMIT orders
+    
+    # Execution details
+    filled_quantity = Column(Integer, default=0)
+    remaining_quantity = Column(Integer)
+    avg_fill_price = Column(Float)
+    commission = Column(Float, default=0.0)
+    
+    # Status tracking
+    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING, nullable=False, index=True)
+    status_message = Column(Text)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    submitted_at = Column(DateTime)
+    filled_at = Column(DateTime)
+    cancelled_at = Column(DateTime)
+    
+    # Additional info
+    is_paper_trade = Column(Boolean, default=True)
+    notes = Column(Text)
+    parent_order_id = Column(Integer, ForeignKey("orders.id"))  # For bracket orders
+    
+    # Relationships
+    ticker = relationship("Ticker")
+    strategy = relationship("Strategy")
+    child_orders = relationship("Order", backref="parent", remote_side=[id])
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_order_status_created', 'status', 'created_at'),
+        Index('idx_order_ticker_status', 'ticker_id', 'status'),
+    )
+
+
 class Trade(Base):
     """Trade execution records"""
     __tablename__ = "trades"
