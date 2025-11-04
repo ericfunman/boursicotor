@@ -3999,11 +3999,13 @@ def order_placement_page():
                     from backend.models import Ticker, Order
                     
                     # Query orders grouped by ticker
+                    from sqlalchemy import case
+                    
                     ticker_stats_query = db.query(
                         Ticker.symbol,
                         func.count(Order.id).label('total'),
-                        func.sum(func.case((Order.status == OrderStatus.FILLED, 1), else_=0)).label('filled'),
-                        func.sum(func.case((Order.status == OrderStatus.FILLED, Order.filled_quantity * Order.avg_fill_price), else_=0)).label('volume')
+                        func.sum(case((Order.status == OrderStatus.FILLED, 1), else_=0)).label('filled'),
+                        func.sum(case((Order.status == OrderStatus.FILLED, Order.filled_quantity * Order.avg_fill_price), else_=0)).label('volume')
                     ).join(Order).group_by(Ticker.symbol).all()
                     
                     if ticker_stats_query:
