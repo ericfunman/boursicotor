@@ -4481,7 +4481,7 @@ def auto_trading_page():
                     selected_ticker_id = ticker_options[selected_ticker_display]
                     
                     # Strategy selection
-                    strategy_options = {f"{s.name} ({s.type})": s.id for s in strategies}
+                    strategy_options = {f"{s.name}" + (f" ({s.strategy_type})" if s.strategy_type else ""): s.id for s in strategies}
                     selected_strategy_display = st.selectbox("Stratégie de trading", list(strategy_options.keys()))
                     selected_strategy_id = strategy_options[selected_strategy_display]
                     
