@@ -3818,7 +3818,46 @@ def order_placement_page():
             all_active = pending_orders + submitted_orders
             
             if all_active:
-                # Display orders table
+                # Cancel actions section at top
+                st.markdown("### ❌ Actions d'Annulation")
+                
+                col_action1, col_action2, col_action3 = st.columns([2, 2, 2])
+                
+                with col_action1:
+                    if st.button("🗑️ Annuler TOUS les ordres", type="primary", use_container_width=True):
+                        if st.session_state.get('confirm_cancel_all', False):
+                            # Actually cancel using optimized method
+                            with st.spinner("Annulation de tous les ordres..."):
+                                result = order_manager.cancel_all_orders()
+                                st.success(f"✅ {result['cancelled']} ordres annulés, {result['failed']} échecs")
+                                st.session_state.confirm_cancel_all = False
+                                import time
+                                time.sleep(1)
+                                st.rerun()
+                        else:
+                            # Ask for confirmation
+                            st.session_state.confirm_cancel_all = True
+                            st.rerun()
+                
+                with col_action2:
+                    if st.session_state.get('confirm_cancel_all', False):
+                        if st.button("❌ Annuler", type="secondary", use_container_width=True):
+                            st.session_state.confirm_cancel_all = False
+                            st.rerun()
+                        st.warning(f"⚠️ Confirmer l'annulation de {len(all_active)} ordres ?")
+                
+                with col_action3:
+                    cancel_selected_btn = st.button("❌ Annuler la sélection", type="secondary", use_container_width=True)
+                
+                st.markdown("---")
+                
+                # Initialize selected orders in session state
+                if 'selected_orders' not in st.session_state:
+                    st.session_state.selected_orders = set()
+                
+                # Display orders table with checkboxes
+                st.markdown("### 📋 Ordres Actifs (cochez pour annuler)")
+                
                 orders_data = []
                 for order in all_active:
                     db = SessionLocal()
@@ -3826,27 +3865,66 @@ def order_placement_page():
                         from backend.models import Ticker
                         ticker = db.query(Ticker).filter(Ticker.id == order.ticker_id).first()
                         
-                        orders_data.append({
-                            'ID': order.id,
-                            'IBKR ID': order.ibkr_order_id or '-',
-                            'Symbole': ticker.symbol if ticker else 'N/A',
-                            'Action': order.action,
-                            'Type': order.order_type,
-                            'Qté': order.quantity,
-                            'Prix Limite': f"{order.limit_price:.2f} €" if order.limit_price else '-',
-                            'Prix Stop': f"{order.stop_price:.2f} €" if order.stop_price else '-',
-                            'Status': order.status.value,
-                            'Créé': order.created_at.strftime('%Y-%m-%d %H:%M:%S')
-                        })
+                        # Checkbox for each order
+                        col_check, col_data = st.columns([0.3, 9.7])
+                        
+                        with col_check:
+                            is_selected = st.checkbox(
+                                "",
+                                key=f"order_checkbox_{order.id}",
+                                value=order.id in st.session_state.selected_orders,
+                                label_visibility="collapsed"
+                            )
+                            if is_selected:
+                                st.session_state.selected_orders.add(order.id)
+                            else:
+                                st.session_state.selected_orders.discard(order.id)
+                        
+                        with col_data:
+                            orders_data.append({
+                                'ID': order.id,
+                                'IBKR ID': order.ibkr_order_id or '-',
+                                'Symbole': ticker.symbol if ticker else 'N/A',
+                                'Action': order.action,
+                                'Type': order.order_type,
+                                'Qté': order.quantity,
+                                'Prix Limite': f"{order.limit_price:.2f} €" if order.limit_price else '-',
+                                'Prix Stop': f"{order.stop_price:.2f} €" if order.stop_price else '-',
+                                'Status': order.status.value,
+                                'Message': order.status_message or '-',
+                                'Créé': order.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                            })
                     finally:
                         db.close()
                 
-                orders_df = pd.DataFrame(orders_data)
-                st.dataframe(orders_df, use_container_width=True, hide_index=True)
+                if orders_data:
+                    orders_df = pd.DataFrame(orders_data)
+                    st.dataframe(orders_df, use_container_width=True, hide_index=True)
                 
-                # Cancel order section
+                # Handle cancel selected button
+                if cancel_selected_btn:
+                    if st.session_state.selected_orders:
+                        with st.spinner(f"Annulation de {len(st.session_state.selected_orders)} ordre(s)..."):
+                            # Use optimized batch cancel method
+                            results = order_manager.cancel_multiple_orders(list(st.session_state.selected_orders))
+                            cancelled_count = sum(1 for success in results.values() if success)
+                            failed_count = len(results) - cancelled_count
+                            
+                            if failed_count > 0:
+                                st.warning(f"✅ {cancelled_count} ordres annulés, ❌ {failed_count} échecs")
+                            else:
+                                st.success(f"✅ {cancelled_count} ordres sélectionnés annulés")
+                            
+                            st.session_state.selected_orders.clear()
+                            import time
+                            time.sleep(1)
+                            st.rerun()
+                    else:
+                        st.warning("⚠️ Aucun ordre sélectionné")
+                
+                # Old single cancel section (kept for backward compatibility)
                 st.markdown("---")
-                st.subheader("❌ Annuler un Ordre")
+                st.markdown("### ❌ Annuler un Ordre Spécifique (par ID)")
                 
                 col_cancel1, col_cancel2 = st.columns([2, 1])
                 
@@ -3859,7 +3937,7 @@ def order_placement_page():
                     )
                 
                 with col_cancel2:
-                    if st.button("❌ Annuler", type="secondary", use_container_width=True):
+                    if st.button("❌ Annuler", type="secondary", use_container_width=True, key="cancel_by_id"):
                         try:
                             with st.spinner("Annulation..."):
                                 success = order_manager.cancel_order(order_id_to_cancel)

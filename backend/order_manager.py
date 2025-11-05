@@ -482,6 +482,66 @@ class OrderManager:
             self.db.rollback()
             return False
     
+    def cancel_multiple_orders(self, order_ids: List[int]) -> Dict[int, bool]:
+        """
+        Cancel multiple orders at once
+        
+        Args:
+            order_ids: List of order IDs to cancel
+        
+        Returns:
+            Dictionary {order_id: success} for each order
+        """
+        results = {}
+        
+        for order_id in order_ids:
+            try:
+                success = self.cancel_order(order_id)
+                results[order_id] = success
+            except Exception as e:
+                logger.error(f"Error cancelling order {order_id}: {e}")
+                results[order_id] = False
+        
+        return results
+    
+    def cancel_all_orders(self, status_filter: Optional[OrderStatus] = None) -> Dict[str, int]:
+        """
+        Cancel all orders (optionally filtered by status)
+        
+        Args:
+            status_filter: Only cancel orders with this status (None = all cancellable orders)
+        
+        Returns:
+            Dictionary with 'cancelled' and 'failed' counts
+        """
+        try:
+            # Get all cancellable orders
+            query = self.db.query(Order).filter(
+                Order.status.in_([OrderStatus.PENDING, OrderStatus.SUBMITTED])
+            )
+            
+            if status_filter:
+                query = query.filter(Order.status == status_filter)
+            
+            orders = query.all()
+            
+            cancelled = 0
+            failed = 0
+            
+            for order in orders:
+                if self.cancel_order(order.id):
+                    cancelled += 1
+                else:
+                    failed += 1
+            
+            logger.info(f"Cancelled {cancelled} orders, {failed} failed")
+            
+            return {'cancelled': cancelled, 'failed': failed}
+            
+        except Exception as e:
+            logger.error(f"Error in cancel_all_orders: {e}")
+            return {'cancelled': 0, 'failed': 0}
+    
     def get_order(self, order_id: int) -> Optional[Order]:
         """Get order by ID"""
         return self.db.query(Order).filter(Order.id == order_id).first()
