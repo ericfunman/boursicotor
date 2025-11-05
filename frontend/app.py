@@ -4591,6 +4591,16 @@ def auto_trading_page():
         with tab2:
             st.subheader("▶️ Sessions de Trading en Cours")
             
+            # Auto-refresh toggle for active sessions
+            col_refresh1, col_refresh2 = st.columns([3, 1])
+            
+            with col_refresh1:
+                auto_refresh = st.toggle("🔄 Auto-refresh (5s)", value=False, help="Rafraîchit automatiquement toutes les 5 secondes")
+            
+            with col_refresh2:
+                if st.button("🔄 Rafraîchir maintenant", width='stretch'):
+                    st.rerun()
+            
             # Get all sessions
             all_sessions = manager.get_all_sessions()
             active_sessions = [s for s in all_sessions if s['is_active']]
@@ -4643,6 +4653,131 @@ def auto_trading_page():
                                 minutes = int((uptime.total_seconds() % 3600) // 60)
                                 st.write(f"**Uptime:** {hours}h {minutes}m")
                             
+                            # Live Chart with Price Buffer
+                            st.markdown("---")
+                            st.markdown("**📈 Cours en Temps Réel & Indicateurs**")
+                            
+                            if trader.price_buffer and len(trader.price_buffer) > 0:
+                                # Convert buffer to DataFrame
+                                buffer_df = pd.DataFrame(trader.price_buffer)
+                                
+                                # Calculate indicators for visualization
+                                try:
+                                    from backend.strategy_runner import StrategyRunner
+                                    
+                                    runner = StrategyRunner()
+                                    buffer_df_copy = buffer_df.copy()
+                                    buffer_df_copy['date'] = buffer_df_copy['timestamp']
+                                    buffer_df_copy = buffer_df_copy.set_index('date')
+                                    
+                                    signals_df = runner.generate_signals(buffer_df_copy, trader.strategy)
+                                    
+                                    if signals_df is not None and not signals_df.empty:
+                                        # Create chart
+                                        fig = go.Figure()
+                                        
+                                        # Price line
+                                        fig.add_trace(go.Scatter(
+                                            x=signals_df.index,
+                                            y=signals_df['close'],
+                                            mode='lines',
+                                            name='Prix',
+                                            line=dict(color='blue', width=2)
+                                        ))
+                                        
+                                        # Add indicators if present
+                                        if 'sma' in signals_df.columns:
+                                            fig.add_trace(go.Scatter(
+                                                x=signals_df.index,
+                                                y=signals_df['sma'],
+                                                mode='lines',
+                                                name='SMA',
+                                                line=dict(color='orange', dash='dash')
+                                            ))
+                                        
+                                        if 'ema' in signals_df.columns:
+                                            fig.add_trace(go.Scatter(
+                                                x=signals_df.index,
+                                                y=signals_df['ema'],
+                                                mode='lines',
+                                                name='EMA',
+                                                line=dict(color='purple', dash='dash')
+                                            ))
+                                        
+                                        # Mark BUY/SELL signals
+                                        if 'signal' in signals_df.columns:
+                                            buy_signals = signals_df[signals_df['signal'] == 1]
+                                            sell_signals = signals_df[signals_df['signal'] == -1]
+                                            
+                                            if not buy_signals.empty:
+                                                fig.add_trace(go.Scatter(
+                                                    x=buy_signals.index,
+                                                    y=buy_signals['close'],
+                                                    mode='markers',
+                                                    name='BUY',
+                                                    marker=dict(color='green', size=12, symbol='triangle-up')
+                                                ))
+                                            
+                                            if not sell_signals.empty:
+                                                fig.add_trace(go.Scatter(
+                                                    x=sell_signals.index,
+                                                    y=sell_signals['close'],
+                                                    mode='markers',
+                                                    name='SELL',
+                                                    marker=dict(color='red', size=12, symbol='triangle-down')
+                                                ))
+                                        
+                                        fig.update_layout(
+                                            height=400,
+                                            margin=dict(l=0, r=0, t=30, b=0),
+                                            xaxis_title="Temps",
+                                            yaxis_title="Prix (€)",
+                                            hovermode='x unified',
+                                            showlegend=True
+                                        )
+                                        
+                                        st.plotly_chart(fig, use_container_width=True)
+                                        
+                                        # Show latest indicator values
+                                        st.markdown("**📊 Dernières Valeurs des Indicateurs**")
+                                        
+                                        latest = signals_df.iloc[-1]
+                                        indicator_cols = st.columns(min(4, len([c for c in signals_df.columns if c not in ['open', 'high', 'low', 'close', 'volume', 'signal', 'position']])))
+                                        
+                                        col_idx = 0
+                                        for col in signals_df.columns:
+                                            if col not in ['open', 'high', 'low', 'close', 'volume', 'signal', 'position', 'timestamp']:
+                                                if col_idx < len(indicator_cols):
+                                                    with indicator_cols[col_idx]:
+                                                        value = latest[col]
+                                                        if pd.notna(value):
+                                                            st.metric(col.upper(), f"{value:.2f}")
+                                                    col_idx += 1
+                                    else:
+                                        st.info("Calcul des indicateurs en cours...")
+                                
+                                except Exception as e:
+                                    st.warning(f"Graphique non disponible: {e}")
+                                    
+                                    # Fallback: simple price chart
+                                    fig = go.Figure()
+                                    fig.add_trace(go.Scatter(
+                                        x=buffer_df['timestamp'],
+                                        y=buffer_df['close'],
+                                        mode='lines+markers',
+                                        name='Prix',
+                                        line=dict(color='blue')
+                                    ))
+                                    fig.update_layout(
+                                        height=300,
+                                        margin=dict(l=0, r=0, t=30, b=0),
+                                        xaxis_title="Temps",
+                                        yaxis_title="Prix (€)"
+                                    )
+                                    st.plotly_chart(fig, use_container_width=True)
+                            else:
+                                st.info("⏳ En attente de données... Le système récupère les cours.")
+                            
                             st.markdown("---")
                             
                             col_btn1, col_btn2 = st.columns(2)
@@ -4657,6 +4792,11 @@ def auto_trading_page():
                             with col_btn2:
                                 if st.button(f"📊 Voir Ordres", key=f"orders_{session['id']}", width='stretch'):
                                     st.info("Consultez l'onglet 'Passage d'Ordres' pour voir tous les ordres")
+            
+            # Auto-refresh logic
+            if auto_refresh:
+                time_module.sleep(5)
+                st.rerun()
         
         # ========== TAB 3: HISTORIQUE ==========
         with tab3:
