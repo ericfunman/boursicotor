@@ -3705,7 +3705,7 @@ def order_placement_page():
                 col_submit1, col_submit2 = st.columns([2, 1])
                 
                 with col_submit1:
-                    if st.button("📤 Envoyer l'Ordre", type="primary", use_container_width=True):
+                    if st.button("📤 Envoyer l'Ordre", type="primary", width="stretch"):
                         error_occurred = False
                         try:
                             # Debug: Vérifier que order_manager existe
@@ -3824,7 +3824,7 @@ def order_placement_page():
                 col_action1, col_action2, col_action3 = st.columns([2, 2, 2])
                 
                 with col_action1:
-                    if st.button("🗑️ Annuler TOUS les ordres", type="primary", use_container_width=True):
+                    if st.button("🗑️ Annuler TOUS les ordres", type="primary", width="stretch"):
                         if st.session_state.get('confirm_cancel_all', False):
                             # Actually cancel using optimized method
                             with st.spinner("Annulation de tous les ordres..."):
@@ -3841,13 +3841,13 @@ def order_placement_page():
                 
                 with col_action2:
                     if st.session_state.get('confirm_cancel_all', False):
-                        if st.button("❌ Annuler", type="secondary", use_container_width=True):
+                        if st.button("❌ Annuler", type="secondary", width="stretch"):
                             st.session_state.confirm_cancel_all = False
                             st.rerun()
                         st.warning(f"⚠️ Confirmer l'annulation de {len(all_active)} ordres ?")
                 
                 with col_action3:
-                    cancel_selected_btn = st.button("❌ Annuler la sélection", type="secondary", use_container_width=True)
+                    cancel_selected_btn = st.button("❌ Annuler la sélection", type="secondary", width="stretch")
                 
                 st.markdown("---")
                 
@@ -3966,7 +3966,7 @@ def order_placement_page():
                     )
                 
                 with col_cancel2:
-                    if st.button("❌ Annuler", type="secondary", use_container_width=True, key="cancel_by_id"):
+                    if st.button("❌ Annuler", type="secondary", width="stretch", key="cancel_by_id"):
                         try:
                             with st.spinner("Annulation..."):
                                 success = order_manager.cancel_order(order_id_to_cancel)
@@ -4055,7 +4055,7 @@ def order_placement_page():
                 # Display with color coding
                 st.dataframe(
                     orders_df,
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True
                 )
                 
@@ -4138,7 +4138,7 @@ def order_placement_page():
                             })
                         
                         ticker_stats_df = pd.DataFrame(ticker_stats_data)
-                        st.dataframe(ticker_stats_df, use_container_width=True, hide_index=True)
+                        st.dataframe(ticker_stats_df, width="stretch", hide_index=True)
                     else:
                         st.info("Aucune statistique disponible")
                 
