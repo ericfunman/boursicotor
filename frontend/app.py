@@ -3858,15 +3858,38 @@ def order_placement_page():
                 # Display orders table with checkboxes
                 st.markdown("### 📋 Ordres Actifs (cochez pour annuler)")
                 
+                # Prepare orders data
                 orders_data = []
-                for order in all_active:
-                    db = SessionLocal()
-                    try:
-                        from backend.models import Ticker
+                db = SessionLocal()
+                try:
+                    from backend.models import Ticker
+                    
+                    for order in all_active:
                         ticker = db.query(Ticker).filter(Ticker.id == order.ticker_id).first()
+                        orders_data.append({
+                            'order': order,
+                            'ID': order.id,
+                            'IBKR ID': order.ibkr_order_id or '-',
+                            'Symbole': ticker.symbol if ticker else 'N/A',
+                            'Action': order.action,
+                            'Type': order.order_type,
+                            'Qté': order.quantity,
+                            'Prix Limite': f"{order.limit_price:.2f} €" if order.limit_price else '-',
+                            'Prix Stop': f"{order.stop_price:.2f} €" if order.stop_price else '-',
+                            'Status': order.status.value,
+                            'Message': order.status_message or '-',
+                            'Créé': order.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                        })
+                finally:
+                    db.close()
+                
+                if orders_data:
+                    # Display each order with checkbox
+                    for idx, order_info in enumerate(orders_data):
+                        order = order_info['order']
                         
-                        # Checkbox for each order
-                        col_check, col_data = st.columns([0.3, 9.7])
+                        # Create columns: checkbox (small) + order info (large)
+                        col_check, col_info = st.columns([0.5, 11.5])
                         
                         with col_check:
                             is_selected = st.checkbox(
@@ -3880,26 +3903,32 @@ def order_placement_page():
                             else:
                                 st.session_state.selected_orders.discard(order.id)
                         
-                        with col_data:
-                            orders_data.append({
-                                'ID': order.id,
-                                'IBKR ID': order.ibkr_order_id or '-',
-                                'Symbole': ticker.symbol if ticker else 'N/A',
-                                'Action': order.action,
-                                'Type': order.order_type,
-                                'Qté': order.quantity,
-                                'Prix Limite': f"{order.limit_price:.2f} €" if order.limit_price else '-',
-                                'Prix Stop': f"{order.stop_price:.2f} €" if order.stop_price else '-',
-                                'Status': order.status.value,
-                                'Message': order.status_message or '-',
-                                'Créé': order.created_at.strftime('%Y-%m-%d %H:%M:%S')
-                            })
-                    finally:
-                        db.close()
-                
-                if orders_data:
-                    orders_df = pd.DataFrame(orders_data)
-                    st.dataframe(orders_df, use_container_width=True, hide_index=True)
+                        with col_info:
+                            # Display order info in a nice format
+                            status_emoji = {
+                                'pending': '⏳',
+                                'submitted': '📤',
+                                'filled': '✅',
+                                'cancelled': '❌',
+                                'error': '🚨'
+                            }.get(order.status.value, '❓')
+                            
+                            action_color = 'green' if order.action == 'BUY' else 'red'
+                            
+                            st.markdown(f"""
+                            <div style="padding: 8px; background-color: rgba(0,0,0,0.05); border-radius: 5px; margin-bottom: 5px;">
+                                <strong>#{order.id}</strong> | 
+                                <strong style="color: {action_color};">{order.action}</strong> 
+                                <strong>{order.quantity}</strong> {order_info['Symbole']} @ 
+                                <strong>{order.order_type}</strong>
+                                {f"(Limite: {order_info['Prix Limite']})" if order.limit_price else ""}
+                                {f"(Stop: {order_info['Prix Stop']})" if order.stop_price else ""}
+                                | {status_emoji} <em>{order.status.value}</em>
+                                {f"| IBKR: {order.ibkr_order_id}" if order.ibkr_order_id else ""}
+                                | {order_info['Créé']}
+                                <br><small style="color: gray;">{order_info['Message']}</small>
+                            </div>
+                            """, unsafe_allow_html=True)
                 
                 # Handle cancel selected button
                 if cancel_selected_btn:
