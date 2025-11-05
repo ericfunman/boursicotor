@@ -110,7 +110,7 @@ class OrderManager:
                 status=OrderStatus.PENDING,
                 notes=notes,
                 is_paper_trade=is_paper_trade,
-                created_at=datetime.utcnow()
+                created_at=datetime.now()
             )
             
             logger.info("Step 2 OK: Order object created")
@@ -213,7 +213,7 @@ class OrderManager:
             order.ibkr_order_id = ib_order.orderId
             order.perm_id = ib_order.permId if hasattr(ib_order, 'permId') else None
             order.status = OrderStatus.SUBMITTED
-            order.submitted_at = datetime.utcnow()
+            order.submitted_at = datetime.now()
             order.status_message = f"Submitted to IBKR (ID: {ib_order.orderId})"
             
             logger.info(f"Step 4e: Committing order update to DB...")
@@ -323,7 +323,7 @@ class OrderManager:
             order.ibkr_order_id = ib_order.orderId
             order.perm_id = ib_order.permId if hasattr(ib_order, 'permId') else None
             order.status = OrderStatus.SUBMITTED
-            order.submitted_at = datetime.utcnow()
+            order.submitted_at = datetime.now()
             order.status_message = f"Submitted to IBKR (ID: {ib_order.orderId})"
             db.commit()
             
@@ -441,25 +441,32 @@ class OrderManager:
             # Update status
             status_str = ib_trade.orderStatus.status.upper()
             
+            logger.info(f"Updating order {order_id}: IBKR status = {status_str}, filled = {ib_trade.orderStatus.filled}, remaining = {ib_trade.orderStatus.remaining}")
+            
             if status_str == "FILLED":
                 order.status = OrderStatus.FILLED
                 order.filled_quantity = ib_trade.orderStatus.filled
                 order.remaining_quantity = ib_trade.orderStatus.remaining
                 order.avg_fill_price = ib_trade.orderStatus.avgFillPrice
-                order.filled_at = datetime.utcnow()
+                order.filled_at = datetime.now()
+                logger.info(f"Order {order_id} marked as FILLED")
                 
             elif status_str in ["PRESUBMITTED", "SUBMITTED"]:
                 order.status = OrderStatus.SUBMITTED
+                logger.info(f"Order {order_id} marked as SUBMITTED")
                 
             elif "CANCEL" in status_str:
                 order.status = OrderStatus.CANCELLED
-                order.cancelled_at = datetime.utcnow()
+                order.cancelled_at = datetime.now()
+                logger.info(f"Order {order_id} marked as CANCELLED")
                 
             elif status_str in ["INACTIVE", "PENDING_CANCEL", "PENDING_SUBMIT"]:
                 order.status = OrderStatus.PENDING
+                logger.info(f"Order {order_id} marked as PENDING")
                 
             else:
                 order.status_message = status_str
+                logger.warning(f"Order {order_id} has unknown status: {status_str}")
             
             # Update fill quantities
             order.filled_quantity = ib_trade.orderStatus.filled
@@ -470,12 +477,14 @@ class OrderManager:
             
             self.db.commit()
             
-            logger.info(f"Order {order_id} status updated: {order.status.value}")
+            logger.info(f"Order {order_id} status updated to: {order.status.value}")
             
             return True
             
         except Exception as e:
             logger.error(f"Error updating order status: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             self.db.rollback()
             return False
     
@@ -511,7 +520,7 @@ class OrderManager:
             
             # Update database
             order.status = OrderStatus.CANCELLED
-            order.cancelled_at = datetime.utcnow()
+            order.cancelled_at = datetime.now()
             order.status_message = "Cancelled by user"
             
             self.db.commit()
