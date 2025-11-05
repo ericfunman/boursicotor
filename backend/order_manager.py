@@ -246,6 +246,7 @@ class OrderManager:
         db = SessionLocal()  # New session for this thread
         try:
             logger.info(f"[Thread] Starting IBKR submission for order {order_id}")
+            logger.info(f"[Thread] IBKR connected: {self.ibkr_collector.ib.isConnected()}")
             
             # Get order and ticker from DB
             order = db.query(Order).filter(Order.id == order_id).first()
@@ -256,25 +257,42 @@ class OrderManager:
                 return False
             
             logger.info(f"[Thread] Order and Ticker loaded: {ticker.symbol} ({ticker.currency})")
-            logger.info(f"[Thread] Requesting contract from IBKR for {ticker.symbol}...")
             
-            # Get contract
-            contract = self.ibkr_collector.get_contract(
-                ticker.symbol,
-                exchange='SMART',
-                currency=ticker.currency
-            )
-            
-            logger.info(f"[Thread] Contract request completed, result: {contract is not None}")
-            
-            if not contract:
-                logger.error(f"[Thread] Could not get contract for {ticker.symbol}")
+            # Check if IBKR is still connected
+            if not self.ibkr_collector.ib.isConnected():
+                logger.error(f"[Thread] IBKR not connected!")
                 order.status = OrderStatus.ERROR
-                order.status_message = "Could not create IBKR contract"
+                order.status_message = "IBKR connection lost"
                 db.commit()
                 return False
             
-            logger.info(f"[Thread] Contract obtained: {contract}")
+            logger.info(f"[Thread] Creating Stock contract for {ticker.symbol}...")
+            
+            # Create contract directly instead of using get_contract (which might block)
+            from ib_insync import Stock
+            contract = Stock(ticker.symbol, 'SMART', ticker.currency)
+            
+            logger.info(f"[Thread] Contract created: {contract}")
+            logger.info(f"[Thread] Qualifying contract with IBKR...")
+            
+            # Qualify the contract (this requests details from IBKR)
+            try:
+                qualified = self.ibkr_collector.ib.qualifyContracts(contract)
+                if not qualified:
+                    logger.error(f"[Thread] Could not qualify contract for {ticker.symbol}")
+                    order.status = OrderStatus.ERROR
+                    order.status_message = f"Invalid symbol or market closed: {ticker.symbol}"
+                    db.commit()
+                    return False
+                contract = qualified[0]
+                logger.info(f"[Thread] Contract qualified: {contract}")
+            except Exception as e:
+                logger.error(f"[Thread] Error qualifying contract: {e}")
+                order.status = OrderStatus.ERROR
+                order.status_message = f"Contract error: {str(e)}"
+                db.commit()
+                return False
+            
             logger.info(f"[Thread] Creating IBKR order object...")
             
             # Create IBKR order
@@ -289,12 +307,13 @@ class OrderManager:
                 db.commit()
                 return False
             
+            logger.info(f"[Thread] IBKR order details: {ib_order}")
             logger.info(f"[Thread] Calling IBKR placeOrder() for order {order_id}...")
             
             # Place order (blocking call, but we're in a background thread)
             trade = self.ibkr_collector.ib.placeOrder(contract, ib_order)
             
-            logger.info(f"[Thread] placeOrder() completed for order {order_id}")
+            logger.info(f"[Thread] placeOrder() completed for order {order_id}, trade: {trade}")
             
             # Update order with IBKR details
             order.ibkr_order_id = ib_order.orderId
@@ -305,23 +324,30 @@ class OrderManager:
             db.commit()
             
             logger.info(f"[Thread] Order {order_id} successfully submitted to IBKR with ID {ib_order.orderId}")
+            logger.info(f"[Thread] Database updated successfully")
             return True
             
         except Exception as e:
-            logger.error(f"[Thread] Error submitting order {order_id} to IBKR: {e}")
+            logger.error(f"[Thread] EXCEPTION submitting order {order_id} to IBKR: {e}")
+            logger.error(f"[Thread] Exception type: {type(e).__name__}")
             import traceback
-            logger.error(traceback.format_exc())
+            logger.error(f"[Thread] Traceback:\n{traceback.format_exc()}")
             try:
                 order = db.query(Order).filter(Order.id == order_id).first()
                 if order:
                     order.status = OrderStatus.ERROR
-                    order.status_message = f"IBKR error: {str(e)}"
+                    order.status_message = f"IBKR error: {str(e)[:200]}"
                     db.commit()
-            except:
-                pass
+                    logger.error(f"[Thread] Updated order {order_id} status to ERROR in DB")
+            except Exception as db_error:
+                logger.error(f"[Thread] Could not update DB with error: {db_error}")
             return False
         finally:
-            db.close()
+            try:
+                db.close()
+                logger.info(f"[Thread] DB session closed for order {order_id}")
+            except Exception as close_error:
+                logger.error(f"[Thread] Error closing DB: {close_error}")
     
     def _create_ib_order(self, order: Order) -> Optional[IBOrder]:
         """
