@@ -527,6 +527,10 @@ class AutoTraderManager:
             logger.warning(f"Session #{session_id} already has active trader")
             return
         
+        # Log IBKR connection status
+        ibkr_connected = self.ibkr_collector and self.ibkr_collector.ib.isConnected() if self.ibkr_collector else False
+        logger.info(f"Starting session #{session_id} - IBKR connected: {ibkr_connected}")
+        
         trader = AutoTrader(session_id, self.ibkr_collector)
         trader.start()
         self.traders[session_id] = trader
