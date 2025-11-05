@@ -3615,6 +3615,14 @@ def order_placement_page():
     """
     st.header("📝 Passage d'Ordres")
     
+    # Auto-refresh settings
+    if 'auto_refresh_enabled' not in st.session_state:
+        st.session_state.auto_refresh_enabled = False
+    if 'last_sync_time' not in st.session_state:
+        st.session_state.last_sync_time = 0
+    if 'previous_order_statuses' not in st.session_state:
+        st.session_state.previous_order_statuses = {}
+    
     try:
         from backend.order_manager import OrderManager
         from backend.models import OrderStatus, SessionLocal
@@ -3629,7 +3637,7 @@ def order_placement_page():
         init_global_ibkr_connection()
         
         # IBKR Connection Status
-        col_status1, col_status2, col_status3 = st.columns([2, 1, 1])
+        col_status1, col_status2, col_status3, col_status4 = st.columns([2, 1, 1, 1])
         
         with col_status1:
             # Use the GLOBAL connection state
@@ -3647,12 +3655,102 @@ def order_placement_page():
             ibkr_collector = st.session_state.get('global_ibkr')
             if not st.session_state.order_manager or st.session_state.order_manager.ibkr_collector != ibkr_collector:
                 st.session_state.order_manager = OrderManager(ibkr_collector)
+        
+        with col_status4:
+            # Auto-refresh toggle
+            auto_refresh = st.toggle("🔄 Auto-refresh", value=st.session_state.auto_refresh_enabled, help="Synchronise automatiquement toutes les 30 secondes")
+            if auto_refresh != st.session_state.auto_refresh_enabled:
+                st.session_state.auto_refresh_enabled = auto_refresh
+                if auto_refresh:
+                    st.session_state.last_sync_time = time_module.time()
+                st.rerun()
+        
+        # Auto-refresh logic
+        if st.session_state.auto_refresh_enabled and st.session_state.get('global_ibkr_connected', False):
+            current_time = time_module.time()
+            # Check if 30 seconds have passed
+            if current_time - st.session_state.last_sync_time >= 30:
+                # Get current order statuses before sync
+                db = SessionLocal()
+                try:
+                    from backend.models import Order
+                    orders_before = db.query(Order).filter(
+                        Order.status.in_([OrderStatus.PENDING, OrderStatus.SUBMITTED])
+                    ).all()
+                    before_statuses = {order.id: order.status for order in orders_before}
+                finally:
+                    db.close()
+                
+                # Sync with IBKR
+                count = st.session_state.order_manager.sync_with_ibkr()
+                st.session_state.last_sync_time = current_time
+                
+                # Check for status changes and show notifications
+                db = SessionLocal()
+                try:
+                    from backend.models import Order
+                    orders_after = db.query(Order).all()
+                    
+                    for order in orders_after:
+                        old_status = before_statuses.get(order.id)
+                        if old_status and old_status != order.status:
+                            # Status changed!
+                            if order.status == OrderStatus.FILLED:
+                                st.toast(f"🎉 Ordre #{order.id} REMPLI ! {order.action} {order.quantity} {order.ticker.symbol if order.ticker else 'N/A'}", icon="🎉")
+                            elif order.status == OrderStatus.CANCELLED:
+                                st.toast(f"⚠️ Ordre #{order.id} ANNULÉ", icon="⚠️")
+                            elif order.status == OrderStatus.FAILED:
+                                st.toast(f"❌ Ordre #{order.id} ÉCHOUÉ", icon="❌")
+                finally:
+                    db.close()
+                
+                if count > 0:
+                    st.rerun()
+            
+            # Show countdown to next sync
+            time_until_next = 30 - (current_time - st.session_state.last_sync_time)
+            if time_until_next > 0:
+                st.caption(f"⏱️ Prochaine synchro dans {int(time_until_next)}s")
+                time_module.sleep(1)
+                st.rerun()
             
             # Sync button
             if st.session_state.get('global_ibkr_connected', False):
                 if st.button("🔄 Sync IBKR"):
+                    # Get current order statuses before sync
+                    db = SessionLocal()
+                    try:
+                        from backend.models import Order
+                        orders_before = db.query(Order).filter(
+                            Order.status.in_([OrderStatus.PENDING, OrderStatus.SUBMITTED])
+                        ).all()
+                        before_statuses = {order.id: order.status for order in orders_before}
+                    finally:
+                        db.close()
+                    
                     with st.spinner("Synchronisation..."):
                         count = st.session_state.order_manager.sync_with_ibkr()
+                        st.session_state.last_sync_time = time_module.time()
+                        
+                        # Check for status changes and show notifications
+                        db = SessionLocal()
+                        try:
+                            from backend.models import Order
+                            orders_after = db.query(Order).all()
+                            
+                            for order in orders_after:
+                                old_status = before_statuses.get(order.id)
+                                if old_status and old_status != order.status:
+                                    # Status changed!
+                                    if order.status == OrderStatus.FILLED:
+                                        st.success(f"🎉 Ordre #{order.id} REMPLI ! {order.action} {order.quantity} {order.ticker.symbol if order.ticker else 'N/A'}")
+                                    elif order.status == OrderStatus.CANCELLED:
+                                        st.warning(f"⚠️ Ordre #{order.id} ANNULÉ")
+                                    elif order.status == OrderStatus.FAILED:
+                                        st.error(f"❌ Ordre #{order.id} ÉCHOUÉ")
+                        finally:
+                            db.close()
+                        
                         st.success(f"✅ {count} ordres synchronisés")
                         st.rerun()
         
@@ -4156,6 +4254,117 @@ def order_placement_page():
                 with col_stat6:
                     total_comm = stats.get('total_commission', 0)
                     st.metric("💸 Commissions Totales", f"{total_comm:,.2f} €")
+                
+                # Performance Charts
+                st.markdown("---")
+                st.subheader("📈 Graphiques de Performance")
+                
+                db = SessionLocal()
+                try:
+                    from backend.models import Order
+                    
+                    # Get all filled orders
+                    filled_orders = db.query(Order).filter(
+                        Order.status == OrderStatus.FILLED
+                    ).order_by(Order.filled_at).all()
+                    
+                    if filled_orders:
+                        # Chart 1: P&L over time (cumulative)
+                        col_chart1, col_chart2 = st.columns(2)
+                        
+                        with col_chart1:
+                            st.markdown("**💰 P&L Cumulatif**")
+                            
+                            # Calculate cumulative P&L
+                            dates = []
+                            cumulative_pnl = []
+                            total_pnl = 0
+                            
+                            for order in filled_orders:
+                                if order.filled_at and order.pnl is not None:
+                                    dates.append(order.filled_at)
+                                    total_pnl += order.pnl
+                                    cumulative_pnl.append(total_pnl)
+                            
+                            if dates:
+                                fig_pnl = go.Figure()
+                                fig_pnl.add_trace(go.Scatter(
+                                    x=dates,
+                                    y=cumulative_pnl,
+                                    mode='lines+markers',
+                                    name='P&L',
+                                    line=dict(color='green' if cumulative_pnl[-1] > 0 else 'red', width=2),
+                                    fill='tozeroy'
+                                ))
+                                fig_pnl.update_layout(
+                                    height=300,
+                                    margin=dict(l=0, r=0, t=30, b=0),
+                                    xaxis_title="Date",
+                                    yaxis_title="P&L Cumulatif (€)",
+                                    hovermode='x unified'
+                                )
+                                st.plotly_chart(fig_pnl, use_container_width=True)
+                            else:
+                                st.info("Pas de données P&L")
+                        
+                        with col_chart2:
+                            st.markdown("**📊 Win Rate**")
+                            
+                            # Calculate win/loss
+                            wins = sum(1 for o in filled_orders if o.pnl and o.pnl > 0)
+                            losses = sum(1 for o in filled_orders if o.pnl and o.pnl < 0)
+                            breakeven = sum(1 for o in filled_orders if o.pnl and o.pnl == 0)
+                            
+                            fig_pie = go.Figure(data=[go.Pie(
+                                labels=['Gains', 'Pertes', 'Break-even'],
+                                values=[wins, losses, breakeven],
+                                marker=dict(colors=['green', 'red', 'gray']),
+                                hole=0.4
+                            )])
+                            fig_pie.update_layout(
+                                height=300,
+                                margin=dict(l=0, r=0, t=30, b=0),
+                                showlegend=True
+                            )
+                            st.plotly_chart(fig_pie, use_container_width=True)
+                        
+                        # Chart 2: Order volume by day
+                        st.markdown("**📅 Volume d'Ordres par Jour**")
+                        
+                        # Group by day
+                        daily_volume = {}
+                        for order in filled_orders:
+                            if order.filled_at:
+                                day = order.filled_at.date()
+                                if day not in daily_volume:
+                                    daily_volume[day] = 0
+                                if order.filled_quantity and order.avg_fill_price:
+                                    daily_volume[day] += order.filled_quantity * order.avg_fill_price
+                        
+                        if daily_volume:
+                            sorted_days = sorted(daily_volume.keys())
+                            volumes = [daily_volume[day] for day in sorted_days]
+                            
+                            fig_bar = go.Figure()
+                            fig_bar.add_trace(go.Bar(
+                                x=sorted_days,
+                                y=volumes,
+                                marker=dict(color='steelblue'),
+                                name='Volume'
+                            ))
+                            fig_bar.update_layout(
+                                height=300,
+                                margin=dict(l=0, r=0, t=30, b=0),
+                                xaxis_title="Date",
+                                yaxis_title="Volume (€)",
+                                hovermode='x unified'
+                            )
+                            st.plotly_chart(fig_bar, use_container_width=True)
+                    else:
+                        st.info("📊 Aucun ordre rempli pour générer des graphiques")
+                
+                finally:
+                    db.close()
                 
                 # Statistics by ticker
                 st.markdown("---")
