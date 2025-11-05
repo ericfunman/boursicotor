@@ -360,8 +360,57 @@ def dashboard_page():
             
             st.markdown("---")
             
+            # Get positions from OrderManager (trading positions)
+            st.subheader("� Positions Trading (via OrderManager)")
+            
+            if 'order_manager' not in st.session_state or st.session_state.order_manager is None:
+                from backend.order_manager import OrderManager
+                st.session_state.order_manager = OrderManager(collector)
+            
+            try:
+                trading_positions = st.session_state.order_manager.get_positions()
+                
+                if trading_positions:
+                    import pandas as pd
+                    pos_data = []
+                    for pos in trading_positions:
+                        pos_data.append({
+                            'Symbole': pos['symbol'],
+                            'Quantité': pos['position'],
+                            'Prix Moyen': f"{pos['avg_cost']:.2f} {pos['currency']}",
+                            'Prix Marché': f"{pos['market_price']:.2f} {pos['currency']}" if pos['market_price'] else 'N/A',
+                            'Valeur': f"{pos['market_value']:.2f} {pos['currency']}" if pos['market_value'] else 'N/A',
+                            'P&L Non Réalisé': f"{pos['unrealized_pnl']:+.2f} {pos['currency']}" if pos['unrealized_pnl'] else 'N/A',
+                            'Exchange': pos['exchange']
+                        })
+                    
+                    positions_df = pd.DataFrame(pos_data)
+                    st.dataframe(positions_df, width='stretch', hide_index=True)
+                    
+                    # Summary
+                    total_value = sum(p['market_value'] for p in trading_positions if p['market_value'])
+                    total_upnl = sum(p['unrealized_pnl'] for p in trading_positions if p['unrealized_pnl'])
+                    
+                    col_pos1, col_pos2, col_pos3 = st.columns(3)
+                    with col_pos1:
+                        st.metric("Nombre de positions", len(trading_positions))
+                    with col_pos2:
+                        st.metric("Valeur totale", f"{total_value:,.2f} €")
+                    with col_pos3:
+                        pnl_color = "normal" if total_upnl >= 0 else "inverse"
+                        st.metric("P&L Total Non Réalisé", f"{total_upnl:+,.2f} €", delta_color=pnl_color)
+                else:
+                    st.info("ℹ️ Aucune position ouverte pour le moment")
+                    st.caption("Les positions apparaîtront ici après l'exécution de vos ordres")
+                    
+            except Exception as e:
+                logger.error(f"Error getting trading positions: {e}")
+                st.warning(f"⚠️ Impossible de récupérer les positions trading: {e}")
+            
+            st.markdown("---")
+            
             # Get positions
-            st.subheader("📊 Positions Actuelles")
+            st.subheader("�📊 Positions Actuelles (via Collector)")
             
             positions = None
             try:
