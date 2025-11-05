@@ -669,63 +669,63 @@ def data_collection_page():
         # IBKR options
         st.markdown("**IBKR / Lynx** - Périodes et intervalles")
         st.info("💼 IBKR fournit des données temps réel sans limitation d'API")
-            
-            duration_options = {
-                "1 jour": "1 D",
-                "3 jours": "3 D",
-                "1 semaine": "1 W",
-                "2 semaines": "2 W",
-                "1 mois": "1 M",
-                "3 mois": "3 M",
-                "6 mois": "6 M",
-                "1 an": "1 Y",
-                "2 ans": "2 Y"
-            }
-            selected_duration = st.selectbox(
-                "Période",
-                list(duration_options.keys()),
-                index=4,  # Default: 1 mois
-                help="IBKR: Données temps réel et historiques"
-            )
-            period = duration_options[selected_duration]
-            
-            # Warning about sub-5-second intervals
-            st.warning("⚠️ **Important** : Les intervalles < 5 secondes ne sont disponibles que pour certaines actions très liquides (principalement US). Pour les actions européennes (TTE, AI, etc.), utilisez 5 secondes minimum.")
-            
-            # Info about streaming optimization
-            st.success("✨ **Mode optimisé** : Les données sont sauvegardées progressivement pendant la collecte. Vous pouvez demander de grandes périodes sans problème de mémoire !")
-            
-            # Interval options for IBKR
-            interval_options = {
-                "5 secondes": "5 secs",
-                "10 secondes": "10 secs",
-                "15 secondes": "15 secs",
-                "30 secondes": "30 secs",
-                "1 minute": "1 min",
-                "2 minutes": "2 mins",
-                "3 minutes": "3 mins",
-                "5 minutes": "5 mins",
-                "10 minutes": "10 mins",
-                "15 minutes": "15 mins",
-                "20 minutes": "20 mins",
-                "30 minutes": "30 mins",
-                "1 heure": "1 hour",
-                "2 heures": "2 hours",
-                "3 heures": "3 hours",
-                "4 heures": "4 hours",
-                "8 heures": "8 hours",
-                "1 jour": "1 day",
-                "1 semaine": "1 week",
-                "1 mois": "1 month"
-            }
-            selected_interval = st.selectbox(
-                "Intervalle",
-                list(interval_options.keys()),
-                index=4,  # Default: 1 minute
-                help="IBKR: Intervalles de 5 secondes à 1 mois (intervalles < 5s limités aux actions US très liquides)"
-            )
-            interval = interval_options[selected_interval]
-            
+        
+        duration_options = {
+            "1 jour": "1 D",
+            "3 jours": "3 D",
+            "1 semaine": "1 W",
+            "2 semaines": "2 W",
+            "1 mois": "1 M",
+            "3 mois": "3 M",
+            "6 mois": "6 M",
+            "1 an": "1 Y",
+            "2 ans": "2 Y"
+        }
+        selected_duration = st.selectbox(
+            "Période",
+            list(duration_options.keys()),
+            index=4,  # Default: 1 mois
+            help="IBKR: Données temps réel et historiques"
+        )
+        period = duration_options[selected_duration]
+        
+        # Warning about sub-5-second intervals
+        st.warning("⚠️ **Important** : Les intervalles < 5 secondes ne sont disponibles que pour certaines actions très liquides (principalement US). Pour les actions européennes (TTE, AI, etc.), utilisez 5 secondes minimum.")
+        
+        # Info about streaming optimization
+        st.success("✨ **Mode optimisé** : Les données sont sauvegardées progressivement pendant la collecte. Vous pouvez demander de grandes périodes sans problème de mémoire !")
+        
+        # Interval options for IBKR
+        interval_options = {
+            "5 secondes": "5 secs",
+            "10 secondes": "10 secs",
+            "15 secondes": "15 secs",
+            "30 secondes": "30 secs",
+            "1 minute": "1 min",
+            "2 minutes": "2 mins",
+            "3 minutes": "3 mins",
+            "5 minutes": "5 mins",
+            "10 minutes": "10 mins",
+            "15 minutes": "15 mins",
+            "20 minutes": "20 mins",
+            "30 minutes": "30 mins",
+            "1 heure": "1 hour",
+            "2 heures": "2 hours",
+            "3 heures": "3 hours",
+            "4 heures": "4 hours",
+            "8 heures": "8 hours",
+            "1 jour": "1 day",
+            "1 semaine": "1 week",
+            "1 mois": "1 month"
+        }
+        selected_interval = st.selectbox(
+            "Intervalle",
+            list(interval_options.keys()),
+            index=4,  # Default: 1 minute
+            help="IBKR: Intervalles de 5 secondes à 1 mois (intervalles < 5s limités aux actions US très liquides)"
+        )
+        interval = interval_options[selected_interval]
+        
         # Collect button - Create async job with Celery
         if st.button("📊 Collecter les données", type="primary", width='stretch'):
             try:
@@ -1191,7 +1191,7 @@ def data_collection_page():
                         hovermode='x'
                     )
                     
-                    st.plotly_chart(fig, width='stretch')
+                    st.plotly_chart(fig, use_container_width=True)
                     
                     # Volume chart
                     fig_volume = go.Figure(data=[go.Bar(
@@ -1599,10 +1599,10 @@ def technical_analysis_page():
                 height=500
             )
             
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
             
             # Data table
-            st.dataframe(df.tail(20), width='stretch')
+            st.dataframe(df.tail(20), use_container_width=True)
         else:
             st.info("Aucune donnée disponible pour ce ticker. Téléchargez des données d'abord.")
 
@@ -1699,7 +1699,7 @@ def technical_analysis_page():
     fig.add_trace(go.Bar(x=df.index, y=df['volume'], name='Volume'), row=4, col=1)
     
     fig.update_layout(height=1000, showlegend=True, xaxis=dict(rangeslider=dict(visible=False)))
-    st.plotly_chart(fig, width='stretch')
+    st.plotly_chart(fig, use_container_width=True)
     
     # Indicator values
     st.subheader("📊 Valeurs actuelles des indicateurs")
@@ -2602,45 +2602,35 @@ def live_prices_page():
         
         # Data source selection
         st.markdown("---")
-        st.subheader("📡 Source de Données")
+        st.subheader("📡 Source de Données : IBKR (Temps Réel)")
+        st.info("💼 Données temps réel via IB Gateway - Aucune limitation")
         
-        col_source1, col_source2 = st.columns([2, 1])
+        # IBKR connection status
+        if 'ibkr_collector' not in st.session_state:
+            st.session_state.ibkr_collector = None
+            st.session_state.ibkr_connected = False
         
-        with col_source1:
-            data_source = st.radio(
-                "Choisir la source",
-                ["Yahoo Finance (Délai 15min)", "IBKR (Temps Réel)"],
-                help="Yahoo Finance: Données gratuites avec délai | IBKR: Données temps réel via IB Gateway"
-            )
-        
-        with col_source2:
-            if data_source == "IBKR (Temps Réel)":
-                # IBKR connection status
-                if 'ibkr_collector' not in st.session_state:
-                    st.session_state.ibkr_collector = None
-                    st.session_state.ibkr_connected = False
-                
-                if not st.session_state.ibkr_connected:
-                    if st.button("🔌 Connecter IBKR", type="primary"):
-                        try:
-                            from backend.ibkr_collector import IBKRCollector
-                            st.session_state.ibkr_collector = IBKRCollector()
-                            if st.session_state.ibkr_collector.connect():
-                                st.session_state.ibkr_connected = True
-                                st.success("✅ Connecté!")
-                                st.rerun()
-                            else:
-                                st.error("❌ Échec connexion")
-                        except Exception as e:
-                            st.error(f"❌ Erreur: {e}")
-                else:
-                    st.success("🟢 IBKR Connecté")
-                    if st.button("🔌 Déconnecter"):
-                        if st.session_state.ibkr_collector:
-                            st.session_state.ibkr_collector.disconnect()
-                        st.session_state.ibkr_collector = None
-                        st.session_state.ibkr_connected = False
+        if not st.session_state.ibkr_connected:
+            if st.button("🔌 Connecter IBKR", type="primary"):
+                try:
+                    from backend.ibkr_collector import IBKRCollector
+                    st.session_state.ibkr_collector = IBKRCollector()
+                    if st.session_state.ibkr_collector.connect():
+                        st.session_state.ibkr_connected = True
+                        st.success("✅ Connecté!")
                         st.rerun()
+                    else:
+                        st.error("❌ Échec connexion")
+                except Exception as e:
+                    st.error(f"❌ Erreur: {e}")
+        else:
+            st.success("🟢 IBKR Connecté")
+            if st.button("🔌 Déconnecter"):
+                if st.session_state.ibkr_collector:
+                    st.session_state.ibkr_collector.disconnect()
+                st.session_state.ibkr_collector = None
+                st.session_state.ibkr_connected = False
+                st.rerun()
         
         st.markdown("---")
         
@@ -2700,7 +2690,7 @@ def live_prices_page():
         indicators_placeholder = st.empty()
         
         # Info message
-        st.info("ℹ️ Les données proviennent de Yahoo Finance avec un délai d'environ 15 minutes. Le graphique se rafraîchit toutes les secondes.")
+        st.info("ℹ️ Les données proviennent d'IBKR en temps réel. Le graphique se rafraîchit toutes les secondes.")
         
         # Initialize data storage
         if 'live_data' not in st.session_state:
@@ -2985,7 +2975,7 @@ def live_prices_page():
                     
                     # Update chart without key to prevent scroll
                     with chart_placeholder.container():
-                        st.plotly_chart(fig, width='stretch')
+                        st.plotly_chart(fig, use_container_width=True)
                     
                     # Display indicators below chart - always show the panel
                     with indicators_placeholder.container():
@@ -5131,7 +5121,7 @@ def settings_page():
     with col2:
         st.checkbox("Utiliser données simulées si API échoue", value=True, help="Génère des données réalistes si l'API n'est pas disponible")
     
-    st.info("ℹ️ **IBKR** : Pas de limite API pour les données historiques | **Yahoo Finance** : Gratuit avec délai de 15 minutes")
+    st.info("ℹ️ **IBKR** : Pas de limite API pour les données historiques et temps réel")
     
     if st.button("💾 Sauvegarder les paramètres"):
         st.success("✅ Paramètres sauvegardés")

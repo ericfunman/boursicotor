@@ -82,22 +82,27 @@ class TechnicalIndicators:
     @staticmethod
     def add_adx(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
         """Add Average Directional Index"""
-        # Calculate True Range
+        # Calculate True Range (keep as Series with index)
         high_low = df['high'] - df['low']
         high_close = np.abs(df['high'] - df['close'].shift())
         low_close = np.abs(df['low'] - df['close'].shift())
         ranges = pd.concat([high_low, high_close, low_close], axis=1)
-        true_range = np.max(ranges, axis=1)
+        true_range = pd.Series(np.max(ranges, axis=1), index=df.index)
         
-        # Calculate Directional Movement
-        dm_plus = np.where((df['high'] - df['high'].shift()) > (df['low'].shift() - df['low']), 
-                          np.maximum(df['high'] - df['high'].shift(), 0), 0)
-        dm_minus = np.where((df['low'].shift() - df['low']) > (df['high'] - df['high'].shift()), 
-                           np.maximum(df['low'].shift() - df['low'], 0), 0)
+        # Calculate price movements
+        high_diff = df['high'] - df['high'].shift()
+        low_diff = df['low'].shift() - df['low']
+        
+        # Calculate Directional Movement (keep as Series to preserve index)
+        dm_plus = pd.Series(0.0, index=df.index)
+        dm_plus[high_diff > low_diff] = np.maximum(high_diff[high_diff > low_diff], 0)
+        
+        dm_minus = pd.Series(0.0, index=df.index)
+        dm_minus[low_diff > high_diff] = np.maximum(low_diff[low_diff > high_diff], 0)
         
         # Calculate Directional Indicators
-        di_plus = 100 * (pd.Series(dm_plus).rolling(window=period).mean() / true_range.rolling(window=period).mean())
-        di_minus = 100 * (pd.Series(dm_minus).rolling(window=period).mean() / true_range.rolling(window=period).mean())
+        di_plus = 100 * (dm_plus.rolling(window=period).mean() / true_range.rolling(window=period).mean())
+        di_minus = 100 * (dm_minus.rolling(window=period).mean() / true_range.rolling(window=period).mean())
         
         # Calculate ADX
         dx = 100 * np.abs(di_plus - di_minus) / (di_plus + di_minus)
