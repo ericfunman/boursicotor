@@ -696,6 +696,9 @@ class OrderManager:
             if ib_trades:
                 ibkr_order_ids = [t.order.orderId for t in ib_trades]
                 logger.info(f"IBKR order IDs: {ibkr_order_ids}")
+                # Log details of each IBKR trade
+                for t in ib_trades:
+                    logger.info(f"  IBKR trade: ID={t.order.orderId}, {t.contract.symbol} {t.order.action} {t.order.totalQuantity}, status={t.orderStatus.status}")
             
             # Get pending/submitted orders from database
             pending_orders = self.db.query(Order).filter(
@@ -705,24 +708,49 @@ class OrderManager:
             logger.info(f"Found {len(pending_orders)} pending/submitted orders in DB")
             
             for order in pending_orders:
+                logger.info(f"Processing DB order {order.id}: {order.action} {order.quantity} {order.ticker.symbol if order.ticker else 'N/A'}")
+                
                 if not order.ibkr_order_id:
                     logger.info(f"Order {order.id} has no IBKR ID, skipping")
                     continue
                 
-                logger.info(f"Looking for IBKR order ID {order.ibkr_order_id} for DB order {order.id}")
-                
                 # Find matching IBKR trade
+                # Try multiple matching strategies:
+                # 1. Match by IBKR order ID (primary)
+                # 2. Match by symbol + action + quantity (fallback if ID changed)
                 found = False
+                
                 for ib_trade in ib_trades:
-                    if ib_trade.order.orderId == order.ibkr_order_id:
-                        logger.info(f"✓ Found matching IBKR trade! Order {order.id} <-> IBKR {ib_trade.order.orderId}, status: {ib_trade.orderStatus.status}")
+                    ib_symbol = ib_trade.contract.symbol
+                    ib_action = ib_trade.order.action
+                    ib_quantity = ib_trade.order.totalQuantity
+                    ib_order_id = ib_trade.order.orderId
+                    
+                    # Strategy 1: Match by IBKR order ID
+                    if ib_order_id == order.ibkr_order_id:
+                        logger.info(f"✓ Matched by ID! Order {order.id} <-> IBKR {ib_order_id}, status: {ib_trade.orderStatus.status}")
+                        self.update_order_status(order.id, ib_trade)
+                        updated_count += 1
+                        found = True
+                        break
+                    
+                    # Strategy 2: Match by symbol + action + quantity (for reconnections where ID changed)
+                    if (order.ticker and 
+                        ib_symbol == order.ticker.symbol and 
+                        ib_action == order.action and 
+                        ib_quantity == order.quantity):
+                        logger.info(f"✓ Matched by details! Order {order.id} <-> IBKR {ib_order_id} ({ib_symbol} {ib_action} {ib_quantity}), status: {ib_trade.orderStatus.status}")
+                        # Update the IBKR order ID in our database
+                        order.ibkr_order_id = ib_order_id
+                        self.db.commit()
+                        logger.info(f"Updated IBKR order ID from {order.ibkr_order_id} to {ib_order_id}")
                         self.update_order_status(order.id, ib_trade)
                         updated_count += 1
                         found = True
                         break
                 
                 if not found:
-                    logger.warning(f"✗ No matching IBKR trade found for order {order.id} (IBKR ID: {order.ibkr_order_id})")
+                    logger.warning(f"✗ No matching IBKR trade found for order {order.id} (IBKR ID: {order.ibkr_order_id}, {order.action} {order.quantity} {order.ticker.symbol if order.ticker else 'N/A'})")
             
             logger.info(f"Synced {updated_count} orders with IBKR")
             
