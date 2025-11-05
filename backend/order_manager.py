@@ -126,15 +126,22 @@ class OrderManager:
             
             logger.info(f"Step 3 OK: Order created in DB with ID={order.id}, Status={order.status.value}")
             
-            # Place order with IBKR if collector is available - using background thread to avoid blocking
+            # Place order with IBKR if collector is available - DIRECT CALL (no thread)
             if self.ibkr_collector and self.ibkr_collector.ib.isConnected():
-                logger.info(f"Step 4: IBKR connected, submitting order {order.id} in background...")
-                # Submit order in background thread with timeout
-                future = self._executor.submit(self._place_order_with_ibkr_async, order.id, ticker.id)
-                self._pending_submissions[order.id] = future
-                order.status_message = "Submitting to IBKR..."
-                self.db.commit()
-                logger.info(f"Step 4 OK: Order {order.id} queued for IBKR submission")
+                logger.info(f"Step 4: IBKR connected, submitting order {order.id} DIRECTLY...")
+                try:
+                    success = self._place_order_with_ibkr(order, ticker)
+                    if success:
+                        logger.info(f"Step 4 OK: Order {order.id} submitted to IBKR successfully")
+                    else:
+                        logger.error(f"Step 4 FAILED: Order {order.id} submission failed")
+                except Exception as e:
+                    logger.error(f"Step 4 EXCEPTION: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    order.status = OrderStatus.ERROR
+                    order.status_message = f"Error: {str(e)[:200]}"
+                    self.db.commit()
             else:
                 logger.warning(f"Step 4 SKIPPED: IBKR not connected - order {order.id} saved locally only")
                 order.status_message = "IBKR not connected - order saved locally"
