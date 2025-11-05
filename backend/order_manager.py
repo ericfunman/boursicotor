@@ -671,7 +671,7 @@ class OrderManager:
         Returns:
             Number of orders updated
         """
-        if not self.ibkr_collector or not self.ibkr_collector.connected:
+        if not self.ibkr_collector or not self.ibkr_collector.ib.isConnected():
             logger.warning("Cannot sync - IBKR not connected")
             return 0
         
@@ -681,18 +681,24 @@ class OrderManager:
             # Get all open orders from IBKR
             ib_trades = self.ibkr_collector.ib.openTrades()
             
+            logger.info(f"Found {len(ib_trades)} open trades in IBKR")
+            
             # Get pending/submitted orders from database
             pending_orders = self.db.query(Order).filter(
                 Order.status.in_([OrderStatus.PENDING, OrderStatus.SUBMITTED])
             ).all()
             
+            logger.info(f"Found {len(pending_orders)} pending/submitted orders in DB")
+            
             for order in pending_orders:
                 if not order.ibkr_order_id:
+                    logger.info(f"Order {order.id} has no IBKR ID, skipping")
                     continue
                 
                 # Find matching IBKR trade
                 for ib_trade in ib_trades:
                     if ib_trade.order.orderId == order.ibkr_order_id:
+                        logger.info(f"Updating order {order.id} from IBKR trade {ib_trade.order.orderId}")
                         self.update_order_status(order.id, ib_trade)
                         updated_count += 1
                         break
@@ -703,4 +709,44 @@ class OrderManager:
             
         except Exception as e:
             logger.error(f"Error syncing with IBKR: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return 0
+    
+    def get_positions(self) -> List[Dict[str, Any]]:
+        """
+        Get current positions from IBKR
+        
+        Returns:
+            List of position dictionaries with symbol, quantity, avg_cost, market_value, etc.
+        """
+        if not self.ibkr_collector or not self.ibkr_collector.ib.isConnected():
+            logger.warning("Cannot get positions - IBKR not connected")
+            return []
+        
+        try:
+            positions = []
+            ib_positions = self.ibkr_collector.ib.positions()
+            
+            logger.info(f"Found {len(ib_positions)} positions in IBKR")
+            
+            for pos in ib_positions:
+                positions.append({
+                    'symbol': pos.contract.symbol,
+                    'exchange': pos.contract.exchange,
+                    'currency': pos.contract.currency,
+                    'position': pos.position,
+                    'avg_cost': pos.avgCost,
+                    'market_price': pos.marketPrice if hasattr(pos, 'marketPrice') else None,
+                    'market_value': pos.marketValue if hasattr(pos, 'marketValue') else None,
+                    'unrealized_pnl': pos.unrealizedPNL if hasattr(pos, 'unrealizedPNL') else None,
+                    'realized_pnl': pos.realizedPNL if hasattr(pos, 'realizedPNL') else None,
+                })
+            
+            return positions
+            
+        except Exception as e:
+            logger.error(f"Error getting positions from IBKR: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return []
