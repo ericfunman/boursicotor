@@ -23,9 +23,6 @@ python-dotenv>=1.0.0
 loguru>=0.7.0
 requests>=2.31.0
 
-# Data Sources
-yfinance>=0.2.0
-
 # Task Queue
 celery>=5.5.0
 redis>=7.0.0

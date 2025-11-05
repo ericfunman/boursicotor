@@ -259,36 +259,6 @@ class AutoTrader:
                 else:
                     logger.warning(f"Could not get IBKR contract for {self.ticker.symbol}")
             
-            # Fallback to Yahoo Finance (delayed data)
-            logger.debug("Falling back to Yahoo Finance...")
-            
-            try:
-                import yfinance as yf
-                
-                # Add .PA suffix for Euronext Paris stocks
-                yf_symbol = f"{self.ticker.symbol}.PA"
-                logger.debug(f"Fetching Yahoo data for {yf_symbol}")
-                
-                ticker_yf = yf.Ticker(yf_symbol)
-                hist = ticker_yf.history(period='1d', interval='1m')
-                
-                if not hist.empty:
-                    last_row = hist.iloc[-1]
-                    price_data = {
-                        'timestamp': datetime.now(),
-                        'open': last_row['Open'],
-                        'high': last_row['High'],
-                        'low': last_row['Low'],
-                        'close': last_row['Close'],
-                        'volume': last_row['Volume']
-                    }
-                    logger.info(f"✅ Got Yahoo price: {price_data['close']:.2f} (symbol: {yf_symbol})")
-                    return price_data
-                else:
-                    logger.warning(f"Yahoo returned empty data for {yf_symbol}")
-            except Exception as yf_error:
-                logger.warning(f"Yahoo Finance failed for {yf_symbol}: {yf_error}")
-            
             logger.warning(f"❌ Could not fetch live price for {self.ticker.symbol}")
             return None
             

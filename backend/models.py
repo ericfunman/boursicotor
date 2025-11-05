@@ -64,7 +64,7 @@ class DataCollectionJob(Base):
     # Job parameters
     ticker_symbol = Column(String(10), nullable=False, index=True)
     ticker_name = Column(String(100))
-    source = Column(String(50), nullable=False)  # 'ibkr' or 'yahoo'
+    source = Column(String(50), nullable=False)  # 'ibkr' only
     duration = Column(String(20))  # e.g., '1 M', '3 M'
     interval = Column(String(20))  # e.g., '5 secs', '1 min'
     

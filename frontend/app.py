@@ -482,24 +482,7 @@ def data_collection_page():
     # Data source selection
     st.subheader("📡 Source de Données")
     
-    col_source1, col_source2 = st.columns(2)
-    
-    with col_source1:
-        data_source = st.radio(
-            "Choisir la source",
-            ["💼 IBKR / Lynx (Temps Réel)", "📊 Yahoo Finance (Historique)"],
-            index=0,  # IBKR par défaut
-            help="IBKR/Lynx: Données temps réel via IB Gateway | Yahoo Finance: Données historiques"
-        )
-    
-    with col_source2:
-        if data_source == "💼 IBKR / Lynx (Temps Réel)":
-            st.success("**IBKR / Lynx**\n- ✅ Données réelles temps réel\n- ✅ Via IB Gateway\n- 📊 Aucune limite API\n- ⚡ Latence minimale")
-        else:  # Yahoo Finance
-            st.info("**Yahoo Finance**\n- ✅ Données réelles\n- ✅ Historique massif (26+ ans)\n- ⚠️ Délai de 15 minutes")
-    
-    use_ibkr = data_source == "💼 IBKR / Lynx (Temps Réel)"
-    use_yahoo = data_source == "📊 Yahoo Finance (Historique)"
+    st.info("**Source de données : IBKR / Lynx**\n- ✅ Données réelles temps réel\n- ✅ Via IB Gateway\n- 📊 Aucune limite API\n- ⚡ Latence minimale")
     
     st.markdown("---")
     
@@ -683,11 +666,9 @@ def data_collection_page():
                         help="Nom de l'entreprise"
                     )
         
-        # Duration and interval options depend on source
-        if use_ibkr:
-            # IBKR options
-            st.markdown("**IBKR / Lynx** - Périodes et intervalles")
-            st.info("💼 IBKR fournit des données temps réel sans limitation d'API")
+        # IBKR options
+        st.markdown("**IBKR / Lynx** - Périodes et intervalles")
+        st.info("💼 IBKR fournit des données temps réel sans limitation d'API")
             
             duration_options = {
                 "1 jour": "1 D",
@@ -745,106 +726,23 @@ def data_collection_page():
             )
             interval = interval_options[selected_interval]
             
-        elif use_yahoo:
-            # Yahoo Finance options
-            st.markdown("**Yahoo Finance** - Périodes et intervalles")
-            st.info("📊 Yahoo Finance fournit des données historiques gratuites (délai 15min)")
-            
-            duration_options = {
-                "1 jour": "1d",
-                "5 jours": "5d",
-                "1 mois": "1mo",
-                "3 mois": "3mo",
-                "6 mois": "6mo",
-                "1 an": "1y",
-                "2 ans": "2y",
-                "5 ans": "5y",
-                "10 ans": "10y",
-                "Maximum": "max"
-            }
-            selected_duration = st.selectbox(
-                "Période",
-                list(duration_options.keys()),
-                index=7,  # Default: 5 ans
-                help="Yahoo Finance: 1d à max (26+ ans disponibles)"
-            )
-            period = duration_options[selected_duration]
-            
-            # Interval options for Yahoo
-            interval_options = {
-                "1 minute": "1m",
-                "2 minutes": "2m",
-                "5 minutes": "5m",
-                "15 minutes": "15m",
-                "30 minutes": "30m",
-                "1 heure": "1h",
-                "1 jour": "1d",
-                "1 semaine": "1wk",
-                "1 mois": "1mo"
-            }
-            selected_interval = st.selectbox(
-                "Intervalle",
-                list(interval_options.keys()),
-                index=6,  # Default: 1 jour
-                help="⚠️ Limitations Yahoo:\n1m: max 7 jours\n2-30m: max 60 jours\n1h+: plusieurs mois\n1d+: illimité"
-            )
-            interval = interval_options[selected_interval]
-            
-            # Warning for intraday limitations
-            if interval == "1m":
-                if selected_duration not in ["1 jour", "5 jours"]:
-                    st.error("❌ Intervalle 1 minute limité à 7 jours maximum par Yahoo Finance")
-            elif interval in ["2m", "5m", "15m", "30m"]:
-                if selected_duration in ["3 mois", "6 mois", "1 an", "2 ans", "5 ans", "10 ans", "Maximum"]:
-                    st.warning("⚠️ Ces intervalles sont limités à 60 jours maximum par Yahoo Finance")
-            elif interval == "1h":
-                if selected_duration in ["2 ans", "5 ans", "10 ans", "Maximum"]:
-                    st.warning("⚠️ Intervalle 1 heure: données limitées au-delà de quelques mois")
         # Collect button - Create async job with Celery
         if st.button("📊 Collecter les données", type="primary", width='stretch'):
             try:
                 from backend.job_manager import JobManager
-                from backend.tasks import collect_data_yahoo, collect_data_ibkr
+                from backend.tasks import collect_data_ibkr
                 
                 job_manager = JobManager()
                 
-                if use_yahoo:
-                    # Create Yahoo Finance job
-                    job = job_manager.create_job(
-                        ticker_symbol=selected_ticker,
-                        ticker_name=selected_name,
-                        source="yahoo_finance",
-                        duration=selected_duration,
-                        interval=selected_interval
-                    )
-                    
-                    # Launch Celery task
-                    task = collect_data_yahoo.delay(
-                        job_id=job.id,
-                        ticker_symbol=selected_ticker,
-                        ticker_name=selected_name,
-                        period=period,
-                        interval=interval
-                    )
-                    
-                    # Update job with Celery task ID
-                    job_manager.update_job_task_id(job.id, task.id)
-                    
-                    st.success(f"✅ Job de collecte créé pour {selected_ticker} depuis Yahoo Finance!")
-                    st.info(f"📊 Source: Yahoo Finance | Période: {selected_duration} | Intervalle: {selected_interval}")
-                    st.info("🔄 La collecte s'exécute en arrière-plan. Consultez la page **Historique des collectes** pour suivre la progression.")
-                    # Note: Pas de st.rerun() ici - laisse l'utilisateur naviguer librement
+                # Check IBKR connection
+                collector = get_global_ibkr()
                 
-                elif use_ibkr:
-                    # Check IBKR connection
-                    collector = get_global_ibkr()
-                    
-                    if collector is None:
-                        st.error("❌ Connectez-vous à IBKR depuis la sidebar pour collecter des données")
-                        st.info("💡 Utilisez le bouton de connexion dans la barre latérale")
-                    else:
-                        # Map selected values to database format
-                        interval_db_map = {
+                if collector is None:
+                    st.error("❌ Connectez-vous à IBKR depuis la sidebar pour collecter des données")
+                    st.info("💡 Utilisez le bouton de connexion dans la barre latérale")
+                else:
+                    # Map selected values to database format
+                    interval_db_map = {
                             "5 secondes": "5sec",
                             "10 secondes": "10sec",
                             "15 secondes": "15sec",
@@ -865,36 +763,36 @@ def data_collection_page():
                             "1 jour": "1day",
                             "1 semaine": "1week",
                             "1 mois": "1month"
-                        }
-                        
-                        db_interval = interval_db_map.get(selected_interval, "1min")
-                        
-                        # Create IBKR job
-                        job = job_manager.create_job(
-                            ticker_symbol=selected_ticker,
-                            ticker_name=selected_name,
-                            source="ibkr",
-                            duration=selected_duration,
-                            interval=selected_interval
-                        )
-                        
-                        # Launch Celery task
-                        task = collect_data_ibkr.delay(
-                            job_id=job.id,
-                            ticker_symbol=selected_ticker,
-                            ticker_name=selected_name,
-                            duration=period,
-                            bar_size=interval,
-                            interval_db=db_interval
-                        )
-                        
-                        # Update job with Celery task ID
-                        job_manager.update_job_task_id(job.id, task.id)
-                        
-                        st.success(f"✅ Job de collecte créé pour {selected_ticker} depuis IBKR!")
-                        st.info(f"📊 Source: IBKR | Période: {selected_duration} | Intervalle: {selected_interval}")
-                        st.info("🔄 La collecte s'exécute en arrière-plan. Consultez la page **Historique des collectes** pour suivre la progression.")
-                        # Note: Pas de st.rerun() ici - laisse l'utilisateur naviguer librement
+                    }
+                    
+                    db_interval = interval_db_map.get(selected_interval, "1min")
+                    
+                    # Create IBKR job
+                    job = job_manager.create_job(
+                        ticker_symbol=selected_ticker,
+                        ticker_name=selected_name,
+                        source="ibkr",
+                        duration=selected_duration,
+                        interval=selected_interval
+                    )
+                    
+                    # Launch Celery task
+                    task = collect_data_ibkr.delay(
+                        job_id=job.id,
+                        ticker_symbol=selected_ticker,
+                        ticker_name=selected_name,
+                        duration=period,
+                        bar_size=interval,
+                        interval_db=db_interval
+                    )
+                    
+                    # Update job with Celery task ID
+                    job_manager.update_job_task_id(job.id, task.id)
+                    
+                    st.success(f"✅ Job de collecte créé pour {selected_ticker} depuis IBKR!")
+                    st.info(f"📊 Source: IBKR | Période: {selected_duration} | Intervalle: {selected_interval}")
+                    st.info("🔄 La collecte s'exécute en arrière-plan. Consultez la page **Historique des collectes** pour suivre la progression.")
+                    # Note: Pas de st.rerun() ici - laisse l'utilisateur naviguer librement
             
             except ImportError as e:
                 st.error("❌ Celery n'est pas installé ou configuré correctement")
@@ -2900,122 +2798,13 @@ def live_prices_page():
                                 # Cancel market data subscription
                                 collector.ib.cancelMktData(contract)
                             else:
-                                # No real-time data, fallback to Yahoo
-                                st.warning("⚠️ Pas de données temps réel IBKR, passage à Yahoo Finance")
-                                data_source = "Yahoo Finance (Délai 15min)"
+                                st.error("❌ Pas de données temps réel IBKR disponibles")
+                                time_module.sleep(1)
+                                continue
                         else:
                             st.error(f"❌ Impossible de trouver le contrat pour {selected_symbol}")
                             time_module.sleep(1)
                             continue
-                    
-                    if data_source == "Yahoo Finance (Délai 15min)" or not st.session_state.get('ibkr_connected', False):
-                        # Use Yahoo Finance data
-                        import yfinance as yf
-                        
-                        # Get Yahoo Finance symbol (add .PA for Paris exchange)
-                        yf_symbol = f"{selected_symbol}.PA"
-                        
-                        # Map time scale to Yahoo Finance interval
-                        interval_map = {
-                            "1s": "1m",  # Yahoo Finance n'a pas de 1s, on utilise 1m
-                            "1min": "1m",
-                            "5min": "5m",
-                            "15min": "15m",
-                            "30min": "30m",
-                            "1h": "1h",
-                            "1jour": "1d"
-                        }
-                        yf_interval = interval_map.get(time_scale, "1m")
-                        
-                        # Fetch latest data from Yahoo Finance based on time scale
-                        ticker_data = yf.Ticker(yf_symbol)
-                        
-                        # Get intraday data for the selected interval
-                        if time_scale == "1jour":
-                            hist_data = ticker_data.history(period="5d", interval=yf_interval)
-                        else:
-                            hist_data = ticker_data.history(period="1d", interval=yf_interval)
-                        
-                        if not hist_data.empty:
-                            # Get the latest bar
-                            latest_bar = hist_data.iloc[-1]
-                            current_price = latest_bar['Close']
-                            current_volume = latest_bar['Volume']
-                            data_time = hist_data.index[-1]  # Timestamp from Yahoo
-                            current_time = datetime.now()  # Current timestamp for display
-                            
-                            # Get previous close for change calculation
-                            if len(hist_data) > 1:
-                                prev_close = hist_data.iloc[-2]['Close']
-                            else:
-                                prev_close = current_price
-                            
-                            # Calculate change
-                            price_change = current_price - prev_close
-                            price_change_pct = (price_change / prev_close * 100) if prev_close else 0
-                            
-                            # Save to database (avoid duplicates by checking timestamp)
-                            existing_record = db.query(HistoricalData).filter(
-                                HistoricalData.ticker_id == ticker_obj.id,
-                                HistoricalData.timestamp == data_time,
-                                HistoricalData.interval == time_scale
-                            ).first()
-                            
-                            if not existing_record:
-                                new_record = HistoricalData(
-                                    ticker_id=ticker_obj.id,
-                                    timestamp=data_time,
-                                    open=float(latest_bar['Open']),
-                                    high=float(latest_bar['High']),
-                                    low=float(latest_bar['Low']),
-                                    close=float(latest_bar['Close']),
-                                    volume=int(latest_bar['Volume']),
-                                    interval=time_scale
-                                )
-                                db.add(new_record)
-                                db.commit()
-                            
-                            # Add to live data for chart (with OHLCV)
-                            st.session_state.live_data['time'].append(current_time)
-                            st.session_state.live_data['price'].append(current_price)
-                        st.session_state.live_data['open'].append(float(latest_bar['Open']))
-                        st.session_state.live_data['high'].append(float(latest_bar['High']))
-                        st.session_state.live_data['low'].append(float(latest_bar['Low']))
-                        st.session_state.live_data['volume'].append(int(latest_bar['Volume']))
-                        
-                        # Keep only last max_points
-                        if len(st.session_state.live_data['time']) > max_points:
-                            st.session_state.live_data['time'] = st.session_state.live_data['time'][-max_points:]
-                            st.session_state.live_data['price'] = st.session_state.live_data['price'][-max_points:]
-                            st.session_state.live_data['open'] = st.session_state.live_data['open'][-max_points:]
-                            st.session_state.live_data['high'] = st.session_state.live_data['high'][-max_points:]
-                            st.session_state.live_data['low'] = st.session_state.live_data['low'][-max_points:]
-                            st.session_state.live_data['volume'] = st.session_state.live_data['volume'][-max_points:]
-                    else:
-                        # Fallback to info if history not available
-                        info = ticker_data.info
-                        current_price = info.get('currentPrice') or info.get('regularMarketPrice', 0)
-                        prev_close = info.get('previousClose', current_price)
-                        current_volume = info.get('volume', 0)
-                        current_time = datetime.now()
-                        
-                        price_change = current_price - prev_close
-                        price_change_pct = (price_change / prev_close * 100) if prev_close else 0
-                        
-                        st.session_state.live_data['time'].append(current_time)
-                        st.session_state.live_data['price'].append(current_price)
-                        st.session_state.live_data['open'].append(current_price)
-                        st.session_state.live_data['high'].append(current_price)
-                        st.session_state.live_data['low'].append(current_price)
-                        st.session_state.live_data['volume'].append(current_volume)
-                        
-                        if len(st.session_state.live_data['time']) > max_points:
-                            st.session_state.live_data['time'] = st.session_state.live_data['time'][-max_points:]
-                            st.session_state.live_data['price'] = st.session_state.live_data['price'][-max_points:]
-                            st.session_state.live_data['open'] = st.session_state.live_data['open'][-max_points:]
-                            st.session_state.live_data['high'] = st.session_state.live_data['high'][-max_points:]
-                            st.session_state.live_data['low'] = st.session_state.live_data['low'][-max_points:]
-                            st.session_state.live_data['volume'] = st.session_state.live_data['volume'][-max_points:]
                     
                     # Update metrics
                     price_placeholder.metric(
