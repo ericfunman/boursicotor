@@ -171,16 +171,22 @@ class AutoTrader:
     
     def _init_price_buffer(self):
         """Initialize price buffer with recent historical data"""
-        logger.info(f"Initializing price buffer for {self.ticker.symbol}...")
+        logger.info(f"Initializing price buffer for {self.ticker.symbol} (ticker_id={self.ticker.id})...")
         
         db = SessionLocal()
         try:
+            # Debug: Check how many historical data points exist for this ticker
+            total_count = db.query(HistoricalData).filter(
+                HistoricalData.ticker_id == self.ticker.id
+            ).count()
+            logger.info(f"Total historical data points in DB for ticker_id {self.ticker.id}: {total_count}")
+            
             # Get last 200 historical data points
             historical = db.query(HistoricalData).filter(
                 HistoricalData.ticker_id == self.ticker.id
             ).order_by(HistoricalData.date.desc()).limit(self.buffer_size).all()
             
-            logger.info(f"Found {len(historical)} historical data points in database")
+            logger.info(f"Found {len(historical)} historical data points to load into buffer")
             
             # Reverse to chronological order
             historical = list(reversed(historical))
@@ -199,7 +205,9 @@ class AutoTrader:
             logger.info(f"✅ Initialized price buffer with {len(self.price_buffer)} historical data points")
             
         except Exception as e:
-            logger.error(f"Error initializing price buffer: {e}")
+            logger.error(f"❌ Error initializing price buffer: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
         finally:
             db.close()
     
