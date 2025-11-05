@@ -3893,7 +3893,7 @@ def order_placement_page():
                         
                         with col_check:
                             is_selected = st.checkbox(
-                                "",
+                                f"Select order {order.id}",
                                 key=f"order_checkbox_{order.id}",
                                 value=order.id in st.session_state.selected_orders,
                                 label_visibility="collapsed"
