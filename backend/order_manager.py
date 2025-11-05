@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from ib_insync import Stock, MarketOrder, LimitOrder, StopOrder, StopLimitOrder, Order as IBOrder, Trade as IBTrade
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 import threading
+import signal
+import traceback as tb
 
 from backend.models import Order, OrderStatus, Ticker, Strategy, SessionLocal
 from backend.config import logger
@@ -253,12 +255,17 @@ class OrderManager:
                 logger.error(f"[Thread] Order {order_id} or Ticker {ticker_id} not found in DB")
                 return False
             
+            logger.info(f"[Thread] Order and Ticker loaded: {ticker.symbol} ({ticker.currency})")
+            logger.info(f"[Thread] Requesting contract from IBKR for {ticker.symbol}...")
+            
             # Get contract
             contract = self.ibkr_collector.get_contract(
                 ticker.symbol,
                 exchange='SMART',
                 currency=ticker.currency
             )
+            
+            logger.info(f"[Thread] Contract request completed, result: {contract is not None}")
             
             if not contract:
                 logger.error(f"[Thread] Could not get contract for {ticker.symbol}")
@@ -267,8 +274,14 @@ class OrderManager:
                 db.commit()
                 return False
             
+            logger.info(f"[Thread] Contract obtained: {contract}")
+            logger.info(f"[Thread] Creating IBKR order object...")
+            
             # Create IBKR order
             ib_order = self._create_ib_order(order)
+            
+            logger.info(f"[Thread] IBKR order object creation completed, result: {ib_order is not None}")
+            
             if not ib_order:
                 logger.error(f"[Thread] Could not create IBKR order object")
                 order.status = OrderStatus.ERROR
