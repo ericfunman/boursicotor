@@ -225,32 +225,51 @@ class AutoTrader:
             # Try IBKR first (real-time data)
             if self.ibkr_collector and self.ibkr_collector.ib.isConnected():
                 logger.debug("Using IBKR for live data...")
-                from ib_insync import Stock
                 
-                contract = Stock(self.ticker.symbol, 'SMART', 'EUR')
-                ticker_data = self.ibkr_collector.ib.reqMktData(contract, '', False, False)
-                time.sleep(2)  # Wait for data
+                # Use the ticker's exchange information
+                exchange = self.ticker.exchange if hasattr(self.ticker, 'exchange') else 'SMART'
+                currency = self.ticker.currency if hasattr(self.ticker, 'currency') else 'EUR'
                 
-                if ticker_data.last and ticker_data.last > 0:
-                    price_data = {
-                        'timestamp': datetime.now(),
-                        'open': ticker_data.open if ticker_data.open > 0 else ticker_data.last,
-                        'high': ticker_data.high if ticker_data.high > 0 else ticker_data.last,
-                        'low': ticker_data.low if ticker_data.low > 0 else ticker_data.last,
-                        'close': ticker_data.last,
-                        'volume': ticker_data.volume if ticker_data.volume else 0
-                    }
-                    logger.info(f"✅ Got IBKR price: {price_data['close']:.2f} €")
-                    return price_data
+                logger.debug(f"Fetching IBKR contract for {self.ticker.symbol} on {exchange} ({currency})")
+                
+                # Use get_contract method which qualifies the contract properly
+                contract = self.ibkr_collector.get_contract(self.ticker.symbol, exchange, currency)
+                
+                if contract:
+                    ticker_data = self.ibkr_collector.ib.reqMktData(contract, '', False, False)
+                    time.sleep(2)  # Wait for data
+                    
+                    if ticker_data.last and ticker_data.last > 0:
+                        price_data = {
+                            'timestamp': datetime.now(),
+                            'open': ticker_data.open if ticker_data.open > 0 else ticker_data.last,
+                            'high': ticker_data.high if ticker_data.high > 0 else ticker_data.last,
+                            'low': ticker_data.low if ticker_data.low > 0 else ticker_data.last,
+                            'close': ticker_data.last,
+                            'volume': ticker_data.volume if ticker_data.volume else 0
+                        }
+                        logger.info(f"✅ Got IBKR price: {price_data['close']:.2f} {currency}")
+                        
+                        # Cancel market data to avoid accumulation
+                        self.ibkr_collector.ib.cancelMktData(contract)
+                        return price_data
+                    else:
+                        logger.warning(f"IBKR returned no valid price for {self.ticker.symbol}")
+                        self.ibkr_collector.ib.cancelMktData(contract)
                 else:
-                    logger.warning(f"IBKR returned no valid price for {self.ticker.symbol}")
+                    logger.warning(f"Could not get IBKR contract for {self.ticker.symbol}")
             
             # Fallback to Yahoo Finance (delayed data)
             logger.debug("Falling back to Yahoo Finance...")
             
             try:
                 import yfinance as yf
-                ticker_yf = yf.Ticker(self.ticker.symbol)
+                
+                # Add .PA suffix for Euronext Paris stocks
+                yf_symbol = f"{self.ticker.symbol}.PA"
+                logger.debug(f"Fetching Yahoo data for {yf_symbol}")
+                
+                ticker_yf = yf.Ticker(yf_symbol)
                 hist = ticker_yf.history(period='1d', interval='1m')
                 
                 if not hist.empty:
@@ -263,10 +282,12 @@ class AutoTrader:
                         'close': last_row['Close'],
                         'volume': last_row['Volume']
                     }
-                    logger.info(f"✅ Got Yahoo price: {price_data['close']:.2f}")
+                    logger.info(f"✅ Got Yahoo price: {price_data['close']:.2f} (symbol: {yf_symbol})")
                     return price_data
+                else:
+                    logger.warning(f"Yahoo returned empty data for {yf_symbol}")
             except Exception as yf_error:
-                logger.warning(f"Yahoo Finance failed: {yf_error}")
+                logger.warning(f"Yahoo Finance failed for {yf_symbol}: {yf_error}")
             
             logger.warning(f"❌ Could not fetch live price for {self.ticker.symbol}")
             return None
