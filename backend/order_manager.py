@@ -707,8 +707,11 @@ class OrderManager:
             
             logger.info(f"Found {len(pending_orders)} pending/submitted orders in DB")
             
+            # Track which IBKR trades have been matched to avoid duplicates
+            matched_ibkr_ids = set()
+            
             for order in pending_orders:
-                logger.info(f"Processing DB order {order.id}: {order.action} {order.quantity} {order.ticker.symbol if order.ticker else 'N/A'}")
+                logger.info(f"Processing DB order {order.id}: {order.action} {order.quantity} {order.ticker.symbol if order.ticker else 'N/A'}, created: {order.created_at}")
                 
                 if not order.ibkr_order_id:
                     logger.info(f"Order {order.id} has no IBKR ID, skipping")
@@ -717,7 +720,7 @@ class OrderManager:
                 # Find matching IBKR trade
                 # Try multiple matching strategies:
                 # 1. Match by IBKR order ID (primary)
-                # 2. Match by symbol + action + quantity (fallback if ID changed)
+                # 2. Match by symbol + action + quantity + time proximity (fallback if ID changed)
                 found = False
                 
                 for ib_trade in ib_trades:
@@ -726,24 +729,32 @@ class OrderManager:
                     ib_quantity = ib_trade.order.totalQuantity
                     ib_order_id = ib_trade.order.orderId
                     
+                    # Skip if this IBKR trade was already matched
+                    if ib_order_id in matched_ibkr_ids:
+                        continue
+                    
                     # Strategy 1: Match by IBKR order ID
                     if ib_order_id == order.ibkr_order_id:
-                        logger.info(f"✓ Matched by ID! Order {order.id} <-> IBKR {ib_order_id}, status: {ib_trade.orderStatus.status}")
+                        logger.info(f"✓ Matched by ID! Order {order.id} (created {order.created_at}) <-> IBKR {ib_order_id}, status: {ib_trade.orderStatus.status}")
+                        matched_ibkr_ids.add(ib_order_id)
                         self.update_order_status(order.id, ib_trade)
                         updated_count += 1
                         found = True
                         break
                     
                     # Strategy 2: Match by symbol + action + quantity (for reconnections where ID changed)
+                    # Only match if not already matched to prevent duplicates
                     if (order.ticker and 
                         ib_symbol == order.ticker.symbol and 
                         ib_action == order.action and 
                         ib_quantity == order.quantity):
-                        logger.info(f"✓ Matched by details! Order {order.id} <-> IBKR {ib_order_id} ({ib_symbol} {ib_action} {ib_quantity}), status: {ib_trade.orderStatus.status}")
+                        logger.info(f"✓ Matched by details! Order {order.id} (created {order.created_at}) <-> IBKR {ib_order_id} ({ib_symbol} {ib_action} {ib_quantity}), status: {ib_trade.orderStatus.status}")
                         # Update the IBKR order ID in our database
+                        old_id = order.ibkr_order_id
                         order.ibkr_order_id = ib_order_id
                         self.db.commit()
-                        logger.info(f"Updated IBKR order ID from {order.ibkr_order_id} to {ib_order_id}")
+                        logger.info(f"Updated IBKR order ID from {old_id} to {ib_order_id}")
+                        matched_ibkr_ids.add(ib_order_id)
                         self.update_order_status(order.id, ib_trade)
                         updated_count += 1
                         found = True
