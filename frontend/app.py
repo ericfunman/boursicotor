@@ -4404,10 +4404,14 @@ def auto_trading_page():
         # Initialize global IBKR connection
         init_global_ibkr_connection()
         
-        # Initialize AutoTraderManager in session state
+        # Initialize or update AutoTraderManager in session state
+        ibkr_collector = st.session_state.get('global_ibkr')
+        
         if 'auto_trader_manager' not in st.session_state:
-            ibkr_collector = st.session_state.get('global_ibkr')
             st.session_state.auto_trader_manager = AutoTraderManager(ibkr_collector)
+        else:
+            # Update IBKR connection if it changed
+            st.session_state.auto_trader_manager.ibkr_collector = ibkr_collector
         
         manager = st.session_state.auto_trader_manager
         
