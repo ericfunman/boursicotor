@@ -171,12 +171,16 @@ class AutoTrader:
     
     def _init_price_buffer(self):
         """Initialize price buffer with recent historical data"""
+        logger.info(f"Initializing price buffer for {self.ticker.symbol}...")
+        
         db = SessionLocal()
         try:
             # Get last 200 historical data points
             historical = db.query(HistoricalData).filter(
                 HistoricalData.ticker_id == self.ticker.id
             ).order_by(HistoricalData.date.desc()).limit(self.buffer_size).all()
+            
+            logger.info(f"Found {len(historical)} historical data points in database")
             
             # Reverse to chronological order
             historical = list(reversed(historical))
@@ -192,8 +196,10 @@ class AutoTrader:
                     'volume': h.volume
                 })
             
-            logger.info(f"Initialized price buffer with {len(self.price_buffer)} historical data points")
+            logger.info(f"✅ Initialized price buffer with {len(self.price_buffer)} historical data points")
             
+        except Exception as e:
+            logger.error(f"Error initializing price buffer: {e}")
         finally:
             db.close()
     
@@ -206,8 +212,11 @@ class AutoTrader:
             Dictionary with price data or None if failed
         """
         try:
+            logger.debug(f"Fetching live price for {self.ticker.symbol}...")
+            
             # Try IBKR first (real-time data)
             if self.ibkr_collector and self.ibkr_collector.ib.isConnected():
+                logger.debug("Using IBKR for live data...")
                 from ib_insync import Stock
                 
                 contract = Stock(self.ticker.symbol, 'SMART', 'EUR')
@@ -215,7 +224,7 @@ class AutoTrader:
                 time.sleep(2)  # Wait for data
                 
                 if ticker_data.last and ticker_data.last > 0:
-                    return {
+                    price_data = {
                         'timestamp': datetime.now(),
                         'open': ticker_data.open if ticker_data.open > 0 else ticker_data.last,
                         'high': ticker_data.high if ticker_data.high > 0 else ticker_data.last,
@@ -223,8 +232,13 @@ class AutoTrader:
                         'close': ticker_data.last,
                         'volume': ticker_data.volume if ticker_data.volume else 0
                     }
+                    logger.info(f"✅ Got IBKR price: {price_data['close']:.2f} €")
+                    return price_data
+                else:
+                    logger.warning(f"IBKR returned no valid price for {self.ticker.symbol}")
             
             # Fallback to Yahoo Finance (delayed data)
+            logger.debug("Falling back to Yahoo Finance...")
             df = self.data_collector.fetch_yahoo_data(
                 self.ticker.symbol,
                 start_date=(datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'),
@@ -233,7 +247,7 @@ class AutoTrader:
             
             if df is not None and not df.empty:
                 last_row = df.iloc[-1]
-                return {
+                price_data = {
                     'timestamp': datetime.now(),
                     'open': last_row['Open'],
                     'high': last_row['High'],
@@ -241,12 +255,16 @@ class AutoTrader:
                     'close': last_row['Close'],
                     'volume': last_row['Volume']
                 }
+                logger.info(f"✅ Got Yahoo price: {price_data['close']:.2f}")
+                return price_data
             
-            logger.warning(f"Could not fetch live price for {self.ticker.symbol}")
+            logger.warning(f"❌ Could not fetch live price for {self.ticker.symbol}")
             return None
             
         except Exception as e:
-            logger.error(f"Error fetching live price: {e}")
+            logger.error(f"❌ Error fetching live price: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return None
     
     def _add_to_buffer(self, price_data: Dict):

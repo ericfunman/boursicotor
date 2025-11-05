@@ -4269,64 +4269,41 @@ def order_placement_page():
                     ).order_by(Order.filled_at).all()
                     
                     if filled_orders:
-                        # Chart 1: P&L over time (cumulative)
-                        col_chart1, col_chart2 = st.columns(2)
+                        # Chart 1: P&L over time (cumulative) - TODO: Add P&L calculation to Order model
+                        # Temporarily disabled until P&L is properly tracked
+                        st.info("� Graphiques P&L à venir - Fonctionnalité en développement")
                         
-                        with col_chart1:
-                            st.markdown("**💰 P&L Cumulatif**")
-                            
-                            # Calculate cumulative P&L
-                            dates = []
-                            cumulative_pnl = []
-                            total_pnl = 0
-                            
-                            for order in filled_orders:
-                                if order.filled_at and order.pnl is not None:
-                                    dates.append(order.filled_at)
-                                    total_pnl += order.pnl
-                                    cumulative_pnl.append(total_pnl)
-                            
-                            if dates:
-                                fig_pnl = go.Figure()
-                                fig_pnl.add_trace(go.Scatter(
-                                    x=dates,
-                                    y=cumulative_pnl,
-                                    mode='lines+markers',
-                                    name='P&L',
-                                    line=dict(color='green' if cumulative_pnl[-1] > 0 else 'red', width=2),
-                                    fill='tozeroy'
-                                ))
-                                fig_pnl.update_layout(
-                                    height=300,
-                                    margin=dict(l=0, r=0, t=30, b=0),
-                                    xaxis_title="Date",
-                                    yaxis_title="P&L Cumulatif (€)",
-                                    hovermode='x unified'
-                                )
-                                st.plotly_chart(fig_pnl, use_container_width=True)
-                            else:
-                                st.info("Pas de données P&L")
+                        # For now, show simple order count over time
+                        st.markdown("**📅 Ordres Remplis par Jour**")
                         
-                        with col_chart2:
-                            st.markdown("**📊 Win Rate**")
+                        # Group by day
+                        daily_orders = {}
+                        for order in filled_orders:
+                            if order.filled_at:
+                                day = order.filled_at.date()
+                                if day not in daily_orders:
+                                    daily_orders[day] = 0
+                                daily_orders[day] += 1
+                        
+                        if daily_orders:
+                            sorted_days = sorted(daily_orders.keys())
+                            order_counts = [daily_orders[day] for day in sorted_days]
                             
-                            # Calculate win/loss
-                            wins = sum(1 for o in filled_orders if o.pnl and o.pnl > 0)
-                            losses = sum(1 for o in filled_orders if o.pnl and o.pnl < 0)
-                            breakeven = sum(1 for o in filled_orders if o.pnl and o.pnl == 0)
-                            
-                            fig_pie = go.Figure(data=[go.Pie(
-                                labels=['Gains', 'Pertes', 'Break-even'],
-                                values=[wins, losses, breakeven],
-                                marker=dict(colors=['green', 'red', 'gray']),
-                                hole=0.4
-                            )])
-                            fig_pie.update_layout(
+                            fig_bar = go.Figure()
+                            fig_bar.add_trace(go.Bar(
+                                x=sorted_days,
+                                y=order_counts,
+                                marker=dict(color='steelblue'),
+                                name='Ordres'
+                            ))
+                            fig_bar.update_layout(
                                 height=300,
                                 margin=dict(l=0, r=0, t=30, b=0),
-                                showlegend=True
+                                xaxis_title="Date",
+                                yaxis_title="Nombre d'Ordres",
+                                hovermode='x unified'
                             )
-                            st.plotly_chart(fig_pie, use_container_width=True)
+                            st.plotly_chart(fig_bar, use_container_width=True)
                         
                         # Chart 2: Order volume by day
                         st.markdown("**📅 Volume d'Ordres par Jour**")
