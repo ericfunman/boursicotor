@@ -687,10 +687,15 @@ class OrderManager:
         try:
             updated_count = 0
             
-            # Get all open orders from IBKR
-            ib_trades = self.ibkr_collector.ib.openTrades()
+            # Get ALL trades from IBKR (including filled/cancelled)
+            ib_trades = self.ibkr_collector.ib.trades()
             
-            logger.info(f"Found {len(ib_trades)} open trades in IBKR")
+            logger.info(f"Found {len(ib_trades)} total trades in IBKR")
+            
+            # Log all IBKR order IDs for debugging
+            if ib_trades:
+                ibkr_order_ids = [t.order.orderId for t in ib_trades]
+                logger.info(f"IBKR order IDs: {ibkr_order_ids}")
             
             # Get pending/submitted orders from database
             pending_orders = self.db.query(Order).filter(
@@ -704,13 +709,20 @@ class OrderManager:
                     logger.info(f"Order {order.id} has no IBKR ID, skipping")
                     continue
                 
+                logger.info(f"Looking for IBKR order ID {order.ibkr_order_id} for DB order {order.id}")
+                
                 # Find matching IBKR trade
+                found = False
                 for ib_trade in ib_trades:
                     if ib_trade.order.orderId == order.ibkr_order_id:
-                        logger.info(f"Updating order {order.id} from IBKR trade {ib_trade.order.orderId}")
+                        logger.info(f"✓ Found matching IBKR trade! Order {order.id} <-> IBKR {ib_trade.order.orderId}, status: {ib_trade.orderStatus.status}")
                         self.update_order_status(order.id, ib_trade)
                         updated_count += 1
+                        found = True
                         break
+                
+                if not found:
+                    logger.warning(f"✗ No matching IBKR trade found for order {order.id} (IBKR ID: {order.ibkr_order_id})")
             
             logger.info(f"Synced {updated_count} orders with IBKR")
             
