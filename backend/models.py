@@ -272,6 +272,61 @@ class Trade(Base):
     strategy = relationship("Strategy", back_populates="trades")
 
 
+class AutoTraderStatus(enum.Enum):
+    """Auto trader session status"""
+    RUNNING = "running"
+    STOPPED = "stopped"
+    PAUSED = "paused"
+    ERROR = "error"
+
+
+class AutoTraderSession(Base):
+    """Auto trading session tracking"""
+    __tablename__ = "auto_trader_sessions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    ticker_id = Column(Integer, ForeignKey("tickers.id"), nullable=False)
+    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=False)
+    
+    status = Column(Enum(AutoTraderStatus), default=AutoTraderStatus.STOPPED, nullable=False)
+    
+    # Configuration
+    polling_interval = Column(Integer, default=60)  # seconds between data fetch
+    max_position_size = Column(Integer, default=100)  # max shares per position
+    max_daily_trades = Column(Integer, default=10)  # max trades per day
+    stop_loss_pct = Column(Float, default=2.0)  # stop loss percentage
+    take_profit_pct = Column(Float, default=5.0)  # take profit percentage
+    
+    # Session info
+    started_at = Column(DateTime)
+    stopped_at = Column(DateTime)
+    last_check_at = Column(DateTime)  # last time we checked for signals
+    
+    # Performance tracking
+    total_orders = Column(Integer, default=0)
+    successful_orders = Column(Integer, default=0)
+    failed_orders = Column(Integer, default=0)
+    total_pnl = Column(Float, default=0.0)
+    
+    # Current state
+    current_position = Column(Integer, default=0)  # current shares held
+    last_signal = Column(String(10))  # BUY, SELL, HOLD
+    last_signal_at = Column(DateTime)
+    error_message = Column(Text)
+    
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    # Relationships
+    ticker = relationship("Ticker")
+    strategy = relationship("Strategy")
+    
+    __table_args__ = (
+        Index('idx_auto_trader_status', 'status'),
+        Index('idx_auto_trader_ticker_strategy', 'ticker_id', 'strategy_id'),
+    )
+
+
 class MLModel(Base):
     """Machine Learning models metadata"""
     __tablename__ = "ml_models"

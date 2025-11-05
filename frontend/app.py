@@ -4416,6 +4416,310 @@ def order_placement_page():
         st.code(traceback.format_exc())
 
 
+def auto_trading_page():
+    """Automatic trading page with strategy execution"""
+    st.header("🤖 Trading Automatique")
+    
+    try:
+        from backend.auto_trader import AutoTraderManager
+        from backend.models import SessionLocal, Ticker, Strategy, AutoTraderSession, AutoTraderStatus
+        
+        # Initialize global IBKR connection
+        init_global_ibkr_connection()
+        
+        # Initialize AutoTraderManager in session state
+        if 'auto_trader_manager' not in st.session_state:
+            ibkr_collector = st.session_state.get('global_ibkr')
+            st.session_state.auto_trader_manager = AutoTraderManager(ibkr_collector)
+        
+        manager = st.session_state.auto_trader_manager
+        
+        # IBKR Connection Status
+        col_status1, col_status2 = st.columns([3, 1])
+        
+        with col_status1:
+            if st.session_state.get('global_ibkr_connected', False):
+                st.success("🟢 Connecté à IBKR - Le trading automatique est opérationnel")
+            else:
+                st.warning("🟡 Non connecté à IBKR - Connectez-vous pour utiliser le trading automatique")
+        
+        with col_status2:
+            if st.button("🔄 Rafraîchir", width='stretch'):
+                st.rerun()
+        
+        st.markdown("---")
+        
+        # Tabs
+        tab1, tab2, tab3 = st.tabs(["🆕 Nouvelle Session", "▶️ Sessions Actives", "📜 Historique"])
+        
+        # ========== TAB 1: NOUVELLE SESSION ==========
+        with tab1:
+            st.subheader("🆕 Créer une Session de Trading Automatique")
+            
+            col_form1, col_form2 = st.columns([2, 1])
+            
+            with col_form1:
+                st.markdown("### Configuration de Base")
+                
+                # Get available tickers and strategies
+                db = SessionLocal()
+                try:
+                    tickers = db.query(Ticker).filter(Ticker.is_active == True).order_by(Ticker.symbol).all()
+                    strategies = db.query(Strategy).all()
+                    
+                    if not tickers:
+                        st.warning("⚠️ Aucune action disponible. Ajoutez des actions via 'Collecte de Données'.")
+                        return
+                    
+                    if not strategies:
+                        st.warning("⚠️ Aucune stratégie disponible. Créez une stratégie via 'Backtesting'.")
+                        return
+                    
+                    # Ticker selection
+                    ticker_options = {f"{t.symbol} - {t.name}": t.id for t in tickers}
+                    selected_ticker_display = st.selectbox("Action à trader", list(ticker_options.keys()))
+                    selected_ticker_id = ticker_options[selected_ticker_display]
+                    
+                    # Strategy selection
+                    strategy_options = {f"{s.name} ({s.type})": s.id for s in strategies}
+                    selected_strategy_display = st.selectbox("Stratégie de trading", list(strategy_options.keys()))
+                    selected_strategy_id = strategy_options[selected_strategy_display]
+                    
+                finally:
+                    db.close()
+                
+                st.markdown("### Paramètres Avancés")
+                
+                col_param1, col_param2 = st.columns(2)
+                
+                with col_param1:
+                    polling_interval = st.number_input(
+                        "Intervalle de polling (secondes)",
+                        min_value=10,
+                        max_value=3600,
+                        value=60,
+                        help="Fréquence de vérification des signaux"
+                    )
+                    
+                    max_position_size = st.number_input(
+                        "Taille max de position (actions)",
+                        min_value=1,
+                        max_value=10000,
+                        value=100,
+                        help="Nombre maximum d'actions à détenir"
+                    )
+                    
+                    max_daily_trades = st.number_input(
+                        "Max trades par jour",
+                        min_value=1,
+                        max_value=100,
+                        value=10,
+                        help="Limite de trades quotidiens"
+                    )
+                
+                with col_param2:
+                    stop_loss_pct = st.number_input(
+                        "Stop Loss (%)",
+                        min_value=0.1,
+                        max_value=50.0,
+                        value=2.0,
+                        step=0.1,
+                        help="Pourcentage de perte pour stop automatique"
+                    )
+                    
+                    take_profit_pct = st.number_input(
+                        "Take Profit (%)",
+                        min_value=0.1,
+                        max_value=100.0,
+                        value=5.0,
+                        step=0.1,
+                        help="Pourcentage de gain pour prise de profit automatique"
+                    )
+                
+                st.markdown("---")
+                
+                if st.button("🚀 Créer et Démarrer Session", type="primary", width='stretch'):
+                    if not st.session_state.get('global_ibkr_connected', False):
+                        st.error("❌ Connectez-vous d'abord à IBKR")
+                    else:
+                        with st.spinner("Création de la session..."):
+                            config = {
+                                'polling_interval': polling_interval,
+                                'max_position_size': max_position_size,
+                                'max_daily_trades': max_daily_trades,
+                                'stop_loss_pct': stop_loss_pct,
+                                'take_profit_pct': take_profit_pct
+                            }
+                            
+                            session_id = manager.create_session(
+                                ticker_id=selected_ticker_id,
+                                strategy_id=selected_strategy_id,
+                                config=config
+                            )
+                            
+                            manager.start_session(session_id)
+                            
+                            st.success(f"✅ Session #{session_id} créée et démarrée !")
+                            time_module.sleep(1)
+                            st.rerun()
+            
+            with col_form2:
+                st.info("""
+                ### ℹ️ Comment ça marche ?
+                
+                **1. Sélection**
+                - Choisissez une action
+                - Choisissez une stratégie
+                
+                **2. Configuration**
+                - Définissez les limites de risque
+                - Configurez la fréquence d'analyse
+                
+                **3. Exécution Automatique**
+                - Le système surveille en continu
+                - Calcule les indicateurs
+                - Détecte les signaux BUY/SELL
+                - Passe des ordres automatiquement
+                
+                **⚠️ Important**
+                - Nécessite connexion IBKR active
+                - Respecte les limites définies
+                - Arrêtez la session à tout moment
+                """)
+        
+        # ========== TAB 2: SESSIONS ACTIVES ==========
+        with tab2:
+            st.subheader("▶️ Sessions de Trading en Cours")
+            
+            # Get all sessions
+            all_sessions = manager.get_all_sessions()
+            active_sessions = [s for s in all_sessions if s['is_active']]
+            
+            if not active_sessions:
+                st.info("ℹ️ Aucune session active. Créez-en une dans l'onglet 'Nouvelle Session'.")
+            else:
+                for session in active_sessions:
+                    with st.expander(f"📊 {session['ticker']} - {session['strategy']} (Session #{session['id']})", expanded=True):
+                        # Get detailed status
+                        trader = manager.traders.get(session['id'])
+                        if trader:
+                            status = trader.get_status()
+                            
+                            col1, col2, col3, col4 = st.columns(4)
+                            
+                            with col1:
+                                st.metric("📈 Position", status['current_position'])
+                            
+                            with col2:
+                                st.metric("📝 Ordres", status['total_orders'])
+                            
+                            with col3:
+                                pnl = status['total_pnl']
+                                st.metric("💰 P&L", f"{pnl:.2f} €", delta=f"{pnl:.2f} €" if pnl != 0 else None)
+                            
+                            with col4:
+                                st.metric("📊 Buffer", f"{status['buffer_size']} points")
+                            
+                            st.markdown("---")
+                            
+                            col_info1, col_info2 = st.columns(2)
+                            
+                            with col_info1:
+                                if status['last_signal']:
+                                    signal_color = "🟢" if status['last_signal'] == "BUY" else "🔴"
+                                    st.write(f"**Dernier Signal:** {signal_color} {status['last_signal']}")
+                                    if status['last_signal_at']:
+                                        st.caption(f"à {status['last_signal_at'].strftime('%H:%M:%S')}")
+                                
+                                if status['last_check_at']:
+                                    st.write(f"**Dernière vérification:** {status['last_check_at'].strftime('%H:%M:%S')}")
+                            
+                            with col_info2:
+                                if status['started_at']:
+                                    st.write(f"**Démarré:** {status['started_at'].strftime('%Y-%m-%d %H:%M')}")
+                                
+                                uptime = datetime.now() - status['started_at'] if status['started_at'] else timedelta(0)
+                                hours = int(uptime.total_seconds() // 3600)
+                                minutes = int((uptime.total_seconds() % 3600) // 60)
+                                st.write(f"**Uptime:** {hours}h {minutes}m")
+                            
+                            st.markdown("---")
+                            
+                            col_btn1, col_btn2 = st.columns(2)
+                            
+                            with col_btn1:
+                                if st.button(f"🛑 Arrêter Session #{session['id']}", type="secondary", width='stretch'):
+                                    manager.stop_session(session['id'])
+                                    st.success(f"Session #{session['id']} arrêtée")
+                                    time_module.sleep(1)
+                                    st.rerun()
+                            
+                            with col_btn2:
+                                if st.button(f"📊 Voir Ordres", key=f"orders_{session['id']}", width='stretch'):
+                                    st.info("Consultez l'onglet 'Passage d'Ordres' pour voir tous les ordres")
+        
+        # ========== TAB 3: HISTORIQUE ==========
+        with tab3:
+            st.subheader("📜 Historique des Sessions")
+            
+            # Get all sessions
+            all_sessions = manager.get_all_sessions()
+            
+            if not all_sessions:
+                st.info("ℹ️ Aucune session enregistrée")
+            else:
+                # Create DataFrame
+                sessions_data = []
+                for session in all_sessions:
+                    sessions_data.append({
+                        'ID': session['id'],
+                        'Action': session['ticker'],
+                        'Stratégie': session['strategy'],
+                        'Statut': session['status'],
+                        'Actif': '✅' if session['is_active'] else '❌',
+                        'Position': session['current_position'],
+                        'Ordres': session['total_orders'],
+                        'P&L (€)': f"{session['total_pnl']:.2f}",
+                        'Démarré': session['started_at'].strftime('%Y-%m-%d %H:%M') if session['started_at'] else 'N/A',
+                        'Arrêté': session['stopped_at'].strftime('%Y-%m-%d %H:%M') if session['stopped_at'] else 'N/A'
+                    })
+                
+                sessions_df = pd.DataFrame(sessions_data)
+                st.dataframe(sessions_df, width='stretch', hide_index=True)
+                
+                # Statistics
+                st.markdown("---")
+                st.subheader("📊 Statistiques Globales")
+                
+                total_sessions = len(all_sessions)
+                active_count = len([s for s in all_sessions if s['is_active']])
+                total_pnl = sum(s['total_pnl'] for s in all_sessions)
+                total_orders_all = sum(s['total_orders'] for s in all_sessions)
+                
+                col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
+                
+                with col_stat1:
+                    st.metric("📝 Total Sessions", total_sessions)
+                
+                with col_stat2:
+                    st.metric("▶️ Actives", active_count)
+                
+                with col_stat3:
+                    st.metric("💰 P&L Total", f"{total_pnl:.2f} €", delta=f"{total_pnl:.2f} €" if total_pnl != 0 else None)
+                
+                with col_stat4:
+                    st.metric("📋 Ordres Générés", total_orders_all)
+    
+    except ImportError as e:
+        st.error(f"❌ Module manquant: {e}")
+        st.code("pip install ib_insync sqlalchemy pandas")
+    
+    except Exception as e:
+        st.error(f"❌ Erreur: {e}")
+        import traceback
+        st.code(traceback.format_exc())
+
+
 def indicators_page():
     """Page d'explication des indicateurs techniques"""
     st.header("📚 Indicateurs Techniques")
