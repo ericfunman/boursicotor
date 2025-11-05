@@ -698,8 +698,10 @@ class OrderManager:
                 logger.info(f"IBKR order IDs: {ibkr_order_ids}")
                 # Log details of each IBKR trade
                 for t in ib_trades:
-                    qty = t.order.totalQuantity if t.order.totalQuantity > 0 else (t.orderStatus.filled if hasattr(t.orderStatus, 'filled') else 0)
-                    logger.info(f"  IBKR trade: ID={t.order.orderId}, {t.contract.symbol} {t.order.action} qty={qty} (total={t.order.totalQuantity}, filled={t.orderStatus.filled if hasattr(t.orderStatus, 'filled') else 'N/A'}), status={t.orderStatus.status}")
+                    # Calculate filled quantity from fills/executions
+                    filled_qty = sum(f.execution.shares for f in t.fills) if t.fills else 0
+                    qty = t.order.totalQuantity if t.order.totalQuantity > 0 else filled_qty
+                    logger.info(f"  IBKR trade: ID={t.order.orderId}, {t.contract.symbol} {t.order.action} qty={qty} (total={t.order.totalQuantity}, filled={t.orderStatus.filled if hasattr(t.orderStatus, 'filled') else 'N/A'}, from_fills={filled_qty}), status={t.orderStatus.status}")
             
             # Get pending/submitted orders from database
             pending_orders = self.db.query(Order).filter(
@@ -727,10 +729,15 @@ class OrderManager:
                 for ib_trade in ib_trades:
                     ib_symbol = ib_trade.contract.symbol
                     ib_action = ib_trade.order.action
-                    # For filled orders, totalQuantity may be 0, use filledQuantity instead
+                    # For filled orders, totalQuantity may be 0, use filled quantity from fills/executions
                     ib_quantity = ib_trade.order.totalQuantity
-                    if ib_quantity == 0 and hasattr(ib_trade.orderStatus, 'filled'):
-                        ib_quantity = ib_trade.orderStatus.filled
+                    if ib_quantity == 0:
+                        # Try orderStatus.filled first
+                        if hasattr(ib_trade.orderStatus, 'filled') and ib_trade.orderStatus.filled > 0:
+                            ib_quantity = ib_trade.orderStatus.filled
+                        # If still 0, calculate from fills/executions
+                        elif ib_trade.fills:
+                            ib_quantity = sum(f.execution.shares for f in ib_trade.fills)
                     ib_order_id = ib_trade.order.orderId
                     
                     # Skip if this IBKR trade was already matched
