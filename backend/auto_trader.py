@@ -181,10 +181,10 @@ class AutoTrader:
             ).count()
             logger.info(f"Total historical data points in DB for ticker_id {self.ticker.id}: {total_count}")
             
-            # Get last 200 historical data points
+            # Get last 200 historical data points - use 'timestamp' instead of 'date'
             historical = db.query(HistoricalData).filter(
                 HistoricalData.ticker_id == self.ticker.id
-            ).order_by(HistoricalData.date.desc()).limit(self.buffer_size).all()
+            ).order_by(HistoricalData.timestamp.desc()).limit(self.buffer_size).all()
             
             logger.info(f"Found {len(historical)} historical data points to load into buffer")
             
@@ -194,7 +194,7 @@ class AutoTrader:
             # Add to buffer
             for h in historical:
                 self.price_buffer.append({
-                    'timestamp': h.date,
+                    'timestamp': h.timestamp,  # Use timestamp instead of date
                     'open': h.open,
                     'high': h.high,
                     'low': h.low,
@@ -247,24 +247,26 @@ class AutoTrader:
             
             # Fallback to Yahoo Finance (delayed data)
             logger.debug("Falling back to Yahoo Finance...")
-            df = self.data_collector.fetch_yahoo_data(
-                self.ticker.symbol,
-                start_date=(datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'),
-                end_date=datetime.now().strftime('%Y-%m-%d')
-            )
             
-            if df is not None and not df.empty:
-                last_row = df.iloc[-1]
-                price_data = {
-                    'timestamp': datetime.now(),
-                    'open': last_row['Open'],
-                    'high': last_row['High'],
-                    'low': last_row['Low'],
-                    'close': last_row['Close'],
-                    'volume': last_row['Volume']
-                }
-                logger.info(f"✅ Got Yahoo price: {price_data['close']:.2f}")
-                return price_data
+            try:
+                import yfinance as yf
+                ticker_yf = yf.Ticker(self.ticker.symbol)
+                hist = ticker_yf.history(period='1d', interval='1m')
+                
+                if not hist.empty:
+                    last_row = hist.iloc[-1]
+                    price_data = {
+                        'timestamp': datetime.now(),
+                        'open': last_row['Open'],
+                        'high': last_row['High'],
+                        'low': last_row['Low'],
+                        'close': last_row['Close'],
+                        'volume': last_row['Volume']
+                    }
+                    logger.info(f"✅ Got Yahoo price: {price_data['close']:.2f}")
+                    return price_data
+            except Exception as yf_error:
+                logger.warning(f"Yahoo Finance failed: {yf_error}")
             
             logger.warning(f"❌ Could not fetch live price for {self.ticker.symbol}")
             return None
