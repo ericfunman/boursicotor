@@ -181,43 +181,51 @@ class OrderManager:
             True if successful, False otherwise
         """
         try:
-            logger.info(f"Step 4a: Getting contract for {ticker.symbol}...")
-            # Get contract
-            contract = self.ibkr_collector.get_contract(
-                ticker.symbol,
-                exchange='SMART',
-                currency=ticker.currency
-            )
+            logger.info(f"Step 4a: Creating Stock contract for {ticker.symbol}...")
             
-            if not contract:
-                logger.error(f"Step 4a FAILED: Could not get contract for {ticker.symbol}")
+            # Create contract directly instead of using get_contract (which can block)
+            from ib_insync import Stock
+            contract = Stock(ticker.symbol, 'SMART', ticker.currency)
+            
+            logger.info(f"Step 4a: Contract created: {contract}")
+            logger.info(f"Step 4b: Qualifying contract with IBKR...")
+            
+            # Qualify the contract (get details from IBKR)
+            qualified = self.ibkr_collector.ib.qualifyContracts(contract)
+            
+            if not qualified:
+                logger.error(f"Step 4b FAILED: Could not qualify contract for {ticker.symbol}")
+                order.status = OrderStatus.ERROR
+                order.status_message = f"Invalid symbol: {ticker.symbol}"
+                self.db.commit()
                 return False
             
-            logger.info(f"Step 4a OK: Contract obtained for {ticker.symbol}")
-            logger.info(f"Step 4b: Creating IBKR order object...")
+            contract = qualified[0]
+            logger.info(f"Step 4b OK: Contract qualified: {contract}")
+            logger.info(f"Step 4c: Creating IBKR order object...")
             
             # Create IBKR order object
             ib_order = self._create_ib_order(order)
             
             if not ib_order:
-                logger.error("Step 4b FAILED: Could not create IBKR order object")
+                logger.error("Step 4c FAILED: Could not create IBKR order object")
                 return False
             
-            logger.info(f"Step 4b OK: IBKR order object created (type={order.order_type})")
-            logger.info(f"Step 4c: Placing order with IBKR...")
+            logger.info(f"Step 4c OK: IBKR order object created (type={order.order_type})")
+            logger.info(f"Step 4d: Placing order with IBKR...")
             
-            # Place order - THIS CAN BLOCK!
+            # Place order
             trade = self.ibkr_collector.ib.placeOrder(contract, ib_order)
             
-            logger.info(f"Step 4c OK: placeOrder() returned, trade object received")
-            logger.info(f"Step 4d: Updating order with IBKR IDs...")
+            logger.info(f"Step 4d OK: placeOrder() returned, trade: {trade}")
+            logger.info(f"Step 4e: Updating order with IBKR IDs...")
             
             # Update order with IBKR IDs
             order.ibkr_order_id = ib_order.orderId
             order.perm_id = ib_order.permId if hasattr(ib_order, 'permId') else None
             order.status = OrderStatus.SUBMITTED
             order.submitted_at = datetime.utcnow()
-            order.status_message = "Submitted to IBKR"
+            order.status_message = f"Submitted to IBKR (ID: {ib_order.orderId})"
             
             logger.info(f"Step 4e: Committing order update to DB...")
             self.db.commit()
