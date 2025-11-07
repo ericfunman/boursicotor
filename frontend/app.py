@@ -3676,18 +3676,44 @@ def order_placement_page():
                             # Debug: Afficher les paramètres
                             st.info(f"🔍 Création ordre: {action} {quantity} {selected_symbol} @ {order_type}")
                             
-                            # Créer l'ordre (sans spinner pour voir les erreurs)
-                            order = order_manager.create_order(
-                                symbol=selected_symbol,
-                                action=action,
-                                quantity=quantity,
-                                order_type=order_type,
-                                limit_price=limit_price,
-                                stop_price=stop_price,
-                                strategy_id=strategy_id,
-                                notes=notes,
-                                is_paper_trade=is_paper
-                            )
+                            # Créer l'ordre avec timeout (utilise threading pour éviter bloquer Streamlit)
+                            with st.spinner(f"📝 Placement de l'ordre {action} {quantity} {selected_symbol}..."):
+                                import threading
+                                import time
+                                
+                                order_result = [None]
+                                error_result = [None]
+                                
+                                def place_order():
+                                    try:
+                                        order_result[0] = order_manager.create_order(
+                                            symbol=selected_symbol,
+                                            action=action,
+                                            quantity=quantity,
+                                            order_type=order_type,
+                                            limit_price=limit_price,
+                                            stop_price=stop_price,
+                                            strategy_id=strategy_id,
+                                            notes=notes,
+                                            is_paper_trade=is_paper
+                                        )
+                                    except Exception as e:
+                                        error_result[0] = e
+                                
+                                # Run order placement in a thread with timeout
+                                order_thread = threading.Thread(target=place_order, daemon=True)
+                                order_thread.start()
+                                order_thread.join(timeout=15)  # Wait max 15 seconds
+                                
+                                if order_thread.is_alive():
+                                    st.error("❌ Timeout: L'ordre a pris trop longtemps à créer (>15s)")
+                                    st.warning("⚠️ Vérifiez votre connexion IBKR et les logs")
+                                    order = None
+                                elif error_result[0]:
+                                    st.error(f"❌ Erreur: {error_result[0]}")
+                                    order = order_result[0]
+                                else:
+                                    order = order_result[0]
                             
                             if order:
                                 st.success(f"✅ Ordre créé avec succès! (ID: {order.id})")
@@ -3709,7 +3735,7 @@ def order_placement_page():
                                 
                                 st.rerun()
                             else:
-                                st.error("❌ Échec de la création de l'ordre - order_manager.create_order() a retourné None")
+                                st.error("❌ Échec de la création de l'ordre")
                                 st.warning("⚠️ Vérifiez les logs dans le terminal Streamlit pour plus de détails")
                         
                         except Exception as e:

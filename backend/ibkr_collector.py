@@ -136,7 +136,7 @@ class IBKRCollector:
     
     def get_contract(self, symbol: str, exchange: str = 'SMART', currency: str = None) -> Optional[Stock]:
         """
-        Get and qualify a stock contract
+        Get and qualify a stock contract with timeout protection
         
         Tries to qualify with multiple exchanges and currencies to handle both US and European stocks.
         
@@ -149,6 +149,9 @@ class IBKRCollector:
             Qualified contract or None
         """
         try:
+            import threading
+            import time
+            
             # If currency not specified, try common currencies
             currencies_to_try = []
             if currency:
@@ -160,8 +163,8 @@ class IBKRCollector:
             # Determine exchanges to try
             exchanges_to_try = []
             if exchange == 'SMART':
-                # For SMART routing, try both NASDAQ and SBF to handle both US and EU stocks
-                exchanges_to_try = ['SMART']  # Let IBKR auto-route first
+                # For SMART routing, try SMART first
+                exchanges_to_try = ['SMART']
             else:
                 exchanges_to_try = [exchange]
             
@@ -170,14 +173,37 @@ class IBKRCollector:
                 for ex in exchanges_to_try:
                     try:
                         contract = Stock(symbol, ex, curr)
-                        contracts = self.ib.qualifyContracts(contract)
                         
+                        # Call qualifyContracts with timeout protection
+                        # Use threading to avoid blocking indefinitely
+                        result = [None]
+                        error = [None]
+                        
+                        def qualify():
+                            try:
+                                result[0] = self.ib.qualifyContracts(contract)
+                            except Exception as e:
+                                error[0] = e
+                        
+                        thread = threading.Thread(target=qualify, daemon=True)
+                        thread.start()
+                        thread.join(timeout=3)  # Wait max 3 seconds
+                        
+                        if error[0]:
+                            logger.debug(f"Exchange {ex}, currency {curr} failed for {symbol}: {error[0]}")
+                            continue
+                        
+                        if thread.is_alive():
+                            logger.debug(f"Exchange {ex}, currency {curr} timeout for {symbol} (>3s)")
+                            continue
+                        
+                        contracts = result[0]
                         if contracts:
                             qualified = contracts[0]
                             logger.info(f"Contract qualified: {qualified.symbol} on {qualified.primaryExchange} (exchange: {qualified.exchange}, currency: {qualified.currency})")
                             return qualified
                     except Exception as e:
-                        logger.debug(f"Exchange {ex}, currency {curr} failed for {symbol}: {e}")
+                        logger.debug(f"Exception in get_contract for {ex}/{curr}/{symbol}: {e}")
                         continue
             
             logger.warning(f"Could not qualify contract for {symbol} on any exchange/currency combination")
