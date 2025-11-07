@@ -64,7 +64,7 @@ class DataCollectionJob(Base):
     # Job parameters
     ticker_symbol = Column(String(10), nullable=False, index=True)
     ticker_name = Column(String(100))
-    source = Column(String(50), nullable=False)  # 'ibkr' or 'yahoo'
+    source = Column(String(50), nullable=False)  # 'ibkr' only
     duration = Column(String(20))  # e.g., '1 M', '3 M'
     interval = Column(String(20))  # e.g., '5 secs', '1 min'
     
@@ -179,6 +179,72 @@ class Backtest(Base):
     strategy = relationship("Strategy", back_populates="backtests")
 
 
+class OrderStatus(enum.Enum):
+    """Order status enumeration"""
+    PENDING = "pending"
+    SUBMITTED = "submitted"
+    FILLED = "filled"
+    PARTIALLY_FILLED = "partially_filled"
+    CANCELLED = "cancelled"
+    REJECTED = "rejected"
+    ERROR = "error"
+
+
+class Order(Base):
+    """Live trading orders"""
+    __tablename__ = "orders"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Order identification
+    ibkr_order_id = Column(Integer, unique=True, index=True)  # IBKR's order ID
+    perm_id = Column(Integer)  # IBKR's permanent order ID
+    
+    # Order details
+    ticker_id = Column(Integer, ForeignKey("tickers.id"), nullable=False, index=True)
+    strategy_id = Column(Integer, ForeignKey("strategies.id"), index=True)
+    
+    # Order parameters
+    action = Column(String(10), nullable=False)  # BUY, SELL
+    order_type = Column(String(20), nullable=False)  # MARKET, LIMIT, STOP, STOP_LIMIT
+    quantity = Column(Integer, nullable=False)
+    limit_price = Column(Float)  # For LIMIT and STOP_LIMIT orders
+    stop_price = Column(Float)  # For STOP and STOP_LIMIT orders
+    
+    # Execution details
+    filled_quantity = Column(Integer, default=0)
+    remaining_quantity = Column(Integer)
+    avg_fill_price = Column(Float)
+    commission = Column(Float, default=0.0)
+    
+    # Status tracking
+    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING, nullable=False, index=True)
+    status_message = Column(Text)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    submitted_at = Column(DateTime)
+    filled_at = Column(DateTime)
+    cancelled_at = Column(DateTime)
+    
+    # Additional info
+    is_paper_trade = Column(Boolean, default=True)
+    notes = Column(Text)
+    parent_order_id = Column(Integer, ForeignKey("orders.id"))  # For bracket orders
+    
+    # Relationships
+    ticker = relationship("Ticker")
+    strategy = relationship("Strategy")
+    # Note: child_orders relationship removed to avoid circular import issues
+    # Use direct queries for parent/child relationships if needed
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_order_status_created', 'status', 'created_at'),
+        Index('idx_order_ticker_status', 'ticker_id', 'status'),
+    )
+
+
 class Trade(Base):
     """Trade execution records"""
     __tablename__ = "trades"
@@ -205,6 +271,61 @@ class Trade(Base):
     # Relationships
     ticker = relationship("Ticker", back_populates="trades")
     strategy = relationship("Strategy", back_populates="trades")
+
+
+class AutoTraderStatus(enum.Enum):
+    """Auto trader session status"""
+    RUNNING = "running"
+    STOPPED = "stopped"
+    PAUSED = "paused"
+    ERROR = "error"
+
+
+class AutoTraderSession(Base):
+    """Auto trading session tracking"""
+    __tablename__ = "auto_trader_sessions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    ticker_id = Column(Integer, ForeignKey("tickers.id"), nullable=False)
+    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=False)
+    
+    status = Column(Enum(AutoTraderStatus), default=AutoTraderStatus.STOPPED, nullable=False)
+    
+    # Configuration
+    polling_interval = Column(Integer, default=60)  # seconds between data fetch
+    max_position_size = Column(Integer, default=100)  # max shares per position
+    max_daily_trades = Column(Integer, default=10)  # max trades per day
+    stop_loss_pct = Column(Float, default=2.0)  # stop loss percentage
+    take_profit_pct = Column(Float, default=5.0)  # take profit percentage
+    
+    # Session info
+    started_at = Column(DateTime)
+    stopped_at = Column(DateTime)
+    last_check_at = Column(DateTime)  # last time we checked for signals
+    
+    # Performance tracking
+    total_orders = Column(Integer, default=0)
+    successful_orders = Column(Integer, default=0)
+    failed_orders = Column(Integer, default=0)
+    total_pnl = Column(Float, default=0.0)
+    
+    # Current state
+    current_position = Column(Integer, default=0)  # current shares held
+    last_signal = Column(String(10))  # BUY, SELL, HOLD
+    last_signal_at = Column(DateTime)
+    error_message = Column(Text)
+    
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    # Relationships
+    ticker = relationship("Ticker")
+    strategy = relationship("Strategy")
+    
+    __table_args__ = (
+        Index('idx_auto_trader_status', 'status'),
+        Index('idx_auto_trader_ticker_strategy', 'ticker_id', 'strategy_id'),
+    )
 
 
 class MLModel(Base):

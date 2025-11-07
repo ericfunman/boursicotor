@@ -31,8 +31,11 @@ sys.path.append(str(Path(__file__).parent.parent))
 from backend.config import logger, FRENCH_TICKERS
 from backend.data_collector import DataCollector
 from backend.technical_indicators import calculate_and_update_indicators
-from backend.models import SessionLocal, Ticker as TickerModel, HistoricalData
+from backend.models import SessionLocal, Ticker as TickerModel, HistoricalData, Order, OrderStatus, init_db
 from sqlalchemy import func
+
+# Initialize database on startup
+init_db()
 
 # IBKR client is optional - loaded lazily to avoid event loop warnings
 IBKR_AVAILABLE = False
@@ -183,6 +186,20 @@ def main():
     # Initialize global IBKR connection
     init_global_ibkr_connection()
     
+    # Auto-connect to IBKR on startup if not already connected
+    if not st.session_state.get('global_ibkr_connected', False):
+        try:
+            # Attempt automatic connection
+            success, message = connect_global_ibkr()
+            if success:
+                st.info(f"🔌 Connexion IBKR automatique réussie: {message}")
+            else:
+                st.warning(f"⚠️ Connexion IBKR automatique échouée: {message}")
+                st.info("💡 Vous pouvez vous connecter manuellement depuis la barre latérale")
+        except Exception as e:
+            st.warning(f"⚠️ Erreur lors de la connexion automatique IBKR: {e}")
+            st.info("💡 Vous pouvez vous connecter manuellement depuis la barre latérale")
+    
     # Sidebar
     with st.sidebar:
         st.header("⚙️ Configuration")
@@ -190,9 +207,9 @@ def main():
         # Page selection
         page = st.radio(
             "Navigation",
-            ["📊 Dashboard", "💾 Collecte de Données", "� Historique des collectes",
-             "📈 Analyse Technique", "� Cours Live", "�🔙 Backtesting", 
-             "🤖 Trading Automatique", "⚙️ Paramètres"]
+            ["📊 Dashboard", "💾 Collecte de Données", "📜 Historique des collectes",
+             "📈 Analyse Technique", "💹 Cours Live", "🔙 Backtesting",
+             "📚 Indicateurs", "📝 Passage d'Ordres", "🤖 Trading Automatique", "⚙️ Paramètres"]
         )
         
         st.markdown("---")
@@ -244,14 +261,18 @@ def main():
         dashboard_page()
     elif page == "💾 Collecte de Données":
         data_collection_page()
-    elif page == "� Historique des collectes":
+    elif page == "📜 Historique des collectes":
         jobs_monitoring_page()
-    elif page == "�📈 Analyse Technique":
+    elif page == "📈 Analyse Technique":
         technical_analysis_page()
-    elif page == "� Cours Live":
+    elif page == "💹 Cours Live":
         live_prices_page()
-    elif page == "�🔙 Backtesting":
+    elif page == "🔙 Backtesting":
         backtesting_page()
+    elif page == "📚 Indicateurs":
+        indicators_page()
+    elif page == "📝 Passage d'Ordres":
+        order_placement_page()
     elif page == "🤖 Trading Automatique":
         auto_trading_page()
     elif page == "⚙️ Paramètres":
@@ -356,8 +377,57 @@ def dashboard_page():
             
             st.markdown("---")
             
+            # Get positions from OrderManager (trading positions)
+            st.subheader("� Positions Trading (via OrderManager)")
+            
+            if 'order_manager' not in st.session_state or st.session_state.order_manager is None:
+                from backend.order_manager import OrderManager
+                st.session_state.order_manager = OrderManager(collector)
+            
+            try:
+                trading_positions = st.session_state.order_manager.get_positions()
+                
+                if trading_positions:
+                    import pandas as pd
+                    pos_data = []
+                    for pos in trading_positions:
+                        pos_data.append({
+                            'Symbole': pos['symbol'],
+                            'Quantité': pos['position'],
+                            'Prix Moyen': f"{pos['avg_cost']:.2f} {pos['currency']}",
+                            'Prix Marché': f"{pos['market_price']:.2f} {pos['currency']}" if pos['market_price'] else 'N/A',
+                            'Valeur': f"{pos['market_value']:.2f} {pos['currency']}" if pos['market_value'] else 'N/A',
+                            'P&L Non Réalisé': f"{pos['unrealized_pnl']:+.2f} {pos['currency']}" if pos['unrealized_pnl'] else 'N/A',
+                            'Exchange': pos['exchange']
+                        })
+                    
+                    positions_df = pd.DataFrame(pos_data)
+                    st.dataframe(positions_df, width='stretch', hide_index=True)
+                    
+                    # Summary
+                    total_value = sum(p['market_value'] for p in trading_positions if p['market_value'])
+                    total_upnl = sum(p['unrealized_pnl'] for p in trading_positions if p['unrealized_pnl'])
+                    
+                    col_pos1, col_pos2, col_pos3 = st.columns(3)
+                    with col_pos1:
+                        st.metric("Nombre de positions", len(trading_positions))
+                    with col_pos2:
+                        st.metric("Valeur totale", f"{total_value:,.2f} €")
+                    with col_pos3:
+                        pnl_color = "normal" if total_upnl >= 0 else "inverse"
+                        st.metric("P&L Total Non Réalisé", f"{total_upnl:+,.2f} €", delta_color=pnl_color)
+                else:
+                    st.info("ℹ️ Aucune position ouverte pour le moment")
+                    st.caption("Les positions apparaîtront ici après l'exécution de vos ordres")
+                    
+            except Exception as e:
+                logger.error(f"Error getting trading positions: {e}")
+                st.warning(f"⚠️ Impossible de récupérer les positions trading: {e}")
+            
+            st.markdown("---")
+            
             # Get positions
-            st.subheader("📊 Positions Actuelles")
+            st.subheader("�📊 Positions Actuelles (via Collector)")
             
             positions = None
             try:
@@ -429,24 +499,7 @@ def data_collection_page():
     # Data source selection
     st.subheader("📡 Source de Données")
     
-    col_source1, col_source2 = st.columns(2)
-    
-    with col_source1:
-        data_source = st.radio(
-            "Choisir la source",
-            ["💼 IBKR / Lynx (Temps Réel)", "📊 Yahoo Finance (Historique)"],
-            index=0,  # IBKR par défaut
-            help="IBKR/Lynx: Données temps réel via IB Gateway | Yahoo Finance: Données historiques"
-        )
-    
-    with col_source2:
-        if data_source == "💼 IBKR / Lynx (Temps Réel)":
-            st.success("**IBKR / Lynx**\n- ✅ Données réelles temps réel\n- ✅ Via IB Gateway\n- 📊 Aucune limite API\n- ⚡ Latence minimale")
-        else:  # Yahoo Finance
-            st.info("**Yahoo Finance**\n- ✅ Données réelles\n- ✅ Historique massif (26+ ans)\n- ⚠️ Délai de 15 minutes")
-    
-    use_ibkr = data_source == "💼 IBKR / Lynx (Temps Réel)"
-    use_yahoo = data_source == "📊 Yahoo Finance (Historique)"
+    st.info("**Source de données : IBKR / Lynx**\n- ✅ Données réelles temps réel\n- ✅ Via IB Gateway\n- 📊 Aucune limite API\n- ⚡ Latence minimale")
     
     st.markdown("---")
     
@@ -630,168 +683,83 @@ def data_collection_page():
                         help="Nom de l'entreprise"
                     )
         
-        # Duration and interval options depend on source
-        if use_ibkr:
-            # IBKR options
-            st.markdown("**IBKR / Lynx** - Périodes et intervalles")
-            st.info("💼 IBKR fournit des données temps réel sans limitation d'API")
-            
-            duration_options = {
-                "1 jour": "1 D",
-                "3 jours": "3 D",
-                "1 semaine": "1 W",
-                "2 semaines": "2 W",
-                "1 mois": "1 M",
-                "3 mois": "3 M",
-                "6 mois": "6 M",
-                "1 an": "1 Y",
-                "2 ans": "2 Y"
-            }
-            selected_duration = st.selectbox(
-                "Période",
-                list(duration_options.keys()),
-                index=4,  # Default: 1 mois
-                help="IBKR: Données temps réel et historiques"
-            )
-            period = duration_options[selected_duration]
-            
-            # Warning about sub-5-second intervals
-            st.warning("⚠️ **Important** : Les intervalles < 5 secondes ne sont disponibles que pour certaines actions très liquides (principalement US). Pour les actions européennes (TTE, AI, etc.), utilisez 5 secondes minimum.")
-            
-            # Info about streaming optimization
-            st.success("✨ **Mode optimisé** : Les données sont sauvegardées progressivement pendant la collecte. Vous pouvez demander de grandes périodes sans problème de mémoire !")
-            
-            # Interval options for IBKR
-            interval_options = {
-                "5 secondes": "5 secs",
-                "10 secondes": "10 secs",
-                "15 secondes": "15 secs",
-                "30 secondes": "30 secs",
-                "1 minute": "1 min",
-                "2 minutes": "2 mins",
-                "3 minutes": "3 mins",
-                "5 minutes": "5 mins",
-                "10 minutes": "10 mins",
-                "15 minutes": "15 mins",
-                "20 minutes": "20 mins",
-                "30 minutes": "30 mins",
-                "1 heure": "1 hour",
-                "2 heures": "2 hours",
-                "3 heures": "3 hours",
-                "4 heures": "4 hours",
-                "8 heures": "8 hours",
-                "1 jour": "1 day",
-                "1 semaine": "1 week",
-                "1 mois": "1 month"
-            }
-            selected_interval = st.selectbox(
-                "Intervalle",
-                list(interval_options.keys()),
-                index=4,  # Default: 1 minute
-                help="IBKR: Intervalles de 5 secondes à 1 mois (intervalles < 5s limités aux actions US très liquides)"
-            )
-            interval = interval_options[selected_interval]
-            
-        elif use_yahoo:
-            # Yahoo Finance options
-            st.markdown("**Yahoo Finance** - Périodes et intervalles")
-            st.info("📊 Yahoo Finance fournit des données historiques gratuites (délai 15min)")
-            
-            duration_options = {
-                "1 jour": "1d",
-                "5 jours": "5d",
-                "1 mois": "1mo",
-                "3 mois": "3mo",
-                "6 mois": "6mo",
-                "1 an": "1y",
-                "2 ans": "2y",
-                "5 ans": "5y",
-                "10 ans": "10y",
-                "Maximum": "max"
-            }
-            selected_duration = st.selectbox(
-                "Période",
-                list(duration_options.keys()),
-                index=7,  # Default: 5 ans
-                help="Yahoo Finance: 1d à max (26+ ans disponibles)"
-            )
-            period = duration_options[selected_duration]
-            
-            # Interval options for Yahoo
-            interval_options = {
-                "1 minute": "1m",
-                "2 minutes": "2m",
-                "5 minutes": "5m",
-                "15 minutes": "15m",
-                "30 minutes": "30m",
-                "1 heure": "1h",
-                "1 jour": "1d",
-                "1 semaine": "1wk",
-                "1 mois": "1mo"
-            }
-            selected_interval = st.selectbox(
-                "Intervalle",
-                list(interval_options.keys()),
-                index=6,  # Default: 1 jour
-                help="⚠️ Limitations Yahoo:\n1m: max 7 jours\n2-30m: max 60 jours\n1h+: plusieurs mois\n1d+: illimité"
-            )
-            interval = interval_options[selected_interval]
-            
-            # Warning for intraday limitations
-            if interval == "1m":
-                if selected_duration not in ["1 jour", "5 jours"]:
-                    st.error("❌ Intervalle 1 minute limité à 7 jours maximum par Yahoo Finance")
-            elif interval in ["2m", "5m", "15m", "30m"]:
-                if selected_duration in ["3 mois", "6 mois", "1 an", "2 ans", "5 ans", "10 ans", "Maximum"]:
-                    st.warning("⚠️ Ces intervalles sont limités à 60 jours maximum par Yahoo Finance")
-            elif interval == "1h":
-                if selected_duration in ["2 ans", "5 ans", "10 ans", "Maximum"]:
-                    st.warning("⚠️ Intervalle 1 heure: données limitées au-delà de quelques mois")
+        # IBKR options
+        st.markdown("**IBKR / Lynx** - Périodes et intervalles")
+        st.info("💼 IBKR fournit des données temps réel sans limitation d'API")
+        
+        duration_options = {
+            "1 jour": "1 D",
+            "3 jours": "3 D",
+            "1 semaine": "1 W",
+            "2 semaines": "2 W",
+            "1 mois": "1 M",
+            "3 mois": "3 M",
+            "6 mois": "6 M",
+            "1 an": "1 Y",
+            "2 ans": "2 Y"
+        }
+        selected_duration = st.selectbox(
+            "Période",
+            list(duration_options.keys()),
+            index=4,  # Default: 1 mois
+            help="IBKR: Données temps réel et historiques"
+        )
+        period = duration_options[selected_duration]
+        
+        # Warning about sub-5-second intervals
+        st.warning("⚠️ **Important** : Les intervalles < 5 secondes ne sont disponibles que pour certaines actions très liquides (principalement US). Pour les actions européennes (TTE, AI, etc.), utilisez 5 secondes minimum.")
+        
+        # Info about streaming optimization
+        st.success("✨ **Mode optimisé** : Les données sont sauvegardées progressivement pendant la collecte. Vous pouvez demander de grandes périodes sans problème de mémoire !")
+        
+        # Interval options for IBKR
+        interval_options = {
+            "5 secondes": "5 secs",
+            "10 secondes": "10 secs",
+            "15 secondes": "15 secs",
+            "30 secondes": "30 secs",
+            "1 minute": "1 min",
+            "2 minutes": "2 mins",
+            "3 minutes": "3 mins",
+            "5 minutes": "5 mins",
+            "10 minutes": "10 mins",
+            "15 minutes": "15 mins",
+            "20 minutes": "20 mins",
+            "30 minutes": "30 mins",
+            "1 heure": "1 hour",
+            "2 heures": "2 hours",
+            "3 heures": "3 hours",
+            "4 heures": "4 hours",
+            "8 heures": "8 hours",
+            "1 jour": "1 day",
+            "1 semaine": "1 week",
+            "1 mois": "1 month"
+        }
+        selected_interval = st.selectbox(
+            "Intervalle",
+            list(interval_options.keys()),
+            index=4,  # Default: 1 minute
+            help="IBKR: Intervalles de 5 secondes à 1 mois (intervalles < 5s limités aux actions US très liquides)"
+        )
+        interval = interval_options[selected_interval]
+        
         # Collect button - Create async job with Celery
         if st.button("📊 Collecter les données", type="primary", width='stretch'):
             try:
                 from backend.job_manager import JobManager
-                from backend.tasks import collect_data_yahoo, collect_data_ibkr
+                from backend.tasks import collect_data_ibkr
                 
                 job_manager = JobManager()
                 
-                if use_yahoo:
-                    # Create Yahoo Finance job
-                    job = job_manager.create_job(
-                        ticker_symbol=selected_ticker,
-                        ticker_name=selected_name,
-                        source="yahoo_finance",
-                        duration=selected_duration,
-                        interval=selected_interval
-                    )
-                    
-                    # Launch Celery task
-                    task = collect_data_yahoo.delay(
-                        job_id=job.id,
-                        ticker_symbol=selected_ticker,
-                        ticker_name=selected_name,
-                        period=period,
-                        interval=interval
-                    )
-                    
-                    # Update job with Celery task ID
-                    job_manager.update_job_task_id(job.id, task.id)
-                    
-                    st.success(f"✅ Job de collecte créé pour {selected_ticker} depuis Yahoo Finance!")
-                    st.info(f"📊 Source: Yahoo Finance | Période: {selected_duration} | Intervalle: {selected_interval}")
-                    st.info("🔄 La collecte s'exécute en arrière-plan. Consultez la page **Historique des collectes** pour suivre la progression.")
-                    # Note: Pas de st.rerun() ici - laisse l'utilisateur naviguer librement
+                # Check IBKR connection
+                collector = get_global_ibkr()
                 
-                elif use_ibkr:
-                    # Check IBKR connection
-                    collector = get_global_ibkr()
-                    
-                    if collector is None:
-                        st.error("❌ Connectez-vous à IBKR depuis la sidebar pour collecter des données")
-                        st.info("💡 Utilisez le bouton de connexion dans la barre latérale")
-                    else:
-                        # Map selected values to database format
-                        interval_db_map = {
+                if collector is None:
+                    st.error("❌ Connectez-vous à IBKR depuis la sidebar pour collecter des données")
+                    st.info("💡 Utilisez le bouton de connexion dans la barre latérale")
+                else:
+                    # Map selected values to database format
+                    interval_db_map = {
                             "5 secondes": "5sec",
                             "10 secondes": "10sec",
                             "15 secondes": "15sec",
@@ -812,36 +780,36 @@ def data_collection_page():
                             "1 jour": "1day",
                             "1 semaine": "1week",
                             "1 mois": "1month"
-                        }
-                        
-                        db_interval = interval_db_map.get(selected_interval, "1min")
-                        
-                        # Create IBKR job
-                        job = job_manager.create_job(
-                            ticker_symbol=selected_ticker,
-                            ticker_name=selected_name,
-                            source="ibkr",
-                            duration=selected_duration,
-                            interval=selected_interval
-                        )
-                        
-                        # Launch Celery task
-                        task = collect_data_ibkr.delay(
-                            job_id=job.id,
-                            ticker_symbol=selected_ticker,
-                            ticker_name=selected_name,
-                            duration=period,
-                            bar_size=interval,
-                            interval_db=db_interval
-                        )
-                        
-                        # Update job with Celery task ID
-                        job_manager.update_job_task_id(job.id, task.id)
-                        
-                        st.success(f"✅ Job de collecte créé pour {selected_ticker} depuis IBKR!")
-                        st.info(f"📊 Source: IBKR | Période: {selected_duration} | Intervalle: {selected_interval}")
-                        st.info("🔄 La collecte s'exécute en arrière-plan. Consultez la page **Historique des collectes** pour suivre la progression.")
-                        # Note: Pas de st.rerun() ici - laisse l'utilisateur naviguer librement
+                    }
+                    
+                    db_interval = interval_db_map.get(selected_interval, "1min")
+                    
+                    # Create IBKR job
+                    job = job_manager.create_job(
+                        ticker_symbol=selected_ticker,
+                        ticker_name=selected_name,
+                        source="ibkr",
+                        duration=selected_duration,
+                        interval=selected_interval
+                    )
+                    
+                    # Launch Celery task
+                    task = collect_data_ibkr.delay(
+                        job_id=job.id,
+                        ticker_symbol=selected_ticker,
+                        ticker_name=selected_name,
+                        duration=period,
+                        bar_size=interval,
+                        interval_db=db_interval
+                    )
+                    
+                    # Update job with Celery task ID
+                    job_manager.update_job_task_id(job.id, task.id)
+                    
+                    st.success(f"✅ Job de collecte créé pour {selected_ticker} depuis IBKR!")
+                    st.info(f"📊 Source: IBKR | Période: {selected_duration} | Intervalle: {selected_interval}")
+                    st.info("🔄 La collecte s'exécute en arrière-plan. Consultez la page **Historique des collectes** pour suivre la progression.")
+                    # Note: Pas de st.rerun() ici - laisse l'utilisateur naviguer librement
             
             except ImportError as e:
                 st.error("❌ Celery n'est pas installé ou configuré correctement")
@@ -1240,7 +1208,7 @@ def data_collection_page():
                         hovermode='x'
                     )
                     
-                    st.plotly_chart(fig, width='stretch')
+                    st.plotly_chart(fig, use_container_width=True)
                     
                     # Volume chart
                     fig_volume = go.Figure(data=[go.Bar(
@@ -1648,10 +1616,10 @@ def technical_analysis_page():
                 height=500
             )
             
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
             
             # Data table
-            st.dataframe(df.tail(20), width='stretch')
+            st.dataframe(df.tail(20), use_container_width=True)
         else:
             st.info("Aucune donnée disponible pour ce ticker. Téléchargez des données d'abord.")
 
@@ -1748,7 +1716,7 @@ def technical_analysis_page():
     fig.add_trace(go.Bar(x=df.index, y=df['volume'], name='Volume'), row=4, col=1)
     
     fig.update_layout(height=1000, showlegend=True, xaxis=dict(rangeslider=dict(visible=False)))
-    st.plotly_chart(fig, width='stretch')
+    st.plotly_chart(fig, use_container_width=True)
     
     # Indicator values
     st.subheader("📊 Valeurs actuelles des indicateurs")
@@ -2651,45 +2619,21 @@ def live_prices_page():
         
         # Data source selection
         st.markdown("---")
-        st.subheader("📡 Source de Données")
+        st.subheader("📡 Source de Données : IBKR (Temps Réel)")
+        st.info("💼 Données temps réel via IB Gateway - Aucune limitation")
         
-        col_source1, col_source2 = st.columns([2, 1])
+        # Use global IBKR connection
+        init_global_ibkr_connection()
         
-        with col_source1:
-            data_source = st.radio(
-                "Choisir la source",
-                ["Yahoo Finance (Délai 15min)", "IBKR (Temps Réel)"],
-                help="Yahoo Finance: Données gratuites avec délai | IBKR: Données temps réel via IB Gateway"
-            )
+        # Check global connection status
+        ibkr_connected = st.session_state.get('global_ibkr_connected', False)
         
-        with col_source2:
-            if data_source == "IBKR (Temps Réel)":
-                # IBKR connection status
-                if 'ibkr_collector' not in st.session_state:
-                    st.session_state.ibkr_collector = None
-                    st.session_state.ibkr_connected = False
-                
-                if not st.session_state.ibkr_connected:
-                    if st.button("🔌 Connecter IBKR", type="primary"):
-                        try:
-                            from backend.ibkr_collector import IBKRCollector
-                            st.session_state.ibkr_collector = IBKRCollector()
-                            if st.session_state.ibkr_collector.connect():
-                                st.session_state.ibkr_connected = True
-                                st.success("✅ Connecté!")
-                                st.rerun()
-                            else:
-                                st.error("❌ Échec connexion")
-                        except Exception as e:
-                            st.error(f"❌ Erreur: {e}")
-                else:
-                    st.success("🟢 IBKR Connecté")
-                    if st.button("🔌 Déconnecter"):
-                        if st.session_state.ibkr_collector:
-                            st.session_state.ibkr_collector.disconnect()
-                        st.session_state.ibkr_collector = None
-                        st.session_state.ibkr_connected = False
-                        st.rerun()
+        if ibkr_connected:
+            st.success("🟢 IBKR Connecté (connexion globale)")
+        else:
+            st.warning("� IBKR Non connecté - Connectez-vous depuis la barre latérale")
+            st.info("💡 Utilisez le bouton de connexion IBKR dans la sidebar pour établir la connexion globale")
+            return
         
         st.markdown("---")
         
@@ -2749,7 +2693,7 @@ def live_prices_page():
         indicators_placeholder = st.empty()
         
         # Info message
-        st.info("ℹ️ Les données proviennent de Yahoo Finance avec un délai d'environ 15 minutes. Le graphique se rafraîchit toutes les secondes.")
+        st.info("ℹ️ Les données proviennent d'IBKR en temps réel. Le graphique se rafraîchit toutes les secondes.")
         
         # Initialize data storage
         if 'live_data' not in st.session_state:
@@ -2765,35 +2709,39 @@ def live_prices_page():
             st.session_state.last_ticker = selected_symbol
             st.session_state.last_time_scale = time_scale
             
-            # Load historical data from database
-            from backend.models import HistoricalData
-            ticker_obj = db.query(Ticker).filter(Ticker.symbol == selected_symbol).first()
-            
-            historical_records = db.query(HistoricalData).filter(
-                HistoricalData.ticker_id == ticker_obj.id,
-                HistoricalData.interval == time_scale
-            ).order_by(HistoricalData.timestamp.asc()).all()
-            
-            if historical_records:
-                st.session_state.live_data = {
-                    'time': [rec.timestamp for rec in historical_records],
-                    'price': [rec.close for rec in historical_records],
-                    'open': [rec.open for rec in historical_records],
-                    'high': [rec.high for rec in historical_records],
-                    'low': [rec.low for rec in historical_records],
-                    'volume': [rec.volume for rec in historical_records]
-                }
-                st.success(f"✅ {len(historical_records)} données historiques chargées depuis la base de données")
-            else:
-                st.session_state.live_data = {
-                    'time': [], 
-                    'price': [],
-                    'open': [],
-                    'high': [],
-                    'low': [],
-                    'volume': []
-                }
-                st.info("ℹ️ Aucune donnée historique. Les données seront collectées en temps réel.")
+            # Initialize live_data only once (on first run for this symbol)
+            if 'live_data' not in st.session_state or st.session_state.get('live_symbol') != selected_symbol:
+                st.session_state.live_symbol = selected_symbol
+                
+                # Load historical data from database
+                from backend.models import HistoricalData
+                ticker_obj = db.query(Ticker).filter(Ticker.symbol == selected_symbol).first()
+                
+                historical_records = db.query(HistoricalData).filter(
+                    HistoricalData.ticker_id == ticker_obj.id,
+                    HistoricalData.interval == time_scale
+                ).order_by(HistoricalData.timestamp.asc()).all()
+                
+                if historical_records:
+                    st.session_state.live_data = {
+                        'time': [rec.timestamp for rec in historical_records],
+                        'price': [rec.close for rec in historical_records],
+                        'open': [rec.open for rec in historical_records],
+                        'high': [rec.high for rec in historical_records],
+                        'low': [rec.low for rec in historical_records],
+                        'volume': [rec.volume for rec in historical_records]
+                    }
+                    st.success(f"✅ {len(historical_records)} données historiques chargées depuis la base de données")
+                else:
+                    st.session_state.live_data = {
+                        'time': [], 
+                        'price': [],
+                        'open': [],
+                        'high': [],
+                        'low': [],
+                        'volume': []
+                    }
+                    st.info("ℹ️ Aucune donnée historique. Les données seront collectées en temps réel.")
         
         # Live update loop
         if st.session_state.live_running:
@@ -2801,256 +2749,198 @@ def live_prices_page():
             from datetime import datetime
             import pandas as pd
             from backend.models import HistoricalData
+            import time as time_module_local
+            import json
             
             # Get ticker object for database storage
             ticker_obj = db.query(Ticker).filter(Ticker.symbol == selected_symbol).first()
             
-            # Continuous update loop
+            # Start background Celery task if not already running
+            if not st.session_state.get('live_task_id'):
+                try:
+                    from backend.live_data_task import stream_live_data_continuous
+                    # Start task in background (30 minutes max)
+                    task = stream_live_data_continuous.apply_async(
+                        args=[selected_symbol, 1800],  # 30 minutes
+                        expires=1800
+                    )
+                    st.session_state.live_task_id = task.id
+                    logger.info(f"[UI] Started live data task {task.id} for {selected_symbol}")
+                except Exception as e:
+                    logger.warning(f"[UI] Could not start Celery task: {e}")
+                    st.session_state.live_task_id = None
+            
+            # Non-blocking approach: Read latest data from Redis or IBKR
             max_points = 200  # Keep last 200 points for better visualization
             
-            while st.session_state.live_running:
+            # Collect one data point from Redis or IBKR (non-blocking approach)
+            current_price = None
+            current_volume = None
+            current_time = None
+            price_change = 0
+            price_change_pct = 0
+            
+            try:
+                # Try to get latest data from Redis first
+                import redis
                 try:
-                    # Choose data source
-                    if data_source == "IBKR (Temps Réel)" and st.session_state.ibkr_connected:
-                        # Use IBKR data
-                        collector = st.session_state.ibkr_collector
-                        contract = collector.get_contract(selected_symbol)
-                        
-                        if contract:
-                            # Request market data
+                    redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+                    redis_data = redis_client.get(f"live_data:{selected_symbol}")
+                    if redis_data:
+                        data_point = json.loads(redis_data)
+                        current_price = data_point.get('price')
+                        current_volume = data_point.get('volume', 0)
+                        current_time = datetime.fromisoformat(data_point.get('timestamp', datetime.now().isoformat()))
+                except Exception as redis_err:
+                    redis_client = None
+                
+                # Fallback: Get from IBKR directly if Redis unavailable
+                if not current_price and st.session_state.get('global_ibkr_connected', False):
+                    collector = st.session_state.global_ibkr
+                    contract = collector.get_contract(selected_symbol)
+                    
+                    if contract:
+                        try:
+                            # Request market data WITHOUT blocking - set SHORT timeout
                             ticker_data = collector.ib.reqMktData(contract, '', False, False)
-                            collector.ib.sleep(1)  # Wait for data
+                            # Wait max 2 seconds for data (delayed data takes longer)
+                            max_wait = 20  # 2 seconds in tenths
+                            wait_count = 0
+                            while (ticker_data.last == 0 and ticker_data.close == 0) and wait_count < max_wait:
+                                collector.ib.sleep(0.1)
+                                wait_count += 1
                             
-                            if ticker_data.last > 0:
-                                current_price = ticker_data.last
+                            # Use 'last' if available, fallback to 'close' for delayed data
+                            current_price = ticker_data.last if ticker_data.last > 0 else ticker_data.close
+                            
+                            if current_price > 0:
                                 current_volume = ticker_data.volume if ticker_data.volume > 0 else 0
                                 current_time = datetime.now()
                                 
-                                # Get previous close
-                                if len(st.session_state.live_data['price']) > 0:
-                                    prev_close = st.session_state.live_data['price'][-1]
-                                else:
-                                    prev_close = current_price
-                                
-                                # Calculate change
-                                price_change = current_price - prev_close
-                                price_change_pct = (price_change / prev_close * 100) if prev_close else 0
-                                
-                                # Add to live data
-                                st.session_state.live_data['time'].append(current_time)
-                                st.session_state.live_data['price'].append(current_price)
-                                st.session_state.live_data['open'].append(ticker_data.open if ticker_data.open > 0 else current_price)
-                                st.session_state.live_data['high'].append(ticker_data.high if ticker_data.high > 0 else current_price)
-                                st.session_state.live_data['low'].append(ticker_data.low if ticker_data.low > 0 else current_price)
-                                st.session_state.live_data['volume'].append(current_volume)
-                                
-                                # Cancel market data subscription
-                                collector.ib.cancelMktData(contract)
-                            else:
-                                # No real-time data, fallback to Yahoo
-                                st.warning("⚠️ Pas de données temps réel IBKR, passage à Yahoo Finance")
-                                data_source = "Yahoo Finance (Délai 15min)"
-                        else:
-                            st.error(f"❌ Impossible de trouver le contrat pour {selected_symbol}")
-                            time_module.sleep(1)
-                            continue
-                    
-                    if data_source == "Yahoo Finance (Délai 15min)" or not st.session_state.get('ibkr_connected', False):
-                        # Use Yahoo Finance data
-                        import yfinance as yf
-                        
-                        # Get Yahoo Finance symbol (add .PA for Paris exchange)
-                        yf_symbol = f"{selected_symbol}.PA"
-                        
-                        # Map time scale to Yahoo Finance interval
-                        interval_map = {
-                            "1s": "1m",  # Yahoo Finance n'a pas de 1s, on utilise 1m
-                            "1min": "1m",
-                            "5min": "5m",
-                            "15min": "15m",
-                            "30min": "30m",
-                            "1h": "1h",
-                            "1jour": "1d"
-                        }
-                        yf_interval = interval_map.get(time_scale, "1m")
-                        
-                        # Fetch latest data from Yahoo Finance based on time scale
-                        ticker_data = yf.Ticker(yf_symbol)
-                        
-                        # Get intraday data for the selected interval
-                        if time_scale == "1jour":
-                            hist_data = ticker_data.history(period="5d", interval=yf_interval)
-                        else:
-                            hist_data = ticker_data.history(period="1d", interval=yf_interval)
-                        
-                        if not hist_data.empty:
-                            # Get the latest bar
-                            latest_bar = hist_data.iloc[-1]
-                            current_price = latest_bar['Close']
-                            current_volume = latest_bar['Volume']
-                            data_time = hist_data.index[-1]  # Timestamp from Yahoo
-                            current_time = datetime.now()  # Current timestamp for display
-                            
-                            # Get previous close for change calculation
-                            if len(hist_data) > 1:
-                                prev_close = hist_data.iloc[-2]['Close']
-                            else:
-                                prev_close = current_price
-                            
-                            # Calculate change
-                            price_change = current_price - prev_close
-                            price_change_pct = (price_change / prev_close * 100) if prev_close else 0
-                            
-                            # Save to database (avoid duplicates by checking timestamp)
-                            existing_record = db.query(HistoricalData).filter(
-                                HistoricalData.ticker_id == ticker_obj.id,
-                                HistoricalData.timestamp == data_time,
-                                HistoricalData.interval == time_scale
-                            ).first()
-                            
-                            if not existing_record:
-                                new_record = HistoricalData(
-                                    ticker_id=ticker_obj.id,
-                                    timestamp=data_time,
-                                    open=float(latest_bar['Open']),
-                                    high=float(latest_bar['High']),
-                                    low=float(latest_bar['Low']),
-                                    close=float(latest_bar['Close']),
-                                    volume=int(latest_bar['Volume']),
-                                    interval=time_scale
-                                )
-                                db.add(new_record)
-                                db.commit()
-                            
-                            # Add to live data for chart (with OHLCV)
-                            st.session_state.live_data['time'].append(current_time)
-                            st.session_state.live_data['price'].append(current_price)
-                        st.session_state.live_data['open'].append(float(latest_bar['Open']))
-                        st.session_state.live_data['high'].append(float(latest_bar['High']))
-                        st.session_state.live_data['low'].append(float(latest_bar['Low']))
-                        st.session_state.live_data['volume'].append(int(latest_bar['Volume']))
-                        
-                        # Keep only last max_points
-                        if len(st.session_state.live_data['time']) > max_points:
-                            st.session_state.live_data['time'] = st.session_state.live_data['time'][-max_points:]
-                            st.session_state.live_data['price'] = st.session_state.live_data['price'][-max_points:]
-                            st.session_state.live_data['open'] = st.session_state.live_data['open'][-max_points:]
-                            st.session_state.live_data['high'] = st.session_state.live_data['high'][-max_points:]
-                            st.session_state.live_data['low'] = st.session_state.live_data['low'][-max_points:]
-                            st.session_state.live_data['volume'] = st.session_state.live_data['volume'][-max_points:]
-                    else:
-                        # Fallback to info if history not available
-                        info = ticker_data.info
-                        current_price = info.get('currentPrice') or info.get('regularMarketPrice', 0)
-                        prev_close = info.get('previousClose', current_price)
-                        current_volume = info.get('volume', 0)
-                        current_time = datetime.now()
-                        
-                        price_change = current_price - prev_close
-                        price_change_pct = (price_change / prev_close * 100) if prev_close else 0
-                        
-                        st.session_state.live_data['time'].append(current_time)
-                        st.session_state.live_data['price'].append(current_price)
-                        st.session_state.live_data['open'].append(current_price)
-                        st.session_state.live_data['high'].append(current_price)
-                        st.session_state.live_data['low'].append(current_price)
-                        st.session_state.live_data['volume'].append(current_volume)
-                        
-                        if len(st.session_state.live_data['time']) > max_points:
-                            st.session_state.live_data['time'] = st.session_state.live_data['time'][-max_points:]
-                            st.session_state.live_data['price'] = st.session_state.live_data['price'][-max_points:]
-                            st.session_state.live_data['open'] = st.session_state.live_data['open'][-max_points:]
-                            st.session_state.live_data['high'] = st.session_state.live_data['high'][-max_points:]
-                            st.session_state.live_data['low'] = st.session_state.live_data['low'][-max_points:]
-                            st.session_state.live_data['volume'] = st.session_state.live_data['volume'][-max_points:]
-                    
-                    # Update metrics
-                    price_placeholder.metric(
-                        "Prix Actuel",
-                        f"{current_price:.2f} €",
-                        f"{price_change:+.2f} ({price_change_pct:+.2f}%)"
-                    )
-                    
-                    change_placeholder.metric(
-                        "Variation",
-                        f"{price_change_pct:+.2f}%",
-                        f"{price_change:+.2f} €"
-                    )
-                    
-                    volume_placeholder.metric(
-                        "Volume",
-                        f"{current_volume:,}"
-                    )
-                    
-                    time_placeholder.metric(
-                        "Dernière MAJ",
-                        current_time.strftime("%H:%M:%S")
-                    )
-                    
-                    # Calculate indicators for live data if enough points
-                    buy_signals = []
-                    sell_signals = []
-                    signal_times = []
-                    signal_prices = []
-                    signal_types = []
-                    
-                    if len(st.session_state.live_data['price']) >= 50:
-                        # Create DataFrame for indicator calculation
-                        live_df = pd.DataFrame({
-                            'close': st.session_state.live_data['price'],
-                            'time': st.session_state.live_data['time']
-                        })
-                        
-                        # Add OHLCV data if available (from historical data)
-                        if 'open' in st.session_state.live_data and len(st.session_state.live_data['open']) > 0:
-                            live_df['high'] = st.session_state.live_data.get('high', live_df['close'])
-                            live_df['low'] = st.session_state.live_data.get('low', live_df['close'])
-                            live_df['open'] = st.session_state.live_data.get('open', live_df['close'])
-                            live_df['volume'] = st.session_state.live_data.get('volume', [0] * len(live_df))
-                        else:
-                            # Approximation for line chart if no OHLCV data
-                            live_df['high'] = live_df['close']
-                            live_df['low'] = live_df['close']
-                            live_df['open'] = live_df['close']
-                            live_df['volume'] = 0
-                        
-                        # Calculate indicators
-                        from backend.technical_indicators import calculate_and_update_indicators
-                        live_df = calculate_and_update_indicators(live_df, save_to_db=False)
-                        
-                        # Determine buy/sell signals based on selected strategy
-                        latest_rsi = live_df['rsi_14'].iloc[-1] if 'rsi_14' in live_df.columns else None
-                        latest_macd = live_df['macd'].iloc[-1] if 'macd' in live_df.columns else None
-                        latest_macd_signal = live_df['macd_signal'].iloc[-1] if 'macd_signal' in live_df.columns else None
-                        
-                        signal = "NEUTRE"
-                        signal_color = "gray"
-                        
-                        # Apply strategy if selected - using StrategyAdapter for ALL strategy types
-                        if selected_strategy:
+                                logger.debug(f"[UI] Got {selected_symbol} from IBKR: {current_price}€ (volume: {current_volume})")
+                        finally:
+                            # Always cancel market data subscription
                             try:
-                                from backend.strategy_adapter import StrategyAdapter
-                                
-                                # Generate signals using the adapter (works for simple AND complex strategies)
-                                signal_times, signal_prices, signal_types = StrategyAdapter.generate_signals(live_df, selected_strategy)
-                                
-                                # Get current signal
-                                signal, signal_color = StrategyAdapter.get_current_signal(live_df, selected_strategy)
-                                
-                            except Exception as e:
-                                st.warning(f"⚠️ Erreur lors de l'évaluation de la stratégie: {e}")
-                                import traceback
-                                st.code(traceback.format_exc())
-                                # Fallback to simple strategy
-                                if latest_rsi and latest_macd and latest_macd_signal:
-                                    if latest_rsi < 30 and latest_macd > latest_macd_signal:
-                                        signal = "ACHAT 🟢"
-                                        signal_color = "green"
-                                    elif latest_rsi > 70 and latest_macd < latest_macd_signal:
-                                        signal = "VENTE 🔴"
-                                        signal_color = "red"
-                        else:
-                            # Simple default strategy logic if no strategy selected
+                                collector.ib.cancelMktData(contract)
+                            except:
+                                pass
+                    else:
+                        st.error(f"❌ Impossible de trouver le contrat pour {selected_symbol}")
+                        st.session_state.live_running = False
+                else:
+                    if not st.session_state.get('global_ibkr_connected', False):
+                        st.error("❌ Connexion IBKR perdue")
+                        st.session_state.live_running = False
+            except Exception as e:
+                logger.error(f"Error collecting live data: {e}", exc_info=True)
+                st.warning(f"⚠️ Erreur lors de la collecte: {e}")
+            
+            if current_price:  # Only update metrics if we have data
+                # Get previous close
+                if len(st.session_state.live_data['price']) > 0:
+                    prev_close = st.session_state.live_data['price'][-1]
+                else:
+                    prev_close = current_price
+                
+                # Calculate change
+                price_change = current_price - prev_close
+                price_change_pct = (price_change / prev_close * 100) if prev_close else 0
+                
+                # Add to live data - ALWAYS add to build up history
+                # Don't check if price changed - add every point for smooth graphing
+                st.session_state.live_data['time'].append(current_time)
+                st.session_state.live_data['price'].append(current_price)
+                st.session_state.live_data['open'].append(current_price)  # Simplified for live data
+                st.session_state.live_data['high'].append(current_price)
+                st.session_state.live_data['low'].append(current_price)
+                st.session_state.live_data['volume'].append(current_volume)
+                
+                # Update metrics
+                price_placeholder.metric(
+                    "Prix Actuel",
+                    f"{current_price:.2f} €",
+                    f"{price_change:+.2f} ({price_change_pct:+.2f}%)"
+                )
+                
+                change_placeholder.metric(
+                    "Variation",
+                    f"{price_change_pct:+.2f}%",
+                    f"{price_change:+.2f} €"
+                )
+                
+                volume_placeholder.metric(
+                    "Volume",
+                    f"{current_volume:,}"
+                )
+                
+                time_placeholder.metric(
+                    "Dernière MAJ",
+                    current_time.strftime("%H:%M:%S")
+                )
+            
+            # Calculate indicators for live data if enough points
+            # (Always do this, even if no new price yet - keeps graph fresh)
+            buy_signals = []
+            sell_signals = []
+            signal_times = []
+            signal_prices = []
+            signal_types = []
+            latest_rsi = None
+            latest_macd = None
+            latest_macd_signal = None
+            
+            # Create live DataFrame even with few points
+            live_df = None
+            if len(st.session_state.live_data['price']) > 0:
+                # Create DataFrame for indicator calculation
+                live_df = pd.DataFrame({
+                    'close': st.session_state.live_data['price'],
+                    'time': st.session_state.live_data['time']
+                })
+                
+                # Add OHLCV data if available (from historical data)
+                if 'open' in st.session_state.live_data and len(st.session_state.live_data['open']) > 0:
+                    live_df['high'] = st.session_state.live_data.get('high', live_df['close'])
+                    live_df['low'] = st.session_state.live_data.get('low', live_df['close'])
+                    live_df['open'] = st.session_state.live_data.get('open', live_df['close'])
+                    live_df['volume'] = st.session_state.live_data.get('volume', [0] * len(live_df))
+                else:
+                    # Approximation for line chart if no OHLCV data
+                    live_df['high'] = live_df['close']
+                    live_df['low'] = live_df['close']
+                    live_df['open'] = live_df['close']
+                    live_df['volume'] = 0
+                
+                # Only calculate indicators if enough points (50+)
+                if len(st.session_state.live_data['price']) >= 50:
+                    # Calculate indicators
+                    from backend.technical_indicators import calculate_and_update_indicators
+                    live_df = calculate_and_update_indicators(live_df, save_to_db=False)
+                    
+                    # Determine buy/sell signals based on selected strategy
+                    latest_rsi = live_df['rsi_14'].iloc[-1] if 'rsi_14' in live_df.columns else None
+                    latest_macd = live_df['macd'].iloc[-1] if 'macd' in live_df.columns else None
+                    latest_macd_signal = live_df['macd_signal'].iloc[-1] if 'macd_signal' in live_df.columns else None
+                    
+                    signal = "NEUTRE"
+                    signal_color = "gray"
+                    
+                    # Apply strategy if selected - using StrategyAdapter for ALL strategy types
+                    if selected_strategy:
+                        try:
+                            from backend.strategy_adapter import StrategyAdapter
+                            
+                            # Generate signals using the adapter (works for simple AND complex strategies)
+                            signal_times, signal_prices, signal_types = StrategyAdapter.generate_signals(live_df, selected_strategy)
+                            
+                            # Get current signal
+                            signal, signal_color = StrategyAdapter.get_current_signal(live_df, selected_strategy)
+                            
+                        except Exception as e:
+                            st.warning(f"⚠️ Erreur lors de l'évaluation de la stratégie: {e}")
+                            import traceback
+                            st.code(traceback.format_exc())
+                            # Fallback to simple strategy
                             if latest_rsi and latest_macd and latest_macd_signal:
                                 if latest_rsi < 30 and latest_macd > latest_macd_signal:
                                     signal = "ACHAT 🟢"
@@ -3059,198 +2949,215 @@ def live_prices_page():
                                     signal = "VENTE 🔴"
                                     signal_color = "red"
                     else:
-                        signal = f"Calcul... ({len(st.session_state.live_data['price'])}/50 points)"
-                        signal_color = "orange"
-                        latest_rsi = None
-                        latest_macd = None
-                        latest_macd_signal = None
-                    
-                    # Create line chart with indicators
-                    fig = go.Figure()
-                    
-                    # Main price line
+                        # Simple default strategy logic if no strategy selected
+                        if latest_rsi and latest_macd and latest_macd_signal:
+                            if latest_rsi < 30 and latest_macd > latest_macd_signal:
+                                signal = "ACHAT 🟢"
+                                signal_color = "green"
+                            elif latest_rsi > 70 and latest_macd < latest_macd_signal:
+                                signal = "VENTE 🔴"
+                                signal_color = "red"
+                else:
+                    signal = f"Calcul... ({len(st.session_state.live_data['price'])}/50 points)"
+                    signal_color = "orange"
+            else:
+                signal = f"En attente de données..."
+                signal_color = "orange"
+            
+            # Create line chart - ALWAYS, even if no data yet
+            fig = go.Figure()
+            
+            # Main price line - only if we have data
+            if len(st.session_state.live_data['price']) > 0:
+                fig.add_trace(go.Scatter(
+                    x=st.session_state.live_data['time'],
+                    y=st.session_state.live_data['price'],
+                    mode='lines',
+                    name='Prix',
+                    line=dict(color='#00D9FF', width=2),
+                    fill='tozeroy',
+                    fillcolor='rgba(0, 217, 255, 0.1)'
+                ))
+            else:
+                # Show empty chart message
+                fig.add_annotation(
+                    text="En attente de données...",
+                    xref="paper", yref="paper",
+                    x=0.5, y=0.5, showarrow=False,
+                    font=dict(size=20, color="gray")
+                )
+            
+            # Add historical buy/sell markers if strategy is selected
+            if signal_times and signal_prices and signal_types:
+                buy_times = [t for t, typ in zip(signal_times, signal_types) if typ == 'buy']
+                buy_prices = [p for p, typ in zip(signal_prices, signal_types) if typ == 'buy']
+                sell_times = [t for t, typ in zip(signal_times, signal_types) if typ == 'sell']
+                sell_prices = [p for p, typ in zip(signal_prices, signal_types) if typ == 'sell']
+                
+                if buy_times:
                     fig.add_trace(go.Scatter(
-                        x=st.session_state.live_data['time'],
-                        y=st.session_state.live_data['price'],
-                        mode='lines',
-                        name='Prix',
-                        line=dict(color='#00D9FF', width=2),
-                        fill='tozeroy',
-                        fillcolor='rgba(0, 217, 255, 0.1)'
+                        x=buy_times,
+                        y=buy_prices,
+                        mode='markers',
+                        name='Signaux Achat (Historique)',
+                        marker=dict(size=12, color='green', symbol='triangle-up', line=dict(width=1, color='darkgreen'))
+                    ))
+                
+                if sell_times:
+                    fig.add_trace(go.Scatter(
+                        x=sell_times,
+                        y=sell_prices,
+                        mode='markers',
+                        name='Signaux Vente (Historique)',
+                        marker=dict(size=12, color='red', symbol='triangle-down', line=dict(width=1, color='darkred'))
                     ))
                     
-                    # Add historical buy/sell markers if strategy is selected
-                    if signal_times and signal_prices and signal_types:
-                        buy_times = [t for t, typ in zip(signal_times, signal_types) if typ == 'buy']
-                        buy_prices = [p for p, typ in zip(signal_prices, signal_types) if typ == 'buy']
-                        sell_times = [t for t, typ in zip(signal_times, signal_types) if typ == 'sell']
-                        sell_prices = [p for p, typ in zip(signal_prices, signal_types) if typ == 'sell']
-                        
-                        if buy_times:
-                            fig.add_trace(go.Scatter(
-                                x=buy_times,
-                                y=buy_prices,
-                                mode='markers',
-                                name='Signaux Achat (Historique)',
-                                marker=dict(size=12, color='green', symbol='triangle-up', line=dict(width=1, color='darkgreen'))
-                            ))
-                        
-                        if sell_times:
-                            fig.add_trace(go.Scatter(
-                                x=sell_times,
-                                y=sell_prices,
-                                mode='markers',
-                                name='Signaux Vente (Historique)',
-                                marker=dict(size=12, color='red', symbol='triangle-down', line=dict(width=1, color='darkred'))
-                            ))
-                        
-                        # Show count of signals
-                        total_signals = len(buy_times) + len(sell_times)
-                        st.info(f"📊 {total_signals} signaux détectés : {len(buy_times)} achats, {len(sell_times)} ventes")
+                    # Show count of signals
+                    total_signals = len(buy_times) + len(sell_times)
+                    st.info(f"📊 {total_signals} signaux détectés : {len(buy_times)} achats, {len(sell_times)} ventes")
+            
+            # Add current signal marker if signal is present
+            if signal.startswith("ACHAT") and len(st.session_state.live_data['price']) > 0:
+                fig.add_trace(go.Scatter(
+                    x=[st.session_state.live_data['time'][-1]],
+                    y=[st.session_state.live_data['price'][-1]],
+                    mode='markers',
+                    name='Signal Achat (Actuel)',
+                    marker=dict(size=18, color='lime', symbol='triangle-up', line=dict(width=2, color='green'))
+                ))
+            elif signal.startswith("VENTE") and len(st.session_state.live_data['price']) > 0:
+                fig.add_trace(go.Scatter(
+                    x=[st.session_state.live_data['time'][-1]],
+                    y=[st.session_state.live_data['price'][-1]],
+                    mode='markers',
+                    name='Signal Vente (Actuel)',
+                    marker=dict(size=18, color='orangered', symbol='triangle-down', line=dict(width=2, color='red'))
+                ))
+            
+            # Update layout for all cases - OUTSIDE the conditional blocks
+            fig.update_layout(
+                title=f"{selected_symbol} - Cours en temps réel ({time_scale}) - Signal: {signal}",
+                xaxis_title="Heure",
+                yaxis_title="Prix (€)",
+                xaxis=dict(
+                    tickformat='%H:%M:%S',  # Format avec les secondes
+                    tickmode='auto',
+                    nticks=10
+                ),
+                height=500,
+                hovermode='x unified',
+                showlegend=True,
+                margin=dict(l=50, r=50, t=50, b=50)
+            )
+            
+            # Update chart without reloading entire page
+            chart_placeholder.plotly_chart(fig, use_container_width=True)
+            
+            # Display indicators below chart - always show the panel
+            with indicators_placeholder.container():
+                st.markdown("---")
+                st.subheader("📊 Indicateurs Techniques")
+                
+                ind_col1, ind_col2, ind_col3 = st.columns(3)
+                
+                with ind_col1:
+                    if latest_rsi:
+                        rsi_delta = "Suracheté" if latest_rsi > 70 else "Survendu" if latest_rsi < 30 else "Normal"
+                        st.metric("RSI (14)", f"{latest_rsi:.2f}", rsi_delta)
+                    else:
+                        st.metric("RSI (14)", "---", "En attente...")
+                
+                with ind_col2:
+                    if latest_macd:
+                        st.metric("MACD", f"{latest_macd:.4f}")
+                    else:
+                        st.metric("MACD", "---", "En attente...")
+                
+                with ind_col3:
+                    st.markdown(f"### Signal: :{signal_color}[{signal}]")
+                
+                # Display strategy analysis if strategy selected and signals found
+                if selected_strategy and signal_times and signal_prices and signal_types:
+                    st.markdown("---")
+                    st.subheader(f"🎯 Analyse de la stratégie: {selected_strategy_name}")
                     
-                    # Add current signal marker if signal is present
-                    if signal.startswith("ACHAT"):
-                        fig.add_trace(go.Scatter(
-                            x=[st.session_state.live_data['time'][-1]],
-                            y=[st.session_state.live_data['price'][-1]],
-                            mode='markers',
-                            name='Signal Achat (Actuel)',
-                            marker=dict(size=18, color='lime', symbol='triangle-up', line=dict(width=2, color='green'))
-                        ))
-                    elif signal.startswith("VENTE"):
-                        fig.add_trace(go.Scatter(
-                            x=[st.session_state.live_data['time'][-1]],
-                            y=[st.session_state.live_data['price'][-1]],
-                            mode='markers',
-                            name='Signal Vente (Actuel)',
-                            marker=dict(size=18, color='orangered', symbol='triangle-down', line=dict(width=2, color='red'))
-                        ))
+                    # Simulate trades based on signals
+                    position = None  # None = no position, 'long' = bought
+                    trades = []
                     
-                    fig.update_layout(
-                        title=f"{selected_symbol} - Cours en temps réel ({time_scale}) - Signal: {signal}",
-                        xaxis_title="Heure",
-                        yaxis_title="Prix (€)",
-                        xaxis=dict(
-                            tickformat='%H:%M:%S',  # Format avec les secondes
-                            tickmode='auto',
-                            nticks=10
-                        ),
-                        height=500,
-                        hovermode='x unified',
-                        showlegend=True,
-                        margin=dict(l=50, r=50, t=50, b=50)
-                    )
+                    for i, (time, price, typ) in enumerate(zip(signal_times, signal_prices, signal_types)):
+                        if typ == 'buy' and position is None:
+                            # Open long position
+                            position = {'entry_time': time, 'entry_price': price}
+                        elif typ == 'sell' and position is not None:
+                            # Close long position
+                            profit = price - position['entry_price']
+                            profit_pct = (profit / position['entry_price']) * 100
+                            trades.append({
+                                'entry_time': position['entry_time'],
+                                'entry_price': position['entry_price'],
+                                'exit_time': time,
+                                'exit_price': price,
+                                'profit': profit,
+                                'profit_pct': profit_pct
+                            })
+                            position = None
                     
-                    # Update chart without key to prevent scroll
-                    with chart_placeholder.container():
-                        st.plotly_chart(fig, width='stretch')
-                    
-                    # Display indicators below chart - always show the panel
-                    with indicators_placeholder.container():
-                        st.markdown("---")
-                        st.subheader("📊 Indicateurs Techniques")
+                    # Display trade summary
+                    if trades:
+                        trade_col1, trade_col2, trade_col3, trade_col4 = st.columns(4)
                         
-                        ind_col1, ind_col2, ind_col3 = st.columns(3)
+                        total_trades = len(trades)
+                        winning_trades = len([t for t in trades if t['profit'] > 0])
+                        losing_trades = len([t for t in trades if t['profit'] < 0])
+                        win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
                         
-                        with ind_col1:
-                            if latest_rsi:
-                                rsi_delta = "Suracheté" if latest_rsi > 70 else "Survendu" if latest_rsi < 30 else "Normal"
-                                st.metric("RSI (14)", f"{latest_rsi:.2f}", rsi_delta)
-                            else:
-                                st.metric("RSI (14)", "---", "En attente...")
+                        total_profit = sum([t['profit'] for t in trades])
+                        avg_profit = total_profit / total_trades if total_trades > 0 else 0
+                        avg_profit_pct = sum([t['profit_pct'] for t in trades]) / total_trades if total_trades > 0 else 0
                         
-                        with ind_col2:
-                            if latest_macd:
-                                st.metric("MACD", f"{latest_macd:.4f}")
-                            else:
-                                st.metric("MACD", "---", "En attente...")
+                        with trade_col1:
+                            st.metric("Nombre de trades", f"{total_trades}")
                         
-                        with ind_col3:
-                            st.markdown(f"### Signal: :{signal_color}[{signal}]")
+                        with trade_col2:
+                            st.metric("Taux de réussite", f"{win_rate:.1f}%", f"{winning_trades}W / {losing_trades}L")
                         
-                        # Display strategy analysis if strategy selected and signals found
-                        if selected_strategy and signal_times and signal_prices and signal_types:
-                            st.markdown("---")
-                            st.subheader(f"🎯 Analyse de la stratégie: {selected_strategy_name}")
-                            
-                            # Simulate trades based on signals
-                            position = None  # None = no position, 'long' = bought
-                            trades = []
-                            
-                            for i, (time, price, typ) in enumerate(zip(signal_times, signal_prices, signal_types)):
-                                if typ == 'buy' and position is None:
-                                    # Open long position
-                                    position = {'entry_time': time, 'entry_price': price}
-                                elif typ == 'sell' and position is not None:
-                                    # Close long position
-                                    profit = price - position['entry_price']
-                                    profit_pct = (profit / position['entry_price']) * 100
-                                    trades.append({
-                                        'entry_time': position['entry_time'],
-                                        'entry_price': position['entry_price'],
-                                        'exit_time': time,
-                                        'exit_price': price,
-                                        'profit': profit,
-                                        'profit_pct': profit_pct
-                                    })
-                                    position = None
-                            
-                            # Display trade summary
-                            if trades:
-                                trade_col1, trade_col2, trade_col3, trade_col4 = st.columns(4)
-                                
-                                total_trades = len(trades)
-                                winning_trades = len([t for t in trades if t['profit'] > 0])
-                                losing_trades = len([t for t in trades if t['profit'] < 0])
-                                win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
-                                
-                                total_profit = sum([t['profit'] for t in trades])
-                                avg_profit = total_profit / total_trades if total_trades > 0 else 0
-                                avg_profit_pct = sum([t['profit_pct'] for t in trades]) / total_trades if total_trades > 0 else 0
-                                
-                                with trade_col1:
-                                    st.metric("Nombre de trades", f"{total_trades}")
-                                
-                                with trade_col2:
-                                    st.metric("Taux de réussite", f"{win_rate:.1f}%", f"{winning_trades}W / {losing_trades}L")
-                                
-                                with trade_col3:
-                                    delta_color = "normal" if total_profit >= 0 else "inverse"
-                                    st.metric("Profit total", f"{total_profit:.2f} €", f"{sum([t['profit_pct'] for t in trades]):.2f}%", delta_color=delta_color)
-                                
-                                with trade_col4:
-                                    st.metric("Profit moyen", f"{avg_profit:.2f} €", f"{avg_profit_pct:.2f}%")
-                                
-                                # Display recent trades table
-                                st.markdown("#### 📋 Derniers trades")
-                                recent_trades = trades[-10:]  # Last 10 trades
-                                trade_data = []
-                                for t in reversed(recent_trades):
-                                    trade_data.append({
-                                        'Entrée': t['entry_time'].strftime("%Y-%m-%d %H:%M:%S"),
-                                        'Prix Entrée': f"{t['entry_price']:.2f} €",
-                                        'Sortie': t['exit_time'].strftime("%Y-%m-%d %H:%M:%S"),
-                                        'Prix Sortie': f"{t['exit_price']:.2f} €",
-                                        'Profit': f"{t['profit']:.2f} €",
-                                        'Profit %': f"{t['profit_pct']:.2f}%"
-                                    })
-                                
-                                st.dataframe(pd.DataFrame(trade_data), width='stretch')
-                            else:
-                                st.info("ℹ️ Aucun trade complet détecté avec cette stratégie (signaux d'achat sans vente correspondante).")
-
+                        with trade_col3:
+                            delta_color = "normal" if total_profit >= 0 else "inverse"
+                            st.metric("Profit total", f"{total_profit:.2f} €", f"{sum([t['profit_pct'] for t in trades]):.2f}%", delta_color=delta_color)
                         
-                        with ind_col3:
-                            st.markdown(f"### Signal: :{signal_color}[{signal}]")
-                    
-                    # Wait 1 second before next update
-                    time_module.sleep(1)
-                    
-                except Exception as e:
-                    st.error(f"❌ Erreur lors de la récupération des données: {e}")
-                    st.session_state.live_running = False
-                    break
-        
+                        with trade_col4:
+                            st.metric("Profit moyen", f"{avg_profit:.2f} €", f"{avg_profit_pct:.2f}%")
+                        
+                        # Display recent trades table
+                        st.markdown("#### 📋 Derniers trades")
+                        recent_trades = trades[-10:]  # Last 10 trades
+                        trade_data = []
+                        for t in reversed(recent_trades):
+                            trade_data.append({
+                                'Entrée': t['entry_time'].strftime("%Y-%m-%d %H:%M:%S"),
+                                'Prix Entrée': f"{t['entry_price']:.2f} €",
+                                'Sortie': t['exit_time'].strftime("%Y-%m-%d %H:%M:%S"),
+                                'Prix Sortie': f"{t['exit_price']:.2f} €",
+                                'Profit': f"{t['profit']:.2f} €",
+                                'Profit %': f"{t['profit_pct']:.2f}%"
+                            })
+                        
+                        st.dataframe(pd.DataFrame(trade_data), width='stretch')
+                    else:
+                        st.info("ℹ️ Aucun trade complet détecté avec cette stratégie (signaux d'achat sans vente correspondante).")
+            
+            # Schedule next update using Streamlit's rerun
+            # Control refresh rate by checking last update time
+            if st.session_state.get('live_running'):
+                # Track last update time
+                current_time = time_module_local.time()
+                last_update = st.session_state.get('last_live_update', 0)
+                
+                # Only rerun every 2 seconds to prevent flickering
+                if current_time - last_update >= 2.0:
+                    st.session_state.last_live_update = current_time
+                    st.rerun()
         else:
             # Not running - show static message
             st.info("👆 Cliquez sur 'Démarrer' pour afficher les cours en temps réel")
@@ -3555,6 +3462,1718 @@ def trading_page():
         st.code(traceback.format_exc())
 
 
+def order_placement_page():
+    """
+    Dedicated page for order placement and management
+    Integrated with database tracking and IBKR execution
+    """
+    st.header("📝 Passage d'Ordres")
+    
+    # Auto-refresh settings
+    if 'auto_refresh_enabled' not in st.session_state:
+        st.session_state.auto_refresh_enabled = False
+    if 'last_sync_time' not in st.session_state:
+        st.session_state.last_sync_time = 0
+    if 'previous_order_statuses' not in st.session_state:
+        st.session_state.previous_order_statuses = {}
+    
+    try:
+        from backend.order_manager import OrderManager
+        from backend.ibkr_collector import IBKRCollector
+        from sqlalchemy import func
+        
+        # Initialize session state
+        if 'order_manager' not in st.session_state:
+            st.session_state.order_manager = None
+        
+        # Check IBKR connection
+        init_global_ibkr_connection()
+        
+        # IBKR Connection Status
+        col_status1, col_status2, col_status3, col_status4 = st.columns([2, 1, 1, 1])
+        
+        with col_status1:
+            # Use the GLOBAL connection state
+            if st.session_state.get('global_ibkr_connected', False):
+                st.success("🟢 Connecté à IBKR")
+            else:
+                st.warning("🟡 Non connecté à IBKR - Les ordres seront enregistrés mais non exécutés")
+        
+        with col_status2:
+            if st.button("🔄 Rafraîchir"):
+                st.rerun()
+        
+        with col_status3:
+            # Initialize OrderManager with GLOBAL IBKR collector
+            ibkr_collector = st.session_state.get('global_ibkr')
+            if not st.session_state.order_manager or st.session_state.order_manager.ibkr_collector != ibkr_collector:
+                st.session_state.order_manager = OrderManager(ibkr_collector)
+        
+        with col_status4:
+            # Auto-refresh toggle
+            auto_refresh = st.toggle("🔄 Auto-refresh", value=st.session_state.auto_refresh_enabled, help="Synchronise automatiquement toutes les 30 secondes")
+            if auto_refresh != st.session_state.auto_refresh_enabled:
+                st.session_state.auto_refresh_enabled = auto_refresh
+                if auto_refresh:
+                    st.session_state.last_sync_time = time_module.time()
+                st.rerun()
+        
+        # Auto-refresh logic
+        if st.session_state.auto_refresh_enabled and st.session_state.get('global_ibkr_connected', False):
+            current_time = time_module.time()
+            # Check if 30 seconds have passed
+            if current_time - st.session_state.last_sync_time >= 30:
+                # Get current order statuses before sync
+                db = SessionLocal()
+                try:
+                    orders_before = db.query(Order).filter(
+                        Order.status.in_([OrderStatus.PENDING, OrderStatus.SUBMITTED])
+                    ).all()
+                    before_statuses = {order.id: order.status for order in orders_before}
+                finally:
+                    db.close()
+                
+                # Sync with IBKR
+                count = st.session_state.order_manager.sync_with_ibkr()
+                st.session_state.last_sync_time = current_time
+                
+                # Check for status changes and show notifications
+                db = SessionLocal()
+                try:
+                    orders_after = db.query(Order).all()
+                    
+                    for order in orders_after:
+                        old_status = before_statuses.get(order.id)
+                        if old_status and old_status != order.status:
+                            # Status changed!
+                            if order.status == OrderStatus.FILLED:
+                                st.toast(f"🎉 Ordre #{order.id} REMPLI ! {order.action} {order.quantity} {order.ticker.symbol if order.ticker else 'N/A'}", icon="🎉")
+                            elif order.status == OrderStatus.CANCELLED:
+                                st.toast(f"⚠️ Ordre #{order.id} ANNULÉ", icon="⚠️")
+                            elif order.status == OrderStatus.FAILED:
+                                st.toast(f"❌ Ordre #{order.id} ÉCHOUÉ", icon="❌")
+                finally:
+                    db.close()
+                
+                if count > 0:
+                    st.rerun()
+            
+            # Show countdown to next sync
+            time_until_next = 30 - (current_time - st.session_state.last_sync_time)
+            if time_until_next > 0:
+                st.caption(f"⏱️ Prochaine synchro dans {int(time_until_next)}s")
+                time_module.sleep(1)
+                st.rerun()
+            
+            # Sync button
+            if st.session_state.get('global_ibkr_connected', False):
+                if st.button("🔄 Sync IBKR"):
+                    # Get current order statuses before sync
+                    db = SessionLocal()
+                    try:
+                        orders_before = db.query(Order).filter(
+                            Order.status.in_([OrderStatus.PENDING, OrderStatus.SUBMITTED])
+                        ).all()
+                        before_statuses = {order.id: order.status for order in orders_before}
+                    finally:
+                        db.close()
+                    
+                    with st.spinner("Synchronisation..."):
+                        count = st.session_state.order_manager.sync_with_ibkr()
+                        st.session_state.last_sync_time = time_module.time()
+                        
+                        # Check for status changes and show notifications
+                        db = SessionLocal()
+                        try:
+                            orders_after = db.query(Order).all()
+                            
+                            for order in orders_after:
+                                old_status = before_statuses.get(order.id)
+                                if old_status and old_status != order.status:
+                                    # Status changed!
+                                    if order.status == OrderStatus.FILLED:
+                                        st.success(f"🎉 Ordre #{order.id} REMPLI ! {order.action} {order.quantity} {order.ticker.symbol if order.ticker else 'N/A'}")
+                                    elif order.status == OrderStatus.CANCELLED:
+                                        st.warning(f"⚠️ Ordre #{order.id} ANNULÉ")
+                                    elif order.status == OrderStatus.FAILED:
+                                        st.error(f"❌ Ordre #{order.id} ÉCHOUÉ")
+                        finally:
+                            db.close()
+                        
+                        st.success(f"✅ {count} ordres synchronisés")
+                        st.rerun()
+        
+        st.markdown("---")
+        
+        # Tabs
+        tab1, tab2, tab3, tab4 = st.tabs(["📝 Nouvel Ordre", "📋 Ordres en Cours", "📜 Historique", "📊 Statistiques"])
+        
+        # ========== TAB 1: NOUVEL ORDRE ==========
+        with tab1:
+            st.subheader("📝 Créer un Nouvel Ordre")
+            
+            col_form1, col_form2 = st.columns([2, 1])
+            
+            with col_form1:
+                # Get available tickers
+                db = SessionLocal()
+                try:
+                    from backend.models import Ticker
+                    tickers = db.query(Ticker).filter(Ticker.is_active == True).order_by(Ticker.symbol).all()
+                    ticker_options = {f"{t.symbol} - {t.name}": t.symbol for t in tickers}
+                    
+                    if not ticker_options:
+                        st.warning("⚠️ Aucune action en base. Ajoutez des actions via 'Collecte de Données'.")
+                        selected_symbol = st.text_input("Symbole (saisie manuelle)", value="WLN")
+                    else:
+                        selected_display = st.selectbox("Action", list(ticker_options.keys()))
+                        selected_symbol = ticker_options[selected_display]
+                finally:
+                    db.close()
+                
+                # Order parameters
+                col_action, col_qty = st.columns(2)
+                
+                with col_action:
+                    action = st.selectbox("Action", ["BUY", "SELL"], help="BUY = Acheter, SELL = Vendre")
+                
+                with col_qty:
+                    quantity = st.number_input("Quantité", min_value=1, value=10, step=1)
+                
+                # Order type
+                order_type = st.selectbox(
+                    "Type d'Ordre",
+                    ["MARKET", "LIMIT", "STOP", "STOP_LIMIT"],
+                    help="""
+                    - MARKET: Exécution immédiate au prix du marché
+                    - LIMIT: Exécution au prix limite ou mieux
+                    - STOP: Ordre stop-loss (devient market si prix atteint)
+                    - STOP_LIMIT: Ordre stop-limit combiné
+                    """
+                )
+                
+                # Conditional price inputs
+                limit_price = None
+                stop_price = None
+                
+                if order_type in ["LIMIT", "STOP_LIMIT"]:
+                    limit_price = st.number_input(
+                        "Prix Limite €",
+                        min_value=0.01,
+                        value=10.00,
+                        step=0.01,
+                        format="%.2f",
+                        help="Prix maximum (achat) ou minimum (vente)"
+                    )
+                
+                if order_type in ["STOP", "STOP_LIMIT"]:
+                    stop_price = st.number_input(
+                        "Prix Stop €",
+                        min_value=0.01,
+                        value=9.50,
+                        step=0.01,
+                        format="%.2f",
+                        help="Prix de déclenchement de l'ordre"
+                    )
+                
+                # Strategy selection (optional)
+                db = SessionLocal()
+                try:
+                    from backend.models import Strategy
+                    strategies = db.query(Strategy).all()
+                    strategy_options = {"Aucune": None}
+                    strategy_options.update({s.name: s.id for s in strategies})
+                    
+                    selected_strategy_name = st.selectbox("Stratégie (optionnel)", list(strategy_options.keys()))
+                    strategy_id = strategy_options[selected_strategy_name]
+                finally:
+                    db.close()
+                
+                # Notes
+                notes = st.text_area("Notes (optionnel)", help="Commentaires ou raison de l'ordre")
+                
+                # Paper trade toggle
+                is_paper = st.checkbox("Mode Simulation (Paper Trade)", value=True, help="Cochez pour simuler sans argent réel")
+                
+                # Submit button
+                st.markdown("---")
+                
+                col_submit1, col_submit2 = st.columns([2, 1])
+                
+                with col_submit1:
+                    if st.button("📤 Envoyer l'Ordre", type="primary", width="stretch"):
+                        error_occurred = False
+                        try:
+                            # Debug: Vérifier que order_manager existe
+                            order_manager = st.session_state.order_manager
+                            if not order_manager:
+                                st.error("❌ OrderManager non initialisé")
+                                st.stop()
+                            
+                            # Debug: Afficher les paramètres
+                            st.info(f"🔍 Création ordre: {action} {quantity} {selected_symbol} @ {order_type}")
+                            
+                            # Créer l'ordre (sans spinner pour voir les erreurs)
+                            order = order_manager.create_order(
+                                symbol=selected_symbol,
+                                action=action,
+                                quantity=quantity,
+                                order_type=order_type,
+                                limit_price=limit_price,
+                                stop_price=stop_price,
+                                strategy_id=strategy_id,
+                                notes=notes,
+                                is_paper_trade=is_paper
+                            )
+                            
+                            if order:
+                                st.success(f"✅ Ordre créé avec succès! (ID: {order.id})")
+                                st.json({
+                                    'ID': order.id,
+                                    'Symbol': selected_symbol,
+                                    'Action': action,
+                                    'Quantity': quantity,
+                                    'Type': order_type,
+                                    'Status': order.status.value,
+                                    'Status Message': order.status_message,
+                                    'IBKR Order ID': order.ibkr_order_id
+                                })
+                                
+                                # Wait a bit for IBKR processing
+                                if order.ibkr_order_id:
+                                    import time
+                                    time.sleep(1)
+                                
+                                st.rerun()
+                            else:
+                                st.error("❌ Échec de la création de l'ordre - order_manager.create_order() a retourné None")
+                                st.warning("⚠️ Vérifiez les logs dans le terminal Streamlit pour plus de détails")
+                        
+                        except Exception as e:
+                            error_occurred = True
+                            st.error(f"❌ Erreur: {e}")
+                            import traceback
+                            st.code(traceback.format_exc())
+                
+                with col_submit2:
+                    # Estimate cost
+                    if limit_price and order_type in ["LIMIT", "STOP_LIMIT"]:
+                        estimated_cost = quantity * limit_price
+                        st.metric("💰 Coût Estimé", f"{estimated_cost:.2f} €")
+            
+            with col_form2:
+                st.markdown("### 📋 Guide")
+                st.markdown("""
+                **Types d'ordres**:
+                
+                🔵 **MARKET**
+                - Exécution immédiate
+                - Au meilleur prix disponible
+                - Garanti d'être exécuté
+                
+                🟢 **LIMIT**
+                - Prix maximum (achat)
+                - Prix minimum (vente)
+                - Peut ne pas être exécuté
+                
+                🟡 **STOP**
+                - Stop-loss
+                - Devient MARKET si prix atteint
+                - Protection contre pertes
+                
+                🟣 **STOP_LIMIT**
+                - Stop-loss + prix limite
+                - Plus de contrôle
+                - Peut ne pas être exécuté
+                
+                ---
+                
+                ⚠️ **Mode Simulation**
+                
+                Les ordres en mode simulation sont enregistrés dans la base de données mais **utilisent de l'argent fictif**.
+                
+                Décochez pour trader avec de l'argent réel.
+                """)
+        
+        # ========== TAB 2: ORDRES EN COURS ==========
+        with tab2:
+            st.subheader("📋 Ordres en Cours")
+            
+            order_manager = st.session_state.order_manager
+            
+            # Get pending and submitted orders
+            pending_orders = order_manager.get_orders(
+                status=OrderStatus.PENDING,
+                limit=50
+            )
+            submitted_orders = order_manager.get_orders(
+                status=OrderStatus.SUBMITTED,
+                limit=50
+            )
+            
+            all_active = pending_orders + submitted_orders
+            
+            if all_active:
+                # Cancel actions section at top
+                st.markdown("### ❌ Actions d'Annulation")
+                
+                col_action1, col_action2, col_action3 = st.columns([2, 2, 2])
+                
+                with col_action1:
+                    if st.button("🗑️ Annuler TOUS les ordres", type="primary", width="stretch"):
+                        if st.session_state.get('confirm_cancel_all', False):
+                            # Actually cancel using optimized method
+                            with st.spinner("Annulation de tous les ordres..."):
+                                result = order_manager.cancel_all_orders()
+                                st.success(f"✅ {result['cancelled']} ordres annulés, {result['failed']} échecs")
+                                st.session_state.confirm_cancel_all = False
+                                import time
+                                time.sleep(1)
+                                st.rerun()
+                        else:
+                            # Ask for confirmation
+                            st.session_state.confirm_cancel_all = True
+                            st.rerun()
+                
+                with col_action2:
+                    if st.session_state.get('confirm_cancel_all', False):
+                        if st.button("❌ Annuler", type="secondary", width="stretch"):
+                            st.session_state.confirm_cancel_all = False
+                            st.rerun()
+                        st.warning(f"⚠️ Confirmer l'annulation de {len(all_active)} ordres ?")
+                
+                with col_action3:
+                    cancel_selected_btn = st.button("❌ Annuler la sélection", type="secondary", width="stretch")
+                
+                st.markdown("---")
+                
+                # Initialize selected orders in session state
+                if 'selected_orders' not in st.session_state:
+                    st.session_state.selected_orders = set()
+                
+                # Display orders table with checkboxes
+                st.markdown("### 📋 Ordres Actifs (cochez pour annuler)")
+                
+                # Prepare orders data
+                orders_data = []
+                db = SessionLocal()
+                try:
+                    from backend.models import Ticker
+                    
+                    for order in all_active:
+                        ticker = db.query(Ticker).filter(Ticker.id == order.ticker_id).first()
+                        orders_data.append({
+                            'order': order,
+                            'ID': order.id,
+                            'IBKR ID': order.ibkr_order_id or '-',
+                            'Symbole': ticker.symbol if ticker else 'N/A',
+                            'Action': order.action,
+                            'Type': order.order_type,
+                            'Qté': order.quantity,
+                            'Prix Limite': f"{order.limit_price:.2f} €" if order.limit_price else '-',
+                            'Prix Stop': f"{order.stop_price:.2f} €" if order.stop_price else '-',
+                            'Status': order.status.value,
+                            'Message': order.status_message or '-',
+                            'Créé': order.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                        })
+                finally:
+                    db.close()
+                
+                if orders_data:
+                    # Display each order with checkbox
+                    for idx, order_info in enumerate(orders_data):
+                        order = order_info['order']
+                        
+                        # Create columns: checkbox (small) + order info (large)
+                        col_check, col_info = st.columns([0.5, 11.5])
+                        
+                        with col_check:
+                            is_selected = st.checkbox(
+                                f"Select order {order.id}",
+                                key=f"order_checkbox_{order.id}",
+                                value=order.id in st.session_state.selected_orders,
+                                label_visibility="collapsed"
+                            )
+                            if is_selected:
+                                st.session_state.selected_orders.add(order.id)
+                            else:
+                                st.session_state.selected_orders.discard(order.id)
+                        
+                        with col_info:
+                            # Display order info in a nice format
+                            status_emoji = {
+                                'pending': '⏳',
+                                'submitted': '📤',
+                                'filled': '✅',
+                                'cancelled': '❌',
+                                'error': '🚨'
+                            }.get(order.status.value, '❓')
+                            
+                            action_color = 'green' if order.action == 'BUY' else 'red'
+                            
+                            st.markdown(f"""
+                            <div style="padding: 8px; background-color: rgba(0,0,0,0.05); border-radius: 5px; margin-bottom: 5px;">
+                                <strong>#{order.id}</strong> | 
+                                <strong style="color: {action_color};">{order.action}</strong> 
+                                <strong>{order.quantity}</strong> {order_info['Symbole']} @ 
+                                <strong>{order.order_type}</strong>
+                                {f"(Limite: {order_info['Prix Limite']})" if order.limit_price else ""}
+                                {f"(Stop: {order_info['Prix Stop']})" if order.stop_price else ""}
+                                | {status_emoji} <em>{order.status.value}</em>
+                                {f"| IBKR: {order.ibkr_order_id}" if order.ibkr_order_id else ""}
+                                | {order_info['Créé']}
+                                <br><small style="color: gray;">{order_info['Message']}</small>
+                            </div>
+                            """, unsafe_allow_html=True)
+                
+                # Handle cancel selected button
+                if cancel_selected_btn:
+                    if st.session_state.selected_orders:
+                        with st.spinner(f"Annulation de {len(st.session_state.selected_orders)} ordre(s)..."):
+                            # Use optimized batch cancel method
+                            results = order_manager.cancel_multiple_orders(list(st.session_state.selected_orders))
+                            cancelled_count = sum(1 for success in results.values() if success)
+                            failed_count = len(results) - cancelled_count
+                            
+                            if failed_count > 0:
+                                st.warning(f"✅ {cancelled_count} ordres annulés, ❌ {failed_count} échecs")
+                            else:
+                                st.success(f"✅ {cancelled_count} ordres sélectionnés annulés")
+                            
+                            st.session_state.selected_orders.clear()
+                            import time
+                            time.sleep(1)
+                            st.rerun()
+                    else:
+                        st.warning("⚠️ Aucun ordre sélectionné")
+                
+                # Old single cancel section (kept for backward compatibility)
+                st.markdown("---")
+                st.markdown("### ❌ Annuler un Ordre Spécifique (par ID)")
+                
+                col_cancel1, col_cancel2 = st.columns([2, 1])
+                
+                with col_cancel1:
+                    order_id_to_cancel = st.number_input(
+                        "ID de l'ordre à annuler",
+                        min_value=1,
+                        step=1,
+                        help="Saisissez l'ID depuis le tableau ci-dessus"
+                    )
+                
+                with col_cancel2:
+                    if st.button("❌ Annuler", type="secondary", width="stretch", key="cancel_by_id"):
+                        try:
+                            with st.spinner("Annulation..."):
+                                success = order_manager.cancel_order(order_id_to_cancel)
+                                if success:
+                                    st.success(f"✅ Ordre {order_id_to_cancel} annulé")
+                                    import time
+                                    time.sleep(1)
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Échec de l'annulation")
+                        except Exception as e:
+                            st.error(f"❌ Erreur: {e}")
+            
+            else:
+                st.info("ℹ️ Aucun ordre en cours")
+        
+        # ========== TAB 3: HISTORIQUE ==========
+        with tab3:
+            st.subheader("📜 Historique des Ordres")
+            
+            # Filters
+            col_filter1, col_filter2, col_filter3 = st.columns(3)
+            
+            with col_filter1:
+                filter_symbol = st.text_input("Filtrer par symbole", placeholder="Ex: WLN")
+            
+            with col_filter2:
+                filter_status = st.selectbox(
+                    "Filtrer par status",
+                    ["Tous", "FILLED", "CANCELLED", "PENDING", "SUBMITTED", "ERROR"]
+                )
+            
+            with col_filter3:
+                limit = st.number_input("Nombre max", min_value=10, max_value=500, value=100, step=10)
+            
+            # Clean old stuck orders button
+            st.markdown("---")
+            col_clean1, col_clean2 = st.columns([3, 1])
+            with col_clean2:
+                if st.button("🧹 Nettoyer ordres bloqués", help="Marque les ordres submitted de plus de 1 jour comme 'CANCELLED'"):
+                    db = SessionLocal()
+                    try:
+                        from datetime import timedelta
+                        # Find orders stuck in SUBMITTED for more than 24 hours
+                        cutoff_time = datetime.now() - timedelta(days=1)
+                        stuck_orders = db.query(Order).filter(
+                            Order.status == OrderStatus.SUBMITTED,
+                            Order.created_at < cutoff_time
+                        ).all()
+                        
+                        if stuck_orders:
+                            for order in stuck_orders:
+                                order.status = OrderStatus.CANCELLED
+                                order.notes = (order.notes or "") + f"\n[Auto-cancelled: stuck in SUBMITTED for >24h at {datetime.now().strftime('%Y-%m-%d %H:%M')}]"
+                            db.commit()
+                            st.success(f"✅ {len(stuck_orders)} ordres bloqués nettoyés")
+                            st.rerun()
+                        else:
+                            st.info("ℹ️ Aucun ordre bloqué trouvé")
+                    except Exception as e:
+                        logger.error(f"Error cleaning stuck orders: {e}")
+                        st.error(f"❌ Erreur: {e}")
+                    finally:
+                        db.close()
+            
+            # Get orders
+            order_manager = st.session_state.order_manager
+            
+            status_filter = None
+            if filter_status != "Tous":
+                status_filter = OrderStatus[filter_status]
+            
+            symbol_filter = filter_symbol if filter_symbol else None
+            
+            orders = order_manager.get_orders(
+                ticker_symbol=symbol_filter,
+                status=status_filter,
+                limit=limit
+            )
+            
+            if orders:
+                orders_data = []
+                db = SessionLocal()
+                try:
+                    from backend.models import Ticker, Strategy
+                    
+                    for order in orders:
+                        ticker = db.query(Ticker).filter(Ticker.id == order.ticker_id).first()
+                        strategy = db.query(Strategy).filter(Strategy.id == order.strategy_id).first() if order.strategy_id else None
+                        
+                        # Calculate P&L for filled orders
+                        pnl_str = '-'
+                        if order.status == OrderStatus.FILLED and order.avg_fill_price:
+                            # This is simplified - real P&L needs matching buy/sell orders
+                            pnl_str = f"{order.avg_fill_price * order.filled_quantity:.2f} €"
+                        
+                        orders_data.append({
+                            'ID': order.id,
+                            'Date': order.created_at.strftime('%Y-%m-%d %H:%M'),
+                            'Symbole': ticker.symbol if ticker else 'N/A',
+                            'Action': order.action,
+                            'Type': order.order_type,
+                            'Qté': order.quantity,
+                            'Rempli': order.filled_quantity if order.filled_quantity else 0,
+                            'Prix Moy': f"{order.avg_fill_price:.2f} €" if order.avg_fill_price else '-',
+                            'Commission': f"{order.commission:.2f} €" if order.commission else '0.00 €',
+                            'Status': order.status.value,
+                            'Stratégie': strategy.name if strategy else '-',
+                            'Paper': '✅' if order.is_paper_trade else '❌'
+                        })
+                finally:
+                    db.close()
+                
+                orders_df = pd.DataFrame(orders_data)
+                
+                # Display with color coding
+                st.dataframe(
+                    orders_df,
+                    width="stretch",
+                    hide_index=True
+                )
+                
+                # Export button
+                csv = orders_df.to_csv(index=False)
+                st.download_button(
+                    label="📥 Télécharger CSV",
+                    data=csv,
+                    file_name=f"orders_history_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+            
+            else:
+                st.info("ℹ️ Aucun ordre dans l'historique")
+        
+        # ========== TAB 4: STATISTIQUES ==========
+        with tab4:
+            st.subheader("📊 Statistiques des Ordres")
+            
+            order_manager = st.session_state.order_manager
+            
+            # Overall statistics
+            stats = order_manager.get_order_statistics()
+            
+            if stats:
+                col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
+                
+                with col_stat1:
+                    st.metric("📝 Total Ordres", stats.get('total_orders', 0))
+                
+                with col_stat2:
+                    st.metric("✅ Exécutés", stats.get('filled', 0))
+                
+                with col_stat3:
+                    st.metric("⏳ En Cours", stats.get('pending', 0))
+                
+                with col_stat4:
+                    fill_rate = stats.get('fill_rate', 0)
+                    st.metric("📈 Taux d'Exécution", f"{fill_rate:.1f}%")
+                
+                st.markdown("---")
+                
+                col_stat5, col_stat6 = st.columns(2)
+                
+                with col_stat5:
+                    total_vol = stats.get('total_volume', 0)
+                    st.metric("💰 Volume Total", f"{total_vol:,.2f} €")
+                
+                with col_stat6:
+                    total_comm = stats.get('total_commission', 0)
+                    st.metric("💸 Commissions Totales", f"{total_comm:,.2f} €")
+                
+                # Performance Charts
+                st.markdown("---")
+                st.subheader("📈 Graphiques de Performance")
+                
+                db = SessionLocal()
+                try:
+                    # Get all filled orders
+                    filled_orders = db.query(Order).filter(
+                        Order.status == OrderStatus.FILLED
+                    ).order_by(Order.filled_at).all()
+                    
+                    if filled_orders:
+                        # Chart 1: P&L over time (cumulative) - TODO: Add P&L calculation to Order model
+                        # Temporarily disabled until P&L is properly tracked
+                        st.info("� Graphiques P&L à venir - Fonctionnalité en développement")
+                        
+                        # For now, show simple order count over time
+                        st.markdown("**📅 Ordres Remplis par Jour**")
+                        
+                        # Group by day
+                        daily_orders = {}
+                        for order in filled_orders:
+                            if order.filled_at:
+                                day = order.filled_at.date()
+                                if day not in daily_orders:
+                                    daily_orders[day] = 0
+                                daily_orders[day] += 1
+                        
+                        if daily_orders:
+                            sorted_days = sorted(daily_orders.keys())
+                            order_counts = [daily_orders[day] for day in sorted_days]
+                            
+                            fig_bar = go.Figure()
+                            fig_bar.add_trace(go.Bar(
+                                x=sorted_days,
+                                y=order_counts,
+                                marker=dict(color='steelblue'),
+                                name='Ordres'
+                            ))
+                            fig_bar.update_layout(
+                                height=300,
+                                margin=dict(l=0, r=0, t=30, b=0),
+                                xaxis_title="Date",
+                                yaxis_title="Nombre d'Ordres",
+                                hovermode='x unified'
+                            )
+                            st.plotly_chart(fig_bar, use_container_width=True)
+                        
+                        # Chart 2: Order volume by day
+                        st.markdown("**📅 Volume d'Ordres par Jour**")
+                        
+                        # Group by day
+                        daily_volume = {}
+                        for order in filled_orders:
+                            if order.filled_at:
+                                day = order.filled_at.date()
+                                if day not in daily_volume:
+                                    daily_volume[day] = 0
+                                if order.filled_quantity and order.avg_fill_price:
+                                    daily_volume[day] += order.filled_quantity * order.avg_fill_price
+                        
+                        if daily_volume:
+                            sorted_days = sorted(daily_volume.keys())
+                            volumes = [daily_volume[day] for day in sorted_days]
+                            
+                            fig_bar = go.Figure()
+                            fig_bar.add_trace(go.Bar(
+                                x=sorted_days,
+                                y=volumes,
+                                marker=dict(color='steelblue'),
+                                name='Volume'
+                            ))
+                            fig_bar.update_layout(
+                                height=300,
+                                margin=dict(l=0, r=0, t=30, b=0),
+                                xaxis_title="Date",
+                                yaxis_title="Volume (€)",
+                                hovermode='x unified'
+                            )
+                            st.plotly_chart(fig_bar, use_container_width=True)
+                    else:
+                        st.info("📊 Aucun ordre rempli pour générer des graphiques")
+                
+                finally:
+                    db.close()
+                
+                # Statistics by ticker
+                st.markdown("---")
+                st.subheader("📊 Par Action")
+                
+                db = SessionLocal()
+                try:
+                    # Query orders grouped by ticker
+                    from sqlalchemy import case
+                    
+                    ticker_stats_query = db.query(
+                        Ticker.symbol,
+                        func.count(Order.id).label('total'),
+                        func.sum(case((Order.status == OrderStatus.FILLED, 1), else_=0)).label('filled'),
+                        func.sum(case((Order.status == OrderStatus.FILLED, Order.filled_quantity * Order.avg_fill_price), else_=0)).label('volume')
+                    ).join(Order).group_by(Ticker.symbol).all()
+                    
+                    if ticker_stats_query:
+                        ticker_stats_data = []
+                        for row in ticker_stats_query:
+                            ticker_stats_data.append({
+                                'Symbole': row.symbol,
+                                'Total Ordres': row.total,
+                                'Exécutés': row.filled,
+                                'Taux': f"{(row.filled / row.total * 100):.1f}%" if row.total > 0 else '0%',
+                                'Volume': f"{row.volume:,.2f} €" if row.volume else '0.00 €'
+                            })
+                        
+                        ticker_stats_df = pd.DataFrame(ticker_stats_data)
+                        st.dataframe(ticker_stats_df, width="stretch", hide_index=True)
+                    else:
+                        st.info("Aucune statistique disponible")
+                
+                finally:
+                    db.close()
+            
+            else:
+                st.info("ℹ️ Aucune statistique disponible")
+    
+    except ImportError as e:
+        st.error(f"❌ Module manquant: {e}")
+        st.code("pip install ib_insync sqlalchemy")
+    
+    except Exception as e:
+        st.error(f"❌ Erreur: {e}")
+        import traceback
+        st.code(traceback.format_exc())
+
+
+def auto_trading_page():
+    """Automatic trading page with strategy execution"""
+    st.header("🤖 Trading Automatique")
+    
+    try:
+        from backend.auto_trader import AutoTraderManager
+        from backend.models import SessionLocal, Ticker, Strategy, AutoTraderSession, AutoTraderStatus
+        
+        # Initialize global IBKR connection
+        init_global_ibkr_connection()
+        
+        # Initialize or update AutoTraderManager in session state
+        ibkr_collector = st.session_state.get('global_ibkr')
+        
+        if 'auto_trader_manager' not in st.session_state:
+            st.session_state.auto_trader_manager = AutoTraderManager(ibkr_collector)
+        else:
+            # Update IBKR connection if it changed
+            st.session_state.auto_trader_manager.ibkr_collector = ibkr_collector
+        
+        manager = st.session_state.auto_trader_manager
+        
+        # IBKR Connection Status
+        col_status1, col_status2 = st.columns([3, 1])
+        
+        with col_status1:
+            if st.session_state.get('global_ibkr_connected', False):
+                st.success("🟢 Connecté à IBKR - Le trading automatique est opérationnel")
+            else:
+                st.warning("🟡 Non connecté à IBKR - Connectez-vous pour utiliser le trading automatique")
+        
+        with col_status2:
+            if st.button("🔄 Rafraîchir", width='stretch'):
+                st.rerun()
+        
+        st.markdown("---")
+        
+        # Tabs
+        tab1, tab2, tab3 = st.tabs(["🆕 Nouvelle Session", "▶️ Sessions Actives", "📜 Historique"])
+        
+        # ========== TAB 1: NOUVELLE SESSION ==========
+        with tab1:
+            st.subheader("🆕 Créer une Session de Trading Automatique")
+            
+            col_form1, col_form2 = st.columns([2, 1])
+            
+            with col_form1:
+                st.markdown("### Configuration de Base")
+                
+                # Get available tickers and strategies
+                db = SessionLocal()
+                try:
+                    tickers = db.query(Ticker).filter(Ticker.is_active == True).order_by(Ticker.symbol).all()
+                    strategies = db.query(Strategy).all()
+                    
+                    if not tickers:
+                        st.warning("⚠️ Aucune action disponible. Ajoutez des actions via 'Collecte de Données'.")
+                        return
+                    
+                    if not strategies:
+                        st.warning("⚠️ Aucune stratégie disponible. Créez une stratégie via 'Backtesting'.")
+                        return
+                    
+                    # Ticker selection
+                    ticker_options = {f"{t.symbol} - {t.name}": t.id for t in tickers}
+                    selected_ticker_display = st.selectbox("Action à trader", list(ticker_options.keys()))
+                    selected_ticker_id = ticker_options[selected_ticker_display]
+                    
+                    # Strategy selection
+                    strategy_options = {f"{s.name}" + (f" ({s.strategy_type})" if s.strategy_type else ""): s.id for s in strategies}
+                    selected_strategy_display = st.selectbox("Stratégie de trading", list(strategy_options.keys()))
+                    selected_strategy_id = strategy_options[selected_strategy_display]
+                    
+                finally:
+                    db.close()
+                
+                st.markdown("### Paramètres Avancés")
+                
+                col_param1, col_param2 = st.columns(2)
+                
+                with col_param1:
+                    polling_interval = st.number_input(
+                        "Intervalle de polling (secondes)",
+                        min_value=10,
+                        max_value=3600,
+                        value=60,
+                        help="Fréquence de vérification des signaux"
+                    )
+                    
+                    max_position_size = st.number_input(
+                        "Taille max de position (actions)",
+                        min_value=1,
+                        max_value=10000,
+                        value=100,
+                        help="Nombre maximum d'actions à détenir"
+                    )
+                    
+                    max_daily_trades = st.number_input(
+                        "Max trades par jour",
+                        min_value=1,
+                        max_value=100,
+                        value=10,
+                        help="Limite de trades quotidiens"
+                    )
+                
+                with col_param2:
+                    stop_loss_pct = st.number_input(
+                        "Stop Loss (%)",
+                        min_value=0.1,
+                        max_value=50.0,
+                        value=2.0,
+                        step=0.1,
+                        help="Pourcentage de perte pour stop automatique"
+                    )
+                    
+                    take_profit_pct = st.number_input(
+                        "Take Profit (%)",
+                        min_value=0.1,
+                        max_value=100.0,
+                        value=5.0,
+                        step=0.1,
+                        help="Pourcentage de gain pour prise de profit automatique"
+                    )
+                
+                st.markdown("---")
+                
+                if st.button("🚀 Créer et Démarrer Session", type="primary", width='stretch'):
+                    if not st.session_state.get('global_ibkr_connected', False):
+                        st.error("❌ Connectez-vous d'abord à IBKR")
+                    else:
+                        with st.spinner("Création de la session..."):
+                            config = {
+                                'polling_interval': polling_interval,
+                                'max_position_size': max_position_size,
+                                'max_daily_trades': max_daily_trades,
+                                'stop_loss_pct': stop_loss_pct,
+                                'take_profit_pct': take_profit_pct
+                            }
+                            
+                            session_id = manager.create_session(
+                                ticker_id=selected_ticker_id,
+                                strategy_id=selected_strategy_id,
+                                config=config
+                            )
+                            
+                            manager.start_session(session_id)
+                            
+                            st.success(f"✅ Session #{session_id} créée et démarrée !")
+                            time_module.sleep(1)
+                            st.rerun()
+            
+            with col_form2:
+                st.info("""
+                ### ℹ️ Comment ça marche ?
+                
+                **1. Sélection**
+                - Choisissez une action
+                - Choisissez une stratégie
+                
+                **2. Configuration**
+                - Définissez les limites de risque
+                - Configurez la fréquence d'analyse
+                
+                **3. Exécution Automatique**
+                - Le système surveille en continu
+                - Calcule les indicateurs
+                - Détecte les signaux BUY/SELL
+                - Passe des ordres automatiquement
+                
+                **⚠️ Important**
+                - Nécessite connexion IBKR active
+                - Respecte les limites définies
+                - Arrêtez la session à tout moment
+                """)
+        
+        # ========== TAB 2: SESSIONS ACTIVES ==========
+        with tab2:
+            st.subheader("▶️ Sessions de Trading en Cours")
+            
+            # Auto-refresh toggle for active sessions
+            col_refresh1, col_refresh2 = st.columns([3, 1])
+            
+            with col_refresh1:
+                auto_refresh = st.toggle("🔄 Auto-refresh (5s)", value=False, help="Rafraîchit automatiquement toutes les 5 secondes")
+            
+            with col_refresh2:
+                if st.button("🔄 Rafraîchir maintenant", width='stretch'):
+                    st.rerun()
+            
+            # Get all sessions
+            all_sessions = manager.get_all_sessions()
+            active_sessions = [s for s in all_sessions if s['is_active']]
+            
+            if not active_sessions:
+                st.info("ℹ️ Aucune session active. Créez-en une dans l'onglet 'Nouvelle Session'.")
+            else:
+                for session in active_sessions:
+                    with st.expander(f"📊 {session['ticker']} - {session['strategy']} (Session #{session['id']})", expanded=True):
+                        # Get detailed status
+                        trader = manager.traders.get(session['id'])
+                        if trader:
+                            status = trader.get_status()
+                            
+                            col1, col2, col3, col4 = st.columns(4)
+                            
+                            with col1:
+                                st.metric("📈 Position", status['current_position'])
+                            
+                            with col2:
+                                st.metric("📝 Ordres", status['total_orders'])
+                            
+                            with col3:
+                                pnl = status['total_pnl']
+                                st.metric("💰 P&L", f"{pnl:.2f} €", delta=f"{pnl:.2f} €" if pnl != 0 else None)
+                            
+                            with col4:
+                                st.metric("📊 Buffer", f"{status['buffer_size']} points")
+                            
+                            st.markdown("---")
+                            
+                            col_info1, col_info2 = st.columns(2)
+                            
+                            with col_info1:
+                                if status['last_signal']:
+                                    signal_color = "🟢" if status['last_signal'] == "BUY" else "🔴"
+                                    st.write(f"**Dernier Signal:** {signal_color} {status['last_signal']}")
+                                    if status['last_signal_at']:
+                                        st.caption(f"à {status['last_signal_at'].strftime('%H:%M:%S')}")
+                                
+                                if status['last_check_at']:
+                                    st.write(f"**Dernière vérification:** {status['last_check_at'].strftime('%H:%M:%S')}")
+                            
+                            with col_info2:
+                                if status['started_at']:
+                                    st.write(f"**Démarré:** {status['started_at'].strftime('%Y-%m-%d %H:%M')}")
+                                
+                                uptime = datetime.now() - status['started_at'] if status['started_at'] else timedelta(0)
+                                hours = int(uptime.total_seconds() // 3600)
+                                minutes = int((uptime.total_seconds() % 3600) // 60)
+                                st.write(f"**Uptime:** {hours}h {minutes}m")
+                            
+                            # Live Chart with Price Buffer
+                            st.markdown("---")
+                            st.markdown("**📈 Cours en Temps Réel & Indicateurs**")
+                            
+                            if trader.price_buffer and len(trader.price_buffer) > 0:
+                                # Convert buffer to DataFrame
+                                buffer_df = pd.DataFrame(trader.price_buffer)
+                                
+                                # Calculate indicators for visualization
+                                try:
+                                    from backend.strategy_runner import StrategyRunner
+                                    
+                                    runner = StrategyRunner()
+                                    buffer_df_copy = buffer_df.copy()
+                                    buffer_df_copy['date'] = buffer_df_copy['timestamp']
+                                    buffer_df_copy = buffer_df_copy.set_index('date')
+                                    
+                                    signals_df = runner.generate_signals(buffer_df_copy, trader.strategy)
+                                    
+                                    if signals_df is not None and not signals_df.empty:
+                                        # Create chart
+                                        fig = go.Figure()
+                                        
+                                        # Price line
+                                        fig.add_trace(go.Scatter(
+                                            x=signals_df.index,
+                                            y=signals_df['close'],
+                                            mode='lines',
+                                            name='Prix',
+                                            line=dict(color='blue', width=2)
+                                        ))
+                                        
+                                        # Add indicators if present
+                                        if 'sma' in signals_df.columns:
+                                            fig.add_trace(go.Scatter(
+                                                x=signals_df.index,
+                                                y=signals_df['sma'],
+                                                mode='lines',
+                                                name='SMA',
+                                                line=dict(color='orange', dash='dash')
+                                            ))
+                                        
+                                        if 'ema' in signals_df.columns:
+                                            fig.add_trace(go.Scatter(
+                                                x=signals_df.index,
+                                                y=signals_df['ema'],
+                                                mode='lines',
+                                                name='EMA',
+                                                line=dict(color='purple', dash='dash')
+                                            ))
+                                        
+                                        # Mark BUY/SELL signals
+                                        if 'signal' in signals_df.columns:
+                                            buy_signals = signals_df[signals_df['signal'] == 1]
+                                            sell_signals = signals_df[signals_df['signal'] == -1]
+                                            
+                                            if not buy_signals.empty:
+                                                fig.add_trace(go.Scatter(
+                                                    x=buy_signals.index,
+                                                    y=buy_signals['close'],
+                                                    mode='markers',
+                                                    name='BUY',
+                                                    marker=dict(color='green', size=12, symbol='triangle-up')
+                                                ))
+                                            
+                                            if not sell_signals.empty:
+                                                fig.add_trace(go.Scatter(
+                                                    x=sell_signals.index,
+                                                    y=sell_signals['close'],
+                                                    mode='markers',
+                                                    name='SELL',
+                                                    marker=dict(color='red', size=12, symbol='triangle-down')
+                                                ))
+                                        
+                                        fig.update_layout(
+                                            height=400,
+                                            margin=dict(l=0, r=0, t=30, b=0),
+                                            xaxis_title="Temps",
+                                            yaxis_title="Prix (€)",
+                                            hovermode='x unified',
+                                            showlegend=True
+                                        )
+                                        
+                                        st.plotly_chart(fig, use_container_width=True)
+                                        
+                                        # Show latest indicator values
+                                        st.markdown("**📊 Dernières Valeurs des Indicateurs**")
+                                        
+                                        latest = signals_df.iloc[-1]
+                                        indicator_cols = st.columns(min(4, len([c for c in signals_df.columns if c not in ['open', 'high', 'low', 'close', 'volume', 'signal', 'position']])))
+                                        
+                                        col_idx = 0
+                                        for col in signals_df.columns:
+                                            if col not in ['open', 'high', 'low', 'close', 'volume', 'signal', 'position', 'timestamp']:
+                                                if col_idx < len(indicator_cols):
+                                                    with indicator_cols[col_idx]:
+                                                        value = latest[col]
+                                                        if pd.notna(value):
+                                                            st.metric(col.upper(), f"{value:.2f}")
+                                                    col_idx += 1
+                                    else:
+                                        st.info("Calcul des indicateurs en cours...")
+                                
+                                except Exception as e:
+                                    st.warning(f"Graphique non disponible: {e}")
+                                    
+                                    # Fallback: simple price chart
+                                    fig = go.Figure()
+                                    fig.add_trace(go.Scatter(
+                                        x=buffer_df['timestamp'],
+                                        y=buffer_df['close'],
+                                        mode='lines+markers',
+                                        name='Prix',
+                                        line=dict(color='blue')
+                                    ))
+                                    fig.update_layout(
+                                        height=300,
+                                        margin=dict(l=0, r=0, t=30, b=0),
+                                        xaxis_title="Temps",
+                                        yaxis_title="Prix (€)"
+                                    )
+                                    st.plotly_chart(fig, use_container_width=True)
+                            else:
+                                st.info("⏳ En attente de données... Le système récupère les cours.")
+                            
+                            st.markdown("---")
+                            
+                            col_btn1, col_btn2 = st.columns(2)
+                            
+                            with col_btn1:
+                                if st.button(f"🛑 Arrêter Session #{session['id']}", type="secondary", width='stretch'):
+                                    manager.stop_session(session['id'])
+                                    st.success(f"Session #{session['id']} arrêtée")
+                                    time_module.sleep(1)
+                                    st.rerun()
+                            
+                            with col_btn2:
+                                if st.button(f"📊 Voir Ordres", key=f"orders_{session['id']}", width='stretch'):
+                                    st.info("Consultez l'onglet 'Passage d'Ordres' pour voir tous les ordres")
+            
+            # Auto-refresh logic
+            if auto_refresh:
+                time_module.sleep(5)
+                st.rerun()
+        
+        # ========== TAB 3: HISTORIQUE ==========
+        with tab3:
+            st.subheader("📜 Historique des Sessions")
+            
+            # Get all sessions
+            all_sessions = manager.get_all_sessions()
+            
+            if not all_sessions:
+                st.info("ℹ️ Aucune session enregistrée")
+            else:
+                # Create DataFrame
+                sessions_data = []
+                for session in all_sessions:
+                    sessions_data.append({
+                        'ID': session['id'],
+                        'Action': session['ticker'],
+                        'Stratégie': session['strategy'],
+                        'Statut': session['status'],
+                        'Actif': '✅' if session['is_active'] else '❌',
+                        'Position': session['current_position'],
+                        'Ordres': session['total_orders'],
+                        'P&L (€)': f"{session['total_pnl']:.2f}",
+                        'Démarré': session['started_at'].strftime('%Y-%m-%d %H:%M') if session['started_at'] else 'N/A',
+                        'Arrêté': session['stopped_at'].strftime('%Y-%m-%d %H:%M') if session['stopped_at'] else 'N/A'
+                    })
+                
+                sessions_df = pd.DataFrame(sessions_data)
+                st.dataframe(sessions_df, width='stretch', hide_index=True)
+                
+                # Statistics
+                st.markdown("---")
+                st.subheader("📊 Statistiques Globales")
+                
+                total_sessions = len(all_sessions)
+                active_count = len([s for s in all_sessions if s['is_active']])
+                total_pnl = sum(s['total_pnl'] for s in all_sessions)
+                total_orders_all = sum(s['total_orders'] for s in all_sessions)
+                
+                col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
+                
+                with col_stat1:
+                    st.metric("📝 Total Sessions", total_sessions)
+                
+                with col_stat2:
+                    st.metric("▶️ Actives", active_count)
+                
+                with col_stat3:
+                    st.metric("💰 P&L Total", f"{total_pnl:.2f} €", delta=f"{total_pnl:.2f} €" if total_pnl != 0 else None)
+                
+                with col_stat4:
+                    st.metric("📋 Ordres Générés", total_orders_all)
+    
+    except ImportError as e:
+        st.error(f"❌ Module manquant: {e}")
+        st.code("pip install ib_insync sqlalchemy pandas")
+    
+    except Exception as e:
+        st.error(f"❌ Erreur: {e}")
+        import traceback
+        st.code(traceback.format_exc())
+
+
+def indicators_page():
+    """Page d'explication des indicateurs techniques"""
+    st.header("📚 Indicateurs Techniques")
+    st.write("Guide complet des indicateurs utilisés dans les stratégies de trading")
+    
+    # Tabs pour les différentes catégories
+    tab1, tab2, tab3, tab4 = st.tabs(["📈 Tendance", "⚡ Momentum", "📊 Volatilité", "📦 Volume"])
+    
+    # ========== INDICATEURS DE TENDANCE ==========
+    with tab1:
+        st.subheader("📈 Indicateurs de Tendance")
+        st.write("Ces indicateurs aident à identifier la direction et la force d'une tendance.")
+        
+        # SMA (Simple Moving Average)
+        with st.expander("🔵 SMA - Moyenne Mobile Simple", expanded=True):
+            st.markdown("""
+            **Définition**: Moyenne arithmétique des prix sur une période donnée.
+            
+            **Calcul**: 
+            ```
+            SMA = (P1 + P2 + ... + Pn) / n
+            ```
+            où P = prix de clôture, n = période
+            
+            **Périodes courantes**:
+            - SMA 20: Tendance court terme
+            - SMA 50: Tendance moyen terme  
+            - SMA 200: Tendance long terme
+            
+            **Interprétation**:
+            - 📈 **Signal haussier**: Prix > SMA ou croisement SMA courte > SMA longue (Golden Cross)
+            - 📉 **Signal baissier**: Prix < SMA ou croisement SMA courte < SMA longue (Death Cross)
+            - 📊 **Support/Résistance**: La SMA agit souvent comme niveau de support (tendance haussière) ou résistance (tendance baissière)
+            
+            **Avantages**: Simple, élimine le bruit, identifie les tendances
+            **Inconvénients**: Retard important, moins sensible aux changements récents
+            """)
+        
+        # EMA (Exponential Moving Average)
+        with st.expander("🟢 EMA - Moyenne Mobile Exponentielle"):
+            st.markdown("""
+            **Définition**: Moyenne mobile qui donne plus de poids aux prix récents.
+            
+            **Calcul**:
+            ```
+            Multiplicateur = 2 / (n + 1)
+            EMA = Prix_actuel × Multiplicateur + EMA_précédent × (1 - Multiplicateur)
+            ```
+            
+            **Périodes courantes**:
+            - EMA 12 et EMA 26: Utilisées pour le MACD
+            - EMA 9: Signal line du MACD
+            - EMA 50 et EMA 200: Tendances moyen/long terme
+            
+            **Interprétation**:
+            - 📈 **Signal haussier**: Prix > EMA, pente EMA ascendante
+            - 📉 **Signal baissier**: Prix < EMA, pente EMA descendante
+            - ⚡ **Réactivité**: Réagit plus vite que la SMA aux changements
+            
+            **Avantages**: Plus réactive, suit mieux les tendances récentes
+            **Inconvénients**: Peut générer plus de faux signaux
+            """)
+        
+        # MACD
+        with st.expander("🔶 MACD - Moving Average Convergence Divergence"):
+            st.markdown("""
+            **Définition**: Indicateur de momentum basé sur la différence entre deux EMA.
+            
+            **Calcul**:
+            ```
+            MACD Line = EMA(12) - EMA(26)
+            Signal Line = EMA(9) du MACD Line
+            Histogramme = MACD Line - Signal Line
+            ```
+            
+            **Interprétation**:
+            - 📈 **Signal d'achat**: 
+              - MACD croise au-dessus de la Signal Line
+              - Histogramme passe en positif
+              - MACD croise au-dessus de zéro
+            - 📉 **Signal de vente**:
+              - MACD croise en-dessous de la Signal Line
+              - Histogramme passe en négatif
+              - MACD croise en-dessous de zéro
+            - 🔀 **Divergence**: 
+              - Divergence haussière: Prix fait des plus bas mais MACD remonte
+              - Divergence baissière: Prix fait des plus hauts mais MACD baisse
+            
+            **Avantages**: Combine tendance et momentum, identifie les divergences
+            **Inconvénients**: Peut donner des signaux tardifs en marché volatile
+            """)
+        
+        # ADX
+        with st.expander("🟣 ADX - Average Directional Index"):
+            st.markdown("""
+            **Définition**: Mesure la force d'une tendance (sans indiquer sa direction).
+            
+            **Calcul**: Basé sur le Directional Movement Index (DMI)
+            ```
+            +DI = Mouvement directionnel haussier
+            -DI = Mouvement directionnel baissier
+            ADX = EMA de la différence absolue entre +DI et -DI
+            ```
+            
+            **Interprétation des valeurs**:
+            - ADX < 20: ❌ Pas de tendance, marché en consolidation
+            - ADX 20-25: ⚠️ Tendance faible
+            - ADX 25-50: ✅ Tendance forte
+            - ADX > 50: 🔥 Tendance très forte
+            
+            **Interprétation avec DI**:
+            - 📈 **Tendance haussière forte**: ADX > 25 et +DI > -DI
+            - 📉 **Tendance baissière forte**: ADX > 25 et -DI > +DI
+            
+            **Avantages**: Identifie la force de la tendance, évite les faux signaux en range
+            **Inconvénients**: Ne donne pas la direction, peut être en retard
+            """)
+    
+    # ========== INDICATEURS DE MOMENTUM ==========
+    with tab2:
+        st.subheader("⚡ Indicateurs de Momentum")
+        st.write("Ces indicateurs mesurent la vitesse et la force des mouvements de prix.")
+        
+        # RSI
+        with st.expander("🔴 RSI - Relative Strength Index", expanded=True):
+            st.markdown("""
+            **Définition**: Oscillateur qui mesure la vitesse et l'amplitude des mouvements de prix.
+            
+            **Calcul**:
+            ```
+            RS = Moyenne des gains / Moyenne des pertes (sur 14 périodes)
+            RSI = 100 - (100 / (1 + RS))
+            ```
+            
+            **Zones clés**:
+            - RSI > 70: 🔥 Zone de surachat (potentiel retournement baissier)
+            - RSI 30-70: ⚖️ Zone neutre
+            - RSI < 30: ❄️ Zone de survente (potentiel retournement haussier)
+            
+            **Interprétation**:
+            - 📈 **Signal d'achat**:
+              - RSI sort de la zone de survente (> 30)
+              - Divergence haussière: Prix fait des plus bas mais RSI remonte
+            - 📉 **Signal de vente**:
+              - RSI sort de la zone de surachat (< 70)
+              - Divergence baissière: Prix fait des plus hauts mais RSI baisse
+            
+            **Avantages**: Identifie surachat/survente, détecte les divergences
+            **Inconvénients**: Peut rester en zone extrême longtemps en tendance forte
+            """)
+        
+        # Stochastic
+        with st.expander("🟡 Stochastique - Stochastic Oscillator"):
+            st.markdown("""
+            **Définition**: Compare le prix de clôture à sa fourchette de prix sur une période.
+            
+            **Calcul**:
+            ```
+            %K = 100 × (Close - Low14) / (High14 - Low14)
+            %D = SMA(3) de %K (signal line)
+            ```
+            
+            **Zones clés**:
+            - Stoch > 80: 🔥 Surachat
+            - Stoch 20-80: ⚖️ Zone neutre
+            - Stoch < 20: ❄️ Survente
+            
+            **Interprétation**:
+            - 📈 **Signal d'achat**:
+              - %K croise au-dessus de %D en zone de survente
+              - Sortie de la zone < 20
+            - 📉 **Signal de vente**:
+              - %K croise en-dessous de %D en zone de surachat
+              - Sortie de la zone > 80
+            
+            **Types**:
+            - **Fast Stochastic**: %K brut (plus réactif, plus de bruit)
+            - **Slow Stochastic**: %K lissé (moins de faux signaux)
+            
+            **Avantages**: Très sensible, bons signaux en range
+            **Inconvénients**: Beaucoup de faux signaux en tendance
+            """)
+        
+        # CCI
+        with st.expander("🔵 CCI - Commodity Channel Index"):
+            st.markdown("""
+            **Définition**: Mesure l'écart du prix par rapport à sa moyenne statistique.
+            
+            **Calcul**:
+            ```
+            TP = (High + Low + Close) / 3 (Typical Price)
+            CCI = (TP - SMA(TP)) / (0.015 × Mean Deviation)
+            ```
+            
+            **Zones clés**:
+            - CCI > +100: 🔥 Surachat, tendance haussière forte
+            - CCI -100 à +100: ⚖️ Zone neutre
+            - CCI < -100: ❄️ Survente, tendance baissière forte
+            
+            **Interprétation**:
+            - 📈 **Signal d'achat**: CCI croise au-dessus de -100
+            - 📉 **Signal de vente**: CCI croise en-dessous de +100
+            - ⚡ **Momentum**: Valeurs extrêmes (>200 ou <-200) indiquent un mouvement fort
+            
+            **Avantages**: Identifie les mouvements cycliques, bon pour le timing
+            **Inconvénients**: Peut donner beaucoup de signaux en marché volatile
+            """)
+        
+        # Williams %R
+        with st.expander("🟢 Williams %R"):
+            st.markdown("""
+            **Définition**: Oscillateur de momentum similaire au Stochastique.
+            
+            **Calcul**:
+            ```
+            %R = -100 × (High14 - Close) / (High14 - Low14)
+            ```
+            
+            **Zones clés**:
+            - %R > -20: 🔥 Surachat
+            - %R -20 à -80: ⚖️ Zone neutre
+            - %R < -80: ❄️ Survente
+            
+            **Interprétation**:
+            - 📈 **Signal d'achat**: 
+              - %R sort de -80 (survente)
+              - Divergence haussière
+            - 📉 **Signal de vente**:
+              - %R sort de -20 (surachat)
+              - Divergence baissière
+            
+            **Avantages**: Très réactif, identifie bien les retournements
+            **Inconvénients**: Beaucoup de faux signaux, nécessite confirmation
+            """)
+        
+        # ROC
+        with st.expander("🟣 ROC - Rate of Change"):
+            st.markdown("""
+            **Définition**: Mesure le pourcentage de changement du prix sur une période.
+            
+            **Calcul**:
+            ```
+            ROC = ((Prix_actuel - Prix_n_périodes) / Prix_n_périodes) × 100
+            ```
+            
+            **Interprétation**:
+            - ROC > 0: 📈 Momentum haussier
+            - ROC = 0: ⚖️ Pas de changement
+            - ROC < 0: 📉 Momentum baissier
+            - ⚡ Valeurs extrêmes: Momentum très fort (attention au retournement)
+            
+            **Utilisation**:
+            - Identifier les divergences
+            - Confirmer les tendances
+            - Détecter les zones de surachat/survente
+            
+            **Avantages**: Simple, détecte bien l'accélération/décélération
+            **Inconvénients**: Sensible aux gaps, peut être erratique
+            """)
+    
+    # ========== INDICATEURS DE VOLATILITÉ ==========
+    with tab3:
+        st.subheader("📊 Indicateurs de Volatilité")
+        st.write("Ces indicateurs mesurent l'amplitude des variations de prix.")
+        
+        # Bollinger Bands
+        with st.expander("🔵 Bandes de Bollinger", expanded=True):
+            st.markdown("""
+            **Définition**: Enveloppe de volatilité autour d'une moyenne mobile.
+            
+            **Calcul**:
+            ```
+            Bande Moyenne = SMA(20)
+            Bande Supérieure = SMA(20) + (2 × Écart-type)
+            Bande Inférieure = SMA(20) - (2 × Écart-type)
+            ```
+            
+            **Interprétation**:
+            - 📏 **Largeur des bandes**:
+              - Bandes larges: Forte volatilité
+              - Bandes étroites: Faible volatilité (squeeze, précède souvent un mouvement fort)
+            
+            - 📈 **Signaux d'achat**:
+              - Prix touche la bande inférieure (survente)
+              - Rebond sur la bande inférieure
+              - Squeeze suivi d'un breakout haussier
+            
+            - 📉 **Signaux de vente**:
+              - Prix touche la bande supérieure (surachat)
+              - Rejet de la bande supérieure
+              - Squeeze suivi d'un breakout baissier
+            
+            - 🎯 **Walking the bands**: En forte tendance, le prix peut "marcher" le long d'une bande
+            
+            **Avantages**: Adaptatif à la volatilité, identifie surachat/survente
+            **Inconvénients**: Peut donner des faux signaux en tendance forte
+            """)
+        
+        # ATR
+        with st.expander("🟢 ATR - Average True Range"):
+            st.markdown("""
+            **Définition**: Mesure la volatilité moyenne en calculant la fourchette réelle des prix.
+            
+            **Calcul**:
+            ```
+            True Range = Max de:
+              - High - Low
+              - |High - Close_précédent|
+              - |Low - Close_précédent|
+            
+            ATR = EMA(14) du True Range
+            ```
+            
+            **Interprétation**:
+            - 📈 **ATR élevé**: Forte volatilité, grands mouvements, risque élevé
+            - 📉 **ATR faible**: Faible volatilité, petits mouvements, consolidation
+            - 📊 **Tendance ATR**:
+              - ATR montant: Volatilité en augmentation
+              - ATR descendant: Volatilité en diminution
+            
+            **Utilisation**:
+            - ⚙️ **Dimensionnement de position**: Ajuster la taille selon la volatilité
+            - 🎯 **Stop-loss**: Placer le stop à 2-3× ATR du prix d'entrée
+            - 📊 **Filtrage**: Ne trader que si ATR > seuil (éviter les marchés calmes)
+            
+            **Avantages**: Mesure objective de la volatilité, utile pour le risk management
+            **Inconvénients**: Ne donne pas de direction, seulement l'amplitude
+            """)
+    
+    # ========== INDICATEURS DE VOLUME ==========
+    with tab4:
+        st.subheader("📦 Indicateurs de Volume")
+        st.write("Ces indicateurs analysent le volume des transactions pour confirmer les mouvements.")
+        
+        # OBV
+        with st.expander("🔵 OBV - On-Balance Volume", expanded=True):
+            st.markdown("""
+            **Définition**: Indicateur de momentum basé sur le volume cumulé.
+            
+            **Calcul**:
+            ```
+            Si Close > Close_précédent: OBV = OBV_précédent + Volume
+            Si Close < Close_précédent: OBV = OBV_précédent - Volume
+            Si Close = Close_précédent: OBV = OBV_précédent
+            ```
+            
+            **Interprétation**:
+            - 📈 **Signal haussier**:
+              - OBV en hausse: Pression acheteuse
+              - OBV monte + Prix monte: Confirmation de la tendance haussière
+              - Divergence haussière: Prix baisse mais OBV monte (accumulation)
+            
+            - 📉 **Signal baissier**:
+              - OBV en baisse: Pression vendeuse
+              - OBV baisse + Prix baisse: Confirmation de la tendance baissière
+              - Divergence baissière: Prix monte mais OBV baisse (distribution)
+            
+            - 🔀 **Divergences**: Très importantes pour anticiper les retournements
+            
+            **Avantages**: Confirme les tendances, détecte l'accumulation/distribution
+            **Inconvénients**: Peut être erratique sur les petites timeframes
+            """)
+        
+        # Volume SMA
+        with st.expander("🟢 Volume SMA - Moyenne Mobile du Volume"):
+            st.markdown("""
+            **Définition**: Moyenne mobile appliquée au volume pour identifier les niveaux anormaux.
+            
+            **Calcul**:
+            ```
+            Volume SMA = SMA(Volume, période)
+            Période courante: 20 périodes
+            ```
+            
+            **Interprétation**:
+            - 📊 **Volume > SMA**: 
+              - ⚡ Activité élevée, intérêt fort
+              - Confirme la validité du mouvement de prix
+            
+            - 📉 **Volume < SMA**:
+              - 😴 Activité faible, manque de conviction
+              - Mouvement de prix moins fiable
+            
+            **Utilisation avec les prix**:
+            - 📈 **Volume fort + Prix monte**: Tendance haussière saine
+            - 📉 **Volume fort + Prix baisse**: Tendance baissière saine
+            - ⚠️ **Volume faible + Prix monte**: Tendance fragile (risque de retournement)
+            - ⚠️ **Volume faible + Prix baisse**: Correction technique (pas de panique)
+            
+            **Avantages**: Simple, identifie les pics d'activité
+            **Inconvénients**: Retard inhérent aux moyennes mobiles
+            """)
+        
+        # Volume Ratio
+        with st.expander("🟣 Ratio de Volume"):
+            st.markdown("""
+            **Définition**: Ratio entre le volume actuel et sa moyenne.
+            
+            **Calcul**:
+            ```
+            Volume Ratio = Volume / SMA(Volume, 20)
+            ```
+            
+            **Interprétation**:
+            - Ratio > 2.0: 🔥 Volume extrêmement élevé (2× la moyenne)
+            - Ratio > 1.5: ⚡ Volume très élevé
+            - Ratio 0.8-1.2: ⚖️ Volume normal
+            - Ratio < 0.5: 😴 Volume très faible
+            
+            **Signaux**:
+            - 📈 **Breakout valide**: Ratio > 1.5 lors de la cassure
+            - 🎯 **Point d'entrée**: Ratio élevé confirme le momentum
+            - ⚠️ **Faux signal**: Mouvement sans volume (ratio < 0.8)
+            
+            **Avantages**: Normalise le volume, facile à interpréter
+            **Inconvénients**: Sensible aux pics isolés
+            """)
+    
+    # Section bonus: Combinaisons d'indicateurs
+    st.markdown("---")
+    st.subheader("🎯 Combinaisons Efficaces")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        **📈 Stratégie Trend-Following**:
+        - SMA 50 et SMA 200 (direction)
+        - ADX > 25 (force de tendance)
+        - Volume > SMA (confirmation)
+        
+        **⚡ Stratégie Momentum**:
+        - RSI + Stochastique (surachat/survente)
+        - MACD (timing d'entrée)
+        - OBV (confirmation volume)
+        """)
+    
+    with col2:
+        st.markdown("""
+        **📊 Stratégie Mean-Reversion**:
+        - Bollinger Bands (zones extrêmes)
+        - RSI < 30 ou > 70 (survente/surachat)
+        - Volume faible (manque de conviction)
+        
+        **🔀 Stratégie Breakout**:
+        - Bollinger Squeeze (consolidation)
+        - Volume Ratio > 1.5 (confirmation)
+        - ADX montant (tendance naissante)
+        """)
+    
+    # Note importante
+    st.info("""
+    💡 **Conseil**: Aucun indicateur n'est parfait. Utilisez toujours plusieurs indicateurs 
+    complémentaires pour confirmer vos signaux et réduire les faux signaux. 
+    La combinaison tendance + momentum + volume est souvent la plus fiable.
+    """)
+
+
 def settings_page():
     """Settings page"""
     st.header("⚙️ Paramètres")
@@ -3598,7 +5217,7 @@ def settings_page():
     with col2:
         st.checkbox("Utiliser données simulées si API échoue", value=True, help="Génère des données réalistes si l'API n'est pas disponible")
     
-    st.info("ℹ️ **IBKR** : Pas de limite API pour les données historiques | **Yahoo Finance** : Gratuit avec délai de 15 minutes")
+    st.info("ℹ️ **IBKR** : Pas de limite API pour les données historiques et temps réel")
     
     if st.button("💾 Sauvegarder les paramètres"):
         st.success("✅ Paramètres sauvegardés")

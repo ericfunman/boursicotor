@@ -64,9 +64,9 @@ class IBKRCollector:
         '2 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},     # 1 week max
         '3 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},     # 1 week max
         '5 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},     # 1 week max
-        '10 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},    # 1 week max
-        '15 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},    # 1 week max
-        '20 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},    # 1 week max
+        '10 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},     # 1 week max
+        '15 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},     # 1 week max
+        '20 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},     # 1 week max
         '30 mins': {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 180},  # 1 month max
         '1 hour': {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 365},   # 1 month max
         '2 hours': {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 365},  # 1 month max
@@ -138,8 +138,6 @@ class IBKRCollector:
         """
         Get and qualify a stock contract
         
-        For European stocks, tries SBF first (Euronext), then SMART.
-        
         Args:
             symbol: Stock symbol (e.g., 'WLN')
             exchange: Exchange (default: 'SMART' for automatic routing)
@@ -149,29 +147,16 @@ class IBKRCollector:
             Qualified contract or None
         """
         try:
-            # For European tickers, prioritize SBF exchange
-            exchanges_to_try = []
-            if exchange == 'SMART' and currency == 'EUR':
-                exchanges_to_try = ['SBF', 'SMART']  # Try SBF first for European stocks
+            contract = Stock(symbol, exchange, currency)
+            contracts = self.ib.qualifyContracts(contract)
+            
+            if contracts:
+                qualified = contracts[0]
+                logger.info(f"Contract qualified: {qualified.symbol} on {qualified.primaryExchange}")
+                return qualified
             else:
-                exchanges_to_try = [exchange]
-            
-            # Try each exchange
-            for ex in exchanges_to_try:
-                try:
-                    contract = Stock(symbol, ex, currency)
-                    contracts = self.ib.qualifyContracts(contract)
-                    
-                    if contracts:
-                        qualified = contracts[0]
-                        logger.info(f"Contract qualified: {qualified.symbol} on {qualified.primaryExchange} (exchange: {qualified.exchange})")
-                        return qualified
-                except Exception as e:
-                    logger.debug(f"Exchange {ex} failed for {symbol}: {e}")
-                    continue
-            
-            logger.warning(f"Could not qualify contract for {symbol} on any exchange")
-            return None
+                logger.warning(f"Could not qualify contract for {symbol}")
+                return None
                 
         except Exception as e:
             logger.error(f"Error qualifying contract {symbol}: {e}")
@@ -969,7 +954,18 @@ class IBKRCollector:
                         continue
                     
                     # Request data with timezone to avoid Warning 2174
-                    end_datetime = chunk_end_date.strftime('%Y%m%d %H:%M:%S') + ' Europe/Paris'
+                    # Ensure chunk_end_date is a datetime object with time
+                    # IBKR format: yyyymmdd HH:MM:SS (without timezone to use local time)
+                    if isinstance(chunk_end_date, datetime):
+                        end_datetime = chunk_end_date.strftime('%Y%m%d %H:%M:%S')
+                    elif hasattr(chunk_end_date, 'to_pydatetime'):
+                        # Pandas Timestamp - convert to Python datetime
+                        end_datetime = chunk_end_date.to_pydatetime().strftime('%Y%m%d %H:%M:%S')
+                    else:
+                        # If it's a date object, convert to datetime at end of trading day
+                        from datetime import time
+                        end_dt = datetime.combine(chunk_end_date, time(23, 59, 0))
+                        end_datetime = end_dt.strftime('%Y%m%d %H:%M:%S')
                     
                     bars = self.ib.reqHistoricalData(
                         contract,

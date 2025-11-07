@@ -1,6 +1,6 @@
 @echo off
 REM ========================================
-REM  Boursicotor - Launcher Script (SIMPLIFIE)
+REM  Boursicotor - Launcher Script
 REM  Double-cliquez pour lancer l'application
 REM ========================================
 
@@ -24,7 +24,7 @@ if not exist "venv\Scripts\activate.bat" (
 )
 
 REM Activer l'environnement virtuel
-echo [1/5] Activation de l'environnement virtuel...
+echo [1/4] Activation de l'environnement virtuel...
 call venv\Scripts\activate.bat
 
 REM Verifier si le fichier .env existe
@@ -38,7 +38,7 @@ if not exist ".env" (
     pause
 )
 
-echo [2/5] Configuration detectee
+echo [2/4] Configuration detectee
 
 REM Empecher la mise en veille pendant l'execution
 echo [INFO] Desactivation temporaire de la mise en veille...
@@ -48,10 +48,11 @@ powercfg /change monitor-timeout-ac 0 2>NUL
 powercfg /change monitor-timeout-dc 0 2>NUL
 echo [OK] Mise en veille desactivee
 
-REM ========== VERIFICATION IB GATEWAY ==========
+REM Definir le chemin vers IB Gateway
 set IBGATEWAY_PATH=C:\Jts\ibgateway\1037\ibgateway.exe
 
-echo [3/5] Verification d'IB Gateway...
+REM Verifier si IB Gateway est deja lance (plusieurs processus possibles)
+echo [2.1/4] Verification d'IB Gateway...
 tasklist /FI "IMAGENAME eq java.exe" 2>NUL | find /I /N "java.exe">NUL
 if "%ERRORLEVEL%"=="0" goto :gateway_found
 tasklist /FI "IMAGENAME eq ibgateway.exe" 2>NUL | find /I /N "ibgateway.exe">NUL
@@ -62,9 +63,11 @@ tasklist /FI "IMAGENAME eq javaw.exe" 2>NUL | find /I /N "javaw.exe">NUL
 if "%ERRORLEVEL%"=="0" goto :gateway_found
 
 REM Essayer de se connecter au port IBKR pour verifier
+echo [INFO] Test de connexion au port 4002 (IB Gateway)...
 powershell -Command "try { $tcp = New-Object System.Net.Sockets.TcpClient; $tcp.Connect('127.0.0.1', 4002); $tcp.Close(); exit 0 } catch { exit 1 }" 2>NUL
 if "%ERRORLEVEL%"=="0" goto :gateway_found
 
+REM IB Gateway n'est pas lance
 goto :gateway_not_found
 
 :gateway_found
@@ -72,6 +75,8 @@ echo [OK] IB Gateway est deja en cours d'execution
 goto :skip_ibgateway
 
 :gateway_not_found
+
+REM IB Gateway n'est pas lance - demander lancement manuel
 echo.
 echo ========================================
 echo  IB Gateway requis
@@ -99,6 +104,8 @@ if "%ERRORLEVEL%"=="0" goto :gateway_detected
 tasklist /FI "IMAGENAME eq javaw.exe" 2>NUL | find /I /N "javaw.exe">NUL
 if "%ERRORLEVEL%"=="0" goto :gateway_detected
 
+REM Essayer de se connecter au port IBKR pour verifier
+echo [INFO] Test de connexion au port 4002...
 powershell -Command "try { $tcp = New-Object System.Net.Sockets.TcpClient; $tcp.Connect('127.0.0.1', 4002); $tcp.Close(); exit 0 } catch { exit 1 }" 2>NUL
 if "%ERRORLEVEL%"=="0" goto :gateway_detected
 
@@ -113,98 +120,103 @@ echo [OK] IB Gateway detecte - continuation du demarrage
 
 :skip_ibgateway
 
-REM ========== VERIFICATION ET DEMARRAGE REDIS ==========
+REM Definir le chemin vers Redis
 set REDIS_PATH=C:\redis\redis-server.exe
 
-echo [4/5] Verification de Redis...
-
-REM Verifier si Redis repond deja
-C:\redis\redis-cli.exe ping > nul 2>&1
+REM Verifier si Redis est deja lance
+echo [3/4] Verification de Redis...
+tasklist /FI "IMAGENAME eq redis-server.exe" 2>NUL | find /I /N "redis-server.exe">NUL
 if "%ERRORLEVEL%"=="0" (
-    echo [OK] Redis est deja en cours d'execution et repond
-    goto :redis_ok
+    echo [OK] Redis est deja en cours d'execution
+) else (
+    echo [INFO] Lancement de Redis...
+    if exist "%REDIS_PATH%" (
+        REM Utiliser cmd /c avec /k pour garder Redis en arriere-plan et fenetre persistante
+        start "Redis Server - Boursicotor" cmd /k "cd /d C:\redis && redis-server.exe"
+        echo [INFO] Attente du demarrage de Redis... (5 secondes)
+        timeout /t 5 /nobreak >NUL
+        
+        REM Verifier que Redis repond avec redis-cli
+        echo [INFO] Verification de la connexion Redis...
+        C:\redis\redis-cli.exe ping > nul 2>&1
+        if "%ERRORLEVEL%"=="0" (
+            echo [OK] Redis demarre et en cours d'execution
+        ) else (
+            echo [INFO] Deuxieme tentative (attente 3 secondes)...
+            timeout /t 3 /nobreak >NUL
+            C:\redis\redis-cli.exe ping > nul 2>&1
+            if "%ERRORLEVEL%"=="0" (
+                echo [OK] Redis detecte !
+            ) else (
+                echo.
+                echo ========================================
+                echo  [ERREUR] Redis n'a pas pu demarrer
+                echo ========================================
+                echo.
+                echo Verification manuelle:
+                echo - Ouvrez le Gestionnaire des taches (Ctrl+Shift+Esc)
+                echo - Cherchez "redis-server.exe" dans les processus
+                echo.
+                echo Si Redis est present mais ce script ne le detecte pas:
+                echo - C'est peut-etre un probleme de timing Windows
+                echo - Vous pouvez continuer et laisser Redis en arriere-plan
+                echo.
+                set /p CONTINUE="Voulez-vous continuer quand meme? (O/N): "
+                if /i not "%CONTINUE%"=="O" (
+                    exit /b 1
+                )
+            )
+        )
+    ) else (
+        echo.
+        echo ========================================
+        echo  [ERREUR] Redis non trouve !
+        echo ========================================
+        echo.
+        echo Redis n'a pas ete trouve a: %REDIS_PATH%
+        echo.
+        echo Veuillez verifier l'installation de Redis
+        echo ou modifier le chemin dans ce script.
+        echo.
+        pause
+        exit /b 1
+    )
 )
 
-REM Redis ne repond pas - le lancer
-echo [INFO] Redis ne repond pas - lancement en cours...
-if not exist "%REDIS_PATH%" (
-    echo [ERREUR] Redis non trouve a: %REDIS_PATH%
-    echo Veuillez installer Redis
-    pause
-    exit /b 1
-)
-
-REM Lancer Redis dans une fenetre persistante
-start "Redis Server - Boursicotor" cmd /k "cd /d C:\redis && redis-server.exe"
-
-REM Attendre le demarrage
-echo [INFO] Attente du demarrage de Redis... (5 secondes)
-timeout /t 5 /nobreak >NUL
-
-REM Verifier que Redis repond
-C:\redis\redis-cli.exe ping > nul 2>&1
-if "%ERRORLEVEL%"=="0" (
-    echo [OK] Redis demarre et en cours d'execution
-    goto :redis_ok
-)
-
-REM Deuxieme tentative
-echo [INFO] Deuxieme tentative (attente 3 secondes)...
-timeout /t 3 /nobreak >NUL
-C:\redis\redis-cli.exe ping > nul 2>&1
-if "%ERRORLEVEL%"=="0" (
-    echo [OK] Redis enfin detecte !
-    goto :redis_ok
-)
-
-REM Redis n'a pas repondu
-echo.
-echo ========================================
-echo  [ERREUR] Redis n'a pas pu demarrer
-echo ========================================
-echo.
-set /p CONTINUE="Continuer quand meme? (O/N): "
-if /i not "%CONTINUE%"=="O" (
-    exit /b 1
-)
-
-:redis_ok
-
-REM ========== VERIFICATION ET DEMARRAGE CELERY ==========
-echo [5/5] Verification de Celery Worker...
-
-tasklist /FI "IMAGENAME eq python.exe" 2>NUL | findstr /I "celery" > nul
+REM Verifier si Celery est deja lance
+echo [4/4] Verification de Celery Worker...
+tasklist /FI "IMAGENAME eq python.exe" 2>NUL | find /I /N "celery">NUL
 if "%ERRORLEVEL%"=="0" (
     echo [OK] Celery Worker est deja en cours d'execution
 ) else (
-    echo [INFO] Nettoyage et demarrage de Celery Worker...
+    REM Purger Redis ET Celery APRES que Redis soit lance
+    echo [INFO] Nettoyage de Redis et de la queue Celery...
     
-    REM Flush Redis
+    REM Flush Redis to remove all persisted Celery data
     C:\redis\redis-cli.exe FLUSHALL > nul 2>&1
     
-    REM Purge queue Celery
+    REM Execute purge in a subshell to ensure venv is active
     cmd /c "cd /d "%~dp0" && call venv\Scripts\activate.bat && celery -A backend.celery_config purge -f" > nul 2>&1
     
-    REM Nettoyage base de donnees
+    REM Clean up any stuck jobs in database
     cmd /c "cd /d "%~dp0" && call venv\Scripts\activate.bat && python cleanup_jobs.py" > nul 2>&1
     
-    echo [OK] Nettoyage effectue
+    REM Note: purge returns exit code 0 even if queue was empty, so we just confirm it ran
+    echo [OK] Redis et queue Celery nettoyes (demarrage propre)
     
-    REM Petit delai
+    REM Petit delai pour s'assurer que le nettoyage est complete
     timeout /t 1 /nobreak >NUL
     
-    REM Lancer Celery
     echo [INFO] Lancement de Celery Worker...
     start "Celery Worker - Boursicotor" cmd /k "cd /d "%~dp0" && call venv\Scripts\activate.bat && celery -A backend.celery_config worker --loglevel=info --pool=solo"
-    
     timeout /t 3 /nobreak >NUL
     echo [OK] Celery Worker demarre
 )
 
-REM ========== LANCER STREAMLIT ==========
+REM Lancer Streamlit
 echo.
 echo ========================================
-echo  Application en cours de demarrage...
+echo  Application demarree !
 echo  URL: http://localhost:8501
 echo ========================================
 echo.
@@ -213,18 +225,18 @@ echo - Redis Server: Terminal separe ^(NE PAS FERMER^)
 echo - Celery Worker: Terminal separe ^(NE PAS FERMER^)
 echo - Streamlit: Cette fenetre
 echo.
-echo Appuyez sur Ctrl+C pour arreter Streamlit
+echo Appuyez sur Ctrl+C pour arreter Streamlit uniquement
 echo.
 
 "%~dp0venv\Scripts\streamlit.exe" run "%~dp0frontend\app.py"
 
-REM Streamlit s'est arrete
+REM Si Streamlit s'arrete
 echo.
 echo ========================================
 echo  Streamlit arrete
 echo ========================================
 echo.
-echo ATTENTION: Redis et Celery sont toujours actifs
-echo Fermez les fenetres Redis et Celery manuellement
+echo ATTENTION: Redis et Celery sont toujours en cours d'execution
+echo Fermez manuellement les fenetres Redis et Celery si necessaire
 echo.
 pause

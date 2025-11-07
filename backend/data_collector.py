@@ -13,15 +13,6 @@ from backend.config import logger, DATA_CONFIG
 IBKR_AVAILABLE = False
 ibkr_client = None
 
-# Yahoo Finance client
-YAHOO_AVAILABLE = False
-try:
-    import yfinance as yf
-    YAHOO_AVAILABLE = True
-    logger.info("✅ Yahoo Finance client available")
-except Exception as e:
-    logger.warning(f"⚠️ Yahoo Finance not available: {e}")
-
 
 class DataCollector:
     """Service for collecting and storing market data"""
@@ -115,35 +106,8 @@ class DataCollector:
                 if bars:
                     return self._store_bars(bars, ticker, bar_size)
             
-            # Fallback to Yahoo Finance if available
-            if YAHOO_AVAILABLE:
-                logger.info(f"📊 Fetching data from Yahoo Finance for {symbol}")
-                df = self._get_yahoo_data(symbol, duration, bar_size)
-                if df is not None and len(df) > 0:
-                    return self._store_dataframe(df, ticker, bar_size)
-                else:
-                    logger.warning(f"⚠️ No data from Yahoo Finance for {symbol}")
-            
-            # Fallback to Alpha Vantage if available
-            if self.alpha_vantage_client:
-                logger.info(f"📊 Fetching data from Alpha Vantage for {symbol}")
-                df = self._get_alpha_vantage_data(symbol, duration, bar_size)
-                if df is not None and len(df) > 0:
-                    return self._store_dataframe(df, ticker, bar_size)
-                else:
-                    logger.warning(f"⚠️ No data from Alpha Vantage for {symbol}")
-            
-            # Fallback to Polygon.io if available
-            if self.polygon_client:
-                logger.info(f"📊 Fetching data from Polygon.io for {symbol}")
-                df = self._get_polygon_data(symbol, duration, bar_size)
-                if df is not None and len(df) > 0:
-                    return self._store_dataframe(df, ticker, bar_size)
-                else:
-                    logger.warning(f"⚠️ No data from Polygon.io for {symbol}")
-            
-            # Last resort: generate mock data
-            logger.warning(f"⚠️ No data source available, generating mock data for {symbol}")
+            # No IBKR available - generate mock data
+            logger.warning(f"⚠️ IBKR not available, generating mock data for {symbol}")
             return self._generate_mock_data(symbol, duration, bar_size, ticker)
             
         except Exception as e:
@@ -393,51 +357,6 @@ class DataCollector:
         self.db.commit()
         logger.info(f"Generated {records_created} mock records for {symbol}")
         return records_created
-    
-    def _get_yahoo_data(self, symbol: str, duration: str, bar_size: str) -> Optional[pd.DataFrame]:
-        """Get data from Yahoo Finance"""
-        try:
-            # Convert duration to Yahoo format
-            duration_map = {
-                "1D": "1d", "5D": "5d", "1W": "1wk", "1M": "1mo", "3M": "3mo", "6M": "6mo", "1Y": "1y"
-            }
-            yahoo_duration = duration_map.get(duration, "1mo")
-            
-            # Convert bar_size to Yahoo interval
-            interval_map = {
-                "1min": "1m", "5min": "5m", "15min": "15m", "30min": "30m", "1hour": "1h", "1day": "1d"
-            }
-            yahoo_interval = interval_map.get(bar_size, "1d")
-            
-            # For European stocks, add .PA suffix for Paris exchange
-            yahoo_symbol = f"{symbol}.PA"
-            
-            ticker = yf.Ticker(yahoo_symbol)
-            df = ticker.history(period=yahoo_duration, interval=yahoo_interval)
-            
-            if df.empty:
-                return None
-            
-            # Rename columns to match our format
-            df = df.rename(columns={
-                'Open': 'open',
-                'High': 'high', 
-                'Low': 'low',
-                'Close': 'close',
-                'Volume': 'volume'
-            })
-            
-            # Convert timezone to UTC if needed
-            if df.index.tz is not None:
-                df.index = df.index.tz_convert('UTC')
-            else:
-                df.index = df.index.tz_localize('UTC')
-            
-            return df[['open', 'high', 'low', 'close', 'volume']]
-            
-        except Exception as e:
-            logger.error(f"Error fetching Yahoo Finance data for {symbol}: {e}")
-            return None
     
     def _get_alpha_vantage_data(self, symbol: str, duration: str, bar_size: str) -> Optional[pd.DataFrame]:
         """Get data from Alpha Vantage"""
