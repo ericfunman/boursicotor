@@ -235,7 +235,8 @@ class Order(Base):
     # Relationships
     ticker = relationship("Ticker")
     strategy = relationship("Strategy")
-    child_orders = relationship("Order", backref="parent", remote_side=[id])
+    # Note: child_orders relationship removed to avoid circular import issues
+    # Use direct queries for parent/child relationships if needed
     
     # Indexes
     __table_args__ = (
