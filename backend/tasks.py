@@ -62,9 +62,9 @@ def collect_data_ibkr(
         # Import here to avoid circular imports
         from backend.ibkr_collector import IBKRCollector
         
-        # Create collector without client_id -> will use random ID (2-999)
-        # This avoids conflicts with Streamlit connection (client_id=1)
-        collector = IBKRCollector()
+        # Create collector with client_id=3 for data collection tasks
+        # This avoids conflicts: client_id=1 (Streamlit), client_id=2 (Celery live data)
+        collector = IBKRCollector(client_id=3)
         
         # Connect to IBKR
         job.current_step = "Connecting to IBKR..."

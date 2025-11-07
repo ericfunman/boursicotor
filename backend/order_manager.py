@@ -181,13 +181,24 @@ class OrderManager:
             True if successful, False otherwise
         """
         try:
-            logger.info(f"Step 4a: Creating Stock contract for {ticker.symbol}...")
+            logger.info(f"Step 4a: Creating contract for {ticker.symbol}...")
             
-            # Create contract directly - no need to qualify, IBKR will do it during placeOrder
+            # Create contract with correct exchange for EUR stocks
             from ib_insync import Stock
-            contract = Stock(ticker.symbol, 'SMART', ticker.currency)
             
-            logger.info(f"Step 4a OK: Contract created: {contract}")
+            # Determine exchange based on currency
+            if ticker.currency == 'EUR':
+                exchange = 'SBF'  # Use SBF directly for European stocks
+                primary_exchange = 'SBF'
+            else:
+                exchange = 'SMART'
+                primary_exchange = ''
+            
+            contract = Stock(ticker.symbol, exchange, ticker.currency)
+            if primary_exchange:
+                contract.primaryExchange = primary_exchange
+            
+            logger.info(f"Step 4a OK: Contract created: {contract.symbol} on {contract.exchange} (currency: {ticker.currency})")
             logger.info(f"Step 4b: Creating IBKR order object...")
             
             # Create IBKR order object
@@ -451,16 +462,16 @@ class OrderManager:
                 order.filled_at = datetime.now()
                 logger.info(f"Order {order_id} marked as FILLED")
                 
-            elif status_str in ["PRESUBMITTED", "SUBMITTED"]:
+            elif status_str in ["PRESUBMITTED", "SUBMITTED", "PENDINGSUBMIT", "PENDING_SUBMIT"]:
                 order.status = OrderStatus.SUBMITTED
-                logger.info(f"Order {order_id} marked as SUBMITTED")
+                logger.info(f"Order {order_id} marked as SUBMITTED (IBKR status: {status_str})")
                 
             elif "CANCEL" in status_str:
                 order.status = OrderStatus.CANCELLED
                 order.cancelled_at = datetime.now()
                 logger.info(f"Order {order_id} marked as CANCELLED")
                 
-            elif status_str in ["INACTIVE", "PENDING_CANCEL", "PENDING_SUBMIT"]:
+            elif status_str in ["INACTIVE", "PENDING_CANCEL"]:
                 order.status = OrderStatus.PENDING
                 logger.info(f"Order {order_id} marked as PENDING")
                 

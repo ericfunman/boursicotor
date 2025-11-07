@@ -18,7 +18,7 @@ celery_app = Celery(
     'boursicotor',
     broker=REDIS_URL,
     backend=REDIS_URL,
-    include=['backend.tasks']
+    include=['backend.tasks', 'backend.live_data_task']
 )
 
 # Celery configuration
