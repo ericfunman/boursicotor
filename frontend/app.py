@@ -1766,10 +1766,15 @@ def backtesting_page():
                     min_date = min_date_query[0].date()
                     max_date = max_date_query[0].date()
                     
+                    # Calculate default start date: 30 days before max, but not before min
+                    default_start = max_date - pd.Timedelta(days=30)
+                    if default_start < min_date:
+                        default_start = min_date
+                    
                     with col_date1:
                         start_date = st.date_input(
                             "Date de début",
-                            value=max_date - pd.Timedelta(days=30),  # Default: last 30 days
+                            value=default_start,
                             min_value=min_date,
                             max_value=max_date,
                             help="Début de la période d'analyse"
