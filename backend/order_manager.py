@@ -283,30 +283,22 @@ class OrderManager:
             
             logger.info(f"[Thread] Creating Stock contract for {ticker.symbol}...")
             
-            # Create contract directly instead of using get_contract (which might block)
-            from ib_insync import Stock
-            contract = Stock(ticker.symbol, 'SMART', ticker.currency)
+            # Use get_contract() which has proper timeout protection (15s)
+            # instead of direct qualifyContracts() call that could block indefinitely
+            contract = self.ibkr_collector.get_contract(
+                symbol=ticker.symbol,
+                exchange='SMART',
+                currency=None  # Auto-detect: USD first, then EUR
+            )
             
-            logger.info(f"[Thread] Contract created: {contract}")
-            logger.info(f"[Thread] Qualifying contract with IBKR...")
-            
-            # Qualify the contract (this requests details from IBKR)
-            try:
-                qualified = self.ibkr_collector.ib.qualifyContracts(contract)
-                if not qualified:
-                    logger.error(f"[Thread] Could not qualify contract for {ticker.symbol}")
-                    order.status = OrderStatus.ERROR
-                    order.status_message = f"Invalid symbol or market closed: {ticker.symbol}"
-                    db.commit()
-                    return False
-                contract = qualified[0]
-                logger.info(f"[Thread] Contract qualified: {contract}")
-            except Exception as e:
-                logger.error(f"[Thread] Error qualifying contract: {e}")
+            if not contract:
+                logger.error(f"[Thread] Could not qualify contract for {ticker.symbol}")
                 order.status = OrderStatus.ERROR
-                order.status_message = f"Contract error: {str(e)}"
+                order.status_message = f"Invalid symbol or market closed: {ticker.symbol}"
                 db.commit()
                 return False
+            
+            logger.info(f"[Thread] Contract qualified: {contract}")
             
             logger.info(f"[Thread] Creating IBKR order object...")
             
