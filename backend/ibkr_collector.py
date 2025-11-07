@@ -134,43 +134,53 @@ class IBKRCollector:
             self.connected = False
             logger.info("Disconnected from IBKR")
     
-    def get_contract(self, symbol: str, exchange: str = 'SMART', currency: str = 'EUR') -> Optional[Stock]:
+    def get_contract(self, symbol: str, exchange: str = 'SMART', currency: str = None) -> Optional[Stock]:
         """
         Get and qualify a stock contract
         
-        For European stocks, tries SBF first (Euronext), then SMART.
+        Tries to qualify with multiple exchanges and currencies to handle both US and European stocks.
         
         Args:
-            symbol: Stock symbol (e.g., 'WLN')
+            symbol: Stock symbol (e.g., 'AAPL', 'TTE', 'WLN')
             exchange: Exchange (default: 'SMART' for automatic routing)
-            currency: Currency (default: 'EUR' for European stocks)
+            currency: Currency (default: None to auto-detect - tries USD first, then EUR)
         
         Returns:
             Qualified contract or None
         """
         try:
-            # For European tickers, prioritize SBF exchange
+            # If currency not specified, try common currencies
+            currencies_to_try = []
+            if currency:
+                currencies_to_try = [currency]
+            else:
+                # Try USD first (most common for US stocks), then EUR (European stocks)
+                currencies_to_try = ['USD', 'EUR']
+            
+            # Determine exchanges to try
             exchanges_to_try = []
-            if exchange == 'SMART' and currency == 'EUR':
-                exchanges_to_try = ['SBF', 'SMART']  # Try SBF first for European stocks
+            if exchange == 'SMART':
+                # For SMART routing, try both NASDAQ and SBF to handle both US and EU stocks
+                exchanges_to_try = ['SMART']  # Let IBKR auto-route first
             else:
                 exchanges_to_try = [exchange]
             
-            # Try each exchange
-            for ex in exchanges_to_try:
-                try:
-                    contract = Stock(symbol, ex, currency)
-                    contracts = self.ib.qualifyContracts(contract)
-                    
-                    if contracts:
-                        qualified = contracts[0]
-                        logger.info(f"Contract qualified: {qualified.symbol} on {qualified.primaryExchange} (exchange: {qualified.exchange})")
-                        return qualified
-                except Exception as e:
-                    logger.debug(f"Exchange {ex} failed for {symbol}: {e}")
-                    continue
+            # Try combinations of exchange and currency
+            for curr in currencies_to_try:
+                for ex in exchanges_to_try:
+                    try:
+                        contract = Stock(symbol, ex, curr)
+                        contracts = self.ib.qualifyContracts(contract)
+                        
+                        if contracts:
+                            qualified = contracts[0]
+                            logger.info(f"Contract qualified: {qualified.symbol} on {qualified.primaryExchange} (exchange: {qualified.exchange}, currency: {qualified.currency})")
+                            return qualified
+                    except Exception as e:
+                        logger.debug(f"Exchange {ex}, currency {curr} failed for {symbol}: {e}")
+                        continue
             
-            logger.warning(f"Could not qualify contract for {symbol} on any exchange")
+            logger.warning(f"Could not qualify contract for {symbol} on any exchange/currency combination")
             return None
                 
         except Exception as e:
@@ -185,7 +195,7 @@ class IBKRCollector:
         what_to_show: str = 'TRADES',
         use_rth: bool = False,
         exchange: str = 'SMART',
-        currency: str = 'EUR'
+        currency: str = None
     ) -> Optional[pd.DataFrame]:
         """
         Get historical data for a symbol
@@ -197,7 +207,7 @@ class IBKRCollector:
             what_to_show: Data type ('TRADES', 'MIDPOINT', 'BID', 'ASK')
             use_rth: Use regular trading hours only
             exchange: Exchange
-            currency: Currency
+            currency: Currency (None to auto-detect - tries USD first, then EUR)
         
         Returns:
             DataFrame with OHLCV data or None
@@ -294,7 +304,7 @@ class IBKRCollector:
         what_to_show: str = 'TRADES',
         use_rth: bool = False,
         exchange: str = 'SMART',
-        currency: str = 'EUR',
+        currency: str = None,
         progress_callback=None
     ) -> Optional[pd.DataFrame]:
         """

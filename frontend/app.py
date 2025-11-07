@@ -496,28 +496,25 @@ def data_collection_page():
     """Data collection page"""
     st.header("💾 Collecte de Données")
     
-    # Data source selection
-    st.subheader("📡 Source de Données")
+    # Create tabs for Collection and Interpolation
+    tab_collect, tab_interp = st.tabs(["📥 Collecte IBKR", "🔬 Interpolation"])
     
-    st.info("**Source de données : IBKR / Lynx**\n- ✅ Données réelles temps réel\n- ✅ Via IB Gateway\n- 📊 Aucune limite API\n- ⚡ Latence minimale")
-    
-    st.markdown("---")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("📥 Récupération de données historiques")
+    with tab_collect:
+        col1, col2 = st.columns(2)
         
-        # Ticker search and selection
-        st.markdown("### 🔍 Recherche de Ticker")
-        
-        # Search mode selection
-        search_mode = st.radio(
-            "Mode de recherche",
-            ["📋 Liste existante", "🔎 Recherche IBKR"],
-            horizontal=True,
-            help="Choisissez parmi les tickers existants ou recherchez de nouvelles actions via IBKR"
-        )
+        with col1:
+            st.subheader("📥 Récupération de données historiques")
+            
+            # Ticker search and selection
+            st.markdown("### 🔍 Recherche de Ticker")
+            
+            # Search mode selection
+            search_mode = st.radio(
+                "Mode de recherche",
+                ["📋 Liste existante", "🔎 Recherche IBKR"],
+                horizontal=True,
+                help="Choisissez parmi les tickers existants ou recherchez de nouvelles actions via IBKR"
+            )
         
         if search_mode == "📋 Liste existante":
             # Get tickers from database
@@ -561,131 +558,25 @@ def data_collection_page():
                     selected_name = None
         
         else:
-            # IBKR Search mode
-            st.info("🔎 Recherchez une action sur IBKR pour l'ajouter à votre liste")
+            # Manual ticker input mode (IBKR search is too slow/unreliable)
+            st.info("📝 Entrez directement le symbole du ticker (ex: AAPL, TSLA, TTE...)")
             
-            # Initialize session state for search results
-            if 'ibkr_search_results' not in st.session_state:
-                st.session_state.ibkr_search_results = []
-            if 'ibkr_selected_ticker' not in st.session_state:
-                st.session_state.ibkr_selected_ticker = None
-            if 'ibkr_selected_name' not in st.session_state:
-                st.session_state.ibkr_selected_name = None
-            
-            search_query = st.text_input(
-                "Rechercher une action",
-                placeholder="Ex: Air Liquide, Apple, Tesla...",
-                help="Entrez le nom de l'entreprise pour rechercher sur IBKR"
-            )
-            
-            if search_query and len(search_query) >= 2:
-                if st.button("🔍 Rechercher sur IBKR", type="primary"):
-                    with st.spinner(f"Recherche de '{search_query}' sur IBKR..."):
-                        try:
-                            # Use global IBKR connection
-                            collector = get_global_ibkr()
-                            
-                            if collector is None:
-                                st.error("❌ Connectez-vous à IBKR depuis la sidebar pour utiliser la recherche")
-                            else:
-                                # Verify connection is active
-                                if not hasattr(collector, 'ib') or not collector.ib:
-                                    st.error("❌ La connexion IBKR n'est pas active. Reconnectez-vous depuis la sidebar.")
-                                else:
-                                    # Search using a simple dedicated method
-                                    try:
-                                        from ib_insync import IB
-                                        
-                                        # Create a temporary connection for search
-                                        search_ib = IB()
-                                        
-                                        # Connect using same settings as collector
-                                        search_ib.connect('127.0.0.1', 4002, clientId=99)
-                                        
-                                        # Perform search
-                                        contracts = search_ib.reqMatchingSymbols(search_query)
-                                        
-                                        # Wait for response
-                                        search_ib.sleep(2)
-                                        
-                                        # Disconnect temporary connection
-                                        search_ib.disconnect()
-                                        
-                                    except Exception as search_error:
-                                        st.error(f"❌ Erreur lors de la recherche IBKR : {str(search_error)}")
-                                        st.info("💡 Essayez de saisir le symbole manuellement ci-dessous")
-                                        contracts = []
-                                    
-                                    if contracts:
-                                        # Filter for stocks only
-                                        options = []
-                                        
-                                        for contract_desc in contracts:
-                                            cd = contract_desc.contract
-                                            
-                                            # Filter: only stocks (STK)
-                                            if hasattr(cd, 'secType') and cd.secType == 'STK' and hasattr(cd, 'symbol'):
-                                                # Get company description if available
-                                                desc = contract_desc.contract.longName if hasattr(contract_desc.contract, 'longName') else search_query.title()
-                                                
-                                                # Get exchange info
-                                                exchange = getattr(cd, 'primaryExchange', 'N/A')
-                                                currency = getattr(cd, 'currency', 'N/A')
-                                                
-                                                label = f"{cd.symbol} - {desc} ({exchange}, {currency})"
-                                                options.append((label, cd.symbol, exchange, desc))
-                                        
-                                        if options:
-                                            st.session_state.ibkr_search_results = options
-                                            st.success(f"✅ {len(options)} action(s) trouvée(s)")
-                                        else:
-                                            st.session_state.ibkr_search_results = []
-                                            st.warning(f"❌ Aucune action trouvée pour '{search_query}'. Essayez un autre terme ou utilisez la saisie manuelle ci-dessous.")
-                                    else:
-                                        st.session_state.ibkr_search_results = []
-                                        st.info("ℹ️ Aucun résultat trouvé. Utilisez la saisie manuelle ci-dessous.")
-                        
-                        except Exception as e:
-                            st.error(f"❌ Erreur lors de la recherche : {str(e)}")
-                            st.info("💡 Vous pouvez saisir le symbole manuellement ci-dessous")            # Display search results if available
-            selected_ticker = None
-            selected_name = None
-            
-            if st.session_state.ibkr_search_results:
-                options = st.session_state.ibkr_search_results
-                choice = st.selectbox(
-                    "Sélectionner une action",
-                    range(len(options)),
-                    format_func=lambda i: options[i][0],
-                    key="ibkr_ticker_choice"
-                )
-                
-                selected_ticker = options[choice][1]
-                selected_name = options[choice][3]
-                
-                st.success(f"✅ Ticker sélectionné : **{selected_ticker}** - {selected_name}")
-            
-            # Manual input fallback
-            if not selected_ticker:
-                st.markdown("---")
-                st.markdown("**Ou saisissez directement le ticker :**")
-                col_t1, col_t2 = st.columns([1, 2])
-                with col_t1:
-                    selected_ticker = st.text_input(
-                        "Ticker",
-                        placeholder="Ex: AI, AAPL, TSLA",
-                        help="Symbole du ticker"
-                    ).upper()
-                with col_t2:
-                    selected_name = st.text_input(
-                        "Nom",
-                        placeholder="Ex: Air Liquide S.A.",
-                        help="Nom de l'entreprise"
-                    )
+            col_t1, col_t2 = st.columns([1, 2])
+            with col_t1:
+                selected_ticker = st.text_input(
+                    "Ticker",
+                    placeholder="Ex: AAPL",
+                    help="Symbole du ticker (ex: AAPL, TSLA, MSFT, TTE, WLN...)"
+                ).upper().strip()
+            with col_t2:
+                selected_name = st.text_input(
+                    "Nom (optionnel)",
+                    placeholder="Ex: Apple Inc.",
+                    help="Nom de l'entreprise (optionnel)"
+                ).strip()
         
         # IBKR options
         st.markdown("**IBKR / Lynx** - Périodes et intervalles")
-        st.info("💼 IBKR fournit des données temps réel sans limitation d'API")
         
         duration_options = {
             "1 jour": "1 D",
@@ -705,12 +596,6 @@ def data_collection_page():
             help="IBKR: Données temps réel et historiques"
         )
         period = duration_options[selected_duration]
-        
-        # Warning about sub-5-second intervals
-        st.warning("⚠️ **Important** : Les intervalles < 5 secondes ne sont disponibles que pour certaines actions très liquides (principalement US). Pour les actions européennes (TTE, AI, etc.), utilisez 5 secondes minimum.")
-        
-        # Info about streaming optimization
-        st.success("✨ **Mode optimisé** : Les données sont sauvegardées progressivement pendant la collecte. Vous pouvez demander de grandes périodes sans problème de mémoire !")
         
         # Interval options for IBKR
         interval_options = {
@@ -809,7 +694,11 @@ def data_collection_page():
                     st.success(f"✅ Job de collecte créé pour {selected_ticker} depuis IBKR!")
                     st.info(f"📊 Source: IBKR | Période: {selected_duration} | Intervalle: {selected_interval}")
                     st.info("🔄 La collecte s'exécute en arrière-plan. Consultez la page **Historique des collectes** pour suivre la progression.")
-                    # Note: Pas de st.rerun() ici - laisse l'utilisateur naviguer librement
+                    
+                    # Wait a moment then show collected data
+                    import time
+                    time.sleep(1)
+                    st.rerun()
             
             except ImportError as e:
                 st.error("❌ Celery n'est pas installé ou configuré correctement")
@@ -822,97 +711,171 @@ def data_collection_page():
                 import traceback
                 with st.expander("Détails de l'erreur"):
                     st.code(traceback.format_exc())
-    
-    with col2:
-        st.subheader("📊 Données en base")
         
-        from backend.models import SessionLocal, Ticker, HistoricalData
-        db = SessionLocal()
-        
-        try:
-            # Statistics
-            ticker_count = db.query(Ticker).count()
-            data_count = db.query(HistoricalData).count()
+        with col2:
+            st.subheader("⚙️ Options de collecte")
+            st.info("💡 Les données sont collectées en arrière-plan via Celery. Vous pouvez suivre la progression dans l'onglet **Historique des collectes**.")
             
-            st.metric("Tickers", ticker_count)
-            st.metric("Points de données", f"{data_count:,}")
-            
-            # Detail by ticker
-            st.markdown("---")
-            st.markdown("**Détail par ticker:**")
-            
-            for ticker in db.query(Ticker).all():
-                count = db.query(HistoricalData).filter(
-                    HistoricalData.ticker_id == ticker.id
-                ).count()
+            # Display collected data if ticker is selected
+            if selected_ticker:
+                st.markdown("---")
+                st.subheader(f"📊 Données collectées : {selected_ticker}")
                 
-                col_ticker, col_delete = st.columns([3, 1])
-                with col_ticker:
-                    st.text(f"{ticker.symbol}: {count:,} points")
-                with col_delete:
-                    if st.button("🗑️", key=f"delete_{ticker.symbol}", help=f"Supprimer {ticker.symbol}"):
-                        # Confirmation dialog
-                        if f"confirm_delete_{ticker.symbol}" not in st.session_state:
-                            st.session_state[f"confirm_delete_{ticker.symbol}"] = True
-                            st.rerun()
-            
-            # Handle deletion confirmations
-            for ticker in db.query(Ticker).all():
-                if st.session_state.get(f"confirm_delete_{ticker.symbol}", False):
-                    st.warning(f"⚠️ Confirmer la suppression de **{ticker.symbol}** ?")
-                    col_yes, col_no = st.columns(2)
+                db = SessionLocal()
+                try:
+                    from backend.models import Ticker as TickerModel, HistoricalData
+                    import plotly.graph_objects as go
                     
-                    with col_yes:
-                        if st.button("✅ Oui", key=f"yes_{ticker.symbol}", type="primary"):
-                            from backend.yahoo_finance_collector import YahooFinanceCollector
-                            result = YahooFinanceCollector.delete_ticker_data(ticker.symbol)
+                    # Get ticker from database
+                    ticker_in_db = db.query(TickerModel).filter(
+                        TickerModel.symbol == selected_ticker
+                    ).first()
+                    
+                    if ticker_in_db:
+                        # Get all historical data for stats
+                        all_ticker_data = db.query(HistoricalData).filter(
+                            HistoricalData.ticker_id == ticker_in_db.id
+                        ).order_by(HistoricalData.timestamp.asc()).all()
+                        
+                        # Get historical data (last 50 for preview)
+                        data_records = db.query(HistoricalData).filter(
+                            HistoricalData.ticker_id == ticker_in_db.id
+                        ).order_by(HistoricalData.timestamp.desc()).limit(50).all()
+                        
+                        if all_ticker_data:
+                            # Calculate stats
+                            total_records = len(all_ticker_data)
+                            first_date = all_ticker_data[0].timestamp
+                            last_date = all_ticker_data[-1].timestamp
+                            days_covered = (last_date - first_date).days + 1
                             
-                            if result['success']:
-                                st.success(result['message'])
-                                del st.session_state[f"confirm_delete_{ticker.symbol}"]
-                                st.rerun()
-                            else:
-                                st.error(result['message'])
-                    
-                    with col_no:
-                        if st.button("❌ Non", key=f"no_{ticker.symbol}"):
-                            del st.session_state[f"confirm_delete_{ticker.symbol}"]
-                            st.rerun()
+                            # Show summary metrics
+                            col_a, col_b, col_c, col_d = st.columns(4)
+                            with col_a:
+                                st.metric("📈 Total points", total_records)
+                            with col_b:
+                                st.metric("📅 Premiers données", first_date.strftime('%Y-%m-%d'))
+                            with col_c:
+                                st.metric("📅 Derniers données", last_date.strftime('%Y-%m-%d'))
+                            with col_d:
+                                st.metric("📊 Durée (jours)", days_covered)
+                            
+                            # Display last 50 records as preview
+                            if data_records:
+                                # Convert to DataFrame
+                                data_list = []
+                                for record in reversed(data_records):  # Reverse to get chronological order
+                                    data_list.append({
+                                        '📅 Date': record.timestamp.strftime('%Y-%m-%d %H:%M'),
+                                        'Open': f"${record.open:.2f}" if record.open else "N/A",
+                                        'High': f"${record.high:.2f}" if record.high else "N/A",
+                                        'Low': f"${record.low:.2f}" if record.low else "N/A",
+                                        'Close': f"${record.close:.2f}" if record.close else "N/A",
+                                        'Volume': f"{int(record.volume):,}" if record.volume else "N/A"
+                                    })
+                                
+                                df_display = pd.DataFrame(data_list)
+                            
+                            # Action buttons
+                            col_delete, col_chart = st.columns([1, 3])
+                            
+                            with col_delete:
+                                if st.button(f"�️ Supprimer {selected_ticker}", key=f"delete_{selected_ticker}"):
+                                    try:
+                                        # Get ticker ID for deletion
+                                        ticker_id = ticker_in_db.id
+                                        
+                                        # Delete all historical data for this ticker
+                                        rows_deleted = db.query(HistoricalData).filter(
+                                            HistoricalData.ticker_id == ticker_id
+                                        ).delete(synchronize_session=False)
+                                        
+                                        db.commit()
+                                        logger.info(f"Deleted {rows_deleted} historical records for {selected_ticker}")
+                                        
+                                        # Delete the ticker itself
+                                        db.delete(ticker_in_db)
+                                        db.commit()
+                                        
+                                        st.success(f"✅ {selected_ticker} supprimé ({rows_deleted} points)")
+                                        st.rerun()
+                                    except Exception as del_error:
+                                        db.rollback()
+                                        logger.error(f"Error deleting {selected_ticker}: {del_error}")
+                                        st.error(f"❌ Erreur lors de la suppression : {del_error}")
+                            
+                            with col_chart:
+                                if st.button("📈 Afficher le graphique complet", key=f"chart_{selected_ticker}"):
+                                    try:
+                                        chart_data = pd.DataFrame([
+                                            {
+                                                'Date': record.timestamp,
+                                                'Close': record.close
+                                            }
+                                            for record in all_ticker_data
+                                        ])
+                                        
+                                        fig = go.Figure()
+                                        fig.add_trace(go.Scatter(
+                                            x=chart_data['Date'],
+                                            y=chart_data['Close'],
+                                            mode='lines',
+                                            name='Close',
+                                            line=dict(color='#1f77b4', width=2)
+                                        ))
+                                        fig.update_layout(
+                                            title=f"Évolution du prix de {selected_ticker} ({days_covered} jours)",
+                                            xaxis_title="Date",
+                                            yaxis_title="Prix (USD)",
+                                            hovermode='x unified',
+                                            height=500
+                                        )
+                                        st.plotly_chart(fig, use_container_width=True)
+                                    except Exception as chart_error:
+                                        st.error(f"❌ Erreur lors de l'affichage du graphique : {chart_error}")
+                        else:
+                            st.info(f"ℹ️ Aucune donnée collectée pour {selected_ticker} pour le moment")
+                    else:
+                        st.info(f"ℹ️ {selected_ticker} n'a pas encore de données en base")
+                
+                except Exception as e:
+                    st.error(f"❌ Erreur lors de l'affichage des données : {e}")
+                    import traceback
+                    with st.expander("Détails de l'erreur"):
+                        st.code(traceback.format_exc())
+                finally:
+                    db.close()
+    
+    # Interpolation tab
+    with tab_interp:
+        st.subheader("🔬 Interpolation de Données")
+        st.info("📊 Générez des données haute fréquence à partir de données basse fréquence existantes (ex: créer des points à la seconde à partir de données minute)")
         
-        finally:
-            db.close()
-    
-    st.markdown("---")
-    
-    # Data Interpolation Section
-    st.subheader("🔬 Interpolation de Données")
-    st.info("📊 Générez des données haute fréquence à partir de données basse fréquence existantes (ex: créer des points à la seconde à partir de données minute)")
-    
-    col_interp1, col_interp2 = st.columns(2)
-    
-    with col_interp1:
-        # Get available tickers
-        db_interp = SessionLocal()
-        try:
-            from backend.models import Ticker as TickerModel, HistoricalData
-            from sqlalchemy import func, distinct
-            
-            # Get tickers with data
-            tickers_with_data = db_interp.query(
-                TickerModel.symbol,
-                TickerModel.name
-            ).join(
-                HistoricalData,
-                TickerModel.id == HistoricalData.ticker_id
-            ).distinct().all()
-            
-            if tickers_with_data:
-                ticker_options_interp = {t.symbol: f"{t.symbol} - {t.name}" for t in tickers_with_data}
-                selected_ticker_interp = st.selectbox(
-                    "Sélectionner le ticker",
-                    list(ticker_options_interp.keys()),
-                    format_func=lambda x: ticker_options_interp[x],
-                    key="interp_ticker"
+        col_interp1, col_interp2 = st.columns(2)
+        
+        with col_interp1:
+            # Get available tickers
+            db_interp = SessionLocal()
+            try:
+                from backend.models import Ticker as TickerModel, HistoricalData
+                from sqlalchemy import func, distinct
+                
+                # Get tickers with data
+                tickers_with_data = db_interp.query(
+                    TickerModel.symbol,
+                    TickerModel.name
+                ).join(
+                    HistoricalData,
+                    TickerModel.id == HistoricalData.ticker_id
+                ).distinct().all()
+                
+                if tickers_with_data:
+                    ticker_options_interp = {t.symbol: f"{t.symbol} - {t.name}" for t in tickers_with_data}
+                    selected_ticker_interp = st.selectbox(
+                        "Sélectionner le ticker",
+                        list(ticker_options_interp.keys()),
+                        format_func=lambda x: ticker_options_interp[x],
+                        key="interp_ticker"
                 )
                 
                 # Get available intervals for this ticker
@@ -991,71 +954,66 @@ def data_collection_page():
                     else:
                         st.warning("⚠️ Aucune donnée disponible pour ce ticker")
                         target_interval_interp = None
-            else:
-                st.warning("⚠️ Aucun ticker avec données historiques")
-                target_interval_interp = None
+                else:
+                    st.warning("⚠️ Aucun ticker avec données historiques")
+                    target_interval_interp = None
+            
+            finally:
+                db_interp.close()
         
-        finally:
-            db_interp.close()
-    
-    with col_interp2:
-        st.markdown("### 📋 Comment ça marche ?")
-        st.markdown("""
-        **Méthodes d'interpolation** :
+        with col_interp2:
+            st.markdown("### 📋 Comment ça marche ?")
+            st.markdown("""
+            **Méthodes d'interpolation** :
+            
+            - **Linéaire** : Interpolation simple entre deux points
+            - **Cubique** : Interpolation lisse avec spline cubique
+            - **Temporel** : Ajoute une variance aléatoire réaliste
+            - **OHLC** : Préserve les patterns Open-High-Low-Close
+            
+            **Exemple** :
+            - Source: 1,000 points à 1min
+            - Cible: 1s (×60)
+            - Résultat: ~60,000 points
+            
+            ⚠️ **Attention** : Les données interpolées sont des approximations, pas des données réelles.
+            """)
         
-        - **Linéaire** : Interpolation simple entre deux points
-        - **Cubique** : Interpolation lisse avec spline cubique
-        - **Temporel** : Ajoute une variance aléatoire réaliste
-        - **OHLC** : Préserve les patterns Open-High-Low-Close
-        
-        **Exemple** :
-        - Source: 1,000 points à 1min
-        - Cible: 1s (×60)
-        - Résultat: ~60,000 points
-        
-        ⚠️ **Attention** : Les données interpolées sont des approximations, pas des données réelles.
-        """)
-    
-    # Interpolation button
-    if target_interval_interp:
-        if st.button("🚀 Démarrer l'interpolation", type="primary", width='stretch'):
-            with st.spinner(f"Interpolation de {selected_ticker_interp} de {source_interval_interp} vers {target_interval_interp}..."):
-                try:
-                    from backend.data_interpolator import DataInterpolator
-                    
-                    result = DataInterpolator.interpolate_and_save(
-                        ticker_symbol=selected_ticker_interp,
-                        source_interval=source_interval_interp,
-                        target_interval=target_interval_interp,
-                        method=selected_method,
-                        limit=limit_records
-                    )
-                    
-                    if result['success']:
-                        st.success(f"✅ {result['message']}")
+        # Interpolation button
+        if target_interval_interp:
+            if st.button("🚀 Démarrer l'interpolation", type="primary", width='stretch'):
+                with st.spinner(f"Interpolation de {selected_ticker_interp} de {source_interval_interp} vers {target_interval_interp}..."):
+                    try:
+                        from backend.data_interpolator import DataInterpolator
                         
-                        # Display stats
-                        col_stat1, col_stat2, col_stat3 = st.columns(3)
-                        with col_stat1:
-                            st.metric("Records source", f"{result['source_records']:,}")
-                        with col_stat2:
-                            st.metric("Records générés", f"{result['generated_records']:,}")
-                        with col_stat3:
-                            st.metric("Nouveaux", f"{result['new_records']:,}")
+                        result = DataInterpolator.interpolate_and_save(
+                            ticker_symbol=selected_ticker_interp,
+                            source_interval=source_interval_interp,
+                            target_interval=target_interval_interp,
+                            method=selected_method,
+                            limit=limit_records
+                        )
                         
-                        if result['duplicates'] > 0:
-                            st.info(f"ℹ️ {result['duplicates']:,} enregistrements déjà existants ignorés")
-                    else:
-                        st.error(f"❌ {result['message']}")
+                        if result['success']:
+                            st.success(f"✅ {result['message']}")
+                            
+                            # Display stats
+                            col_stat1, col_stat2, col_stat3 = st.columns(3)
+                            with col_stat1:
+                                st.metric("Records source", f"{result['source_records']:,}")
+                            with col_stat2:
+                                st.metric("Records générés", f"{result['generated_records']:,}")
+                            with col_stat3:
+                                st.metric("Nouveaux", f"{result['new_records']:,}")
+                            
+                            if result['duplicates'] > 0:
+                                st.info(f"ℹ️ {result['duplicates']:,} enregistrements déjà existants ignorés")
+                        else:
+                            st.error(f"❌ {result['message']}")
                         
-                except Exception as e:
-                    st.error(f"❌ Erreur lors de l'interpolation: {e}")
-                    logger.error(f"Interpolation error: {e}")
-    
-    st.markdown("---")
-    
-    # Visualisation des données collectées
-    st.subheader("📈 Visualisation des données")
+                    except Exception as e:
+                        st.error(f"❌ Erreur lors de l'interpolation: {e}")
+                        logger.error(f"Interpolation error: {e}")
     
     # Get tickers with collected data
     available_tickers = get_available_tickers()
