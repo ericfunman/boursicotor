@@ -3703,10 +3703,10 @@ def order_placement_page():
                                 # Run order placement in a thread with timeout
                                 order_thread = threading.Thread(target=place_order, daemon=True)
                                 order_thread.start()
-                                order_thread.join(timeout=15)  # Wait max 15 seconds
+                                order_thread.join(timeout=20)  # Wait max 20 seconds (increased from 15s)
                                 
                                 if order_thread.is_alive():
-                                    st.error("❌ Timeout: L'ordre a pris trop longtemps à créer (>15s)")
+                                    st.error("❌ Timeout: L'ordre a pris trop longtemps à créer (>20s)")
                                     st.warning("⚠️ Vérifiez votre connexion IBKR et les logs")
                                     order = None
                                 elif error_result[0]:
