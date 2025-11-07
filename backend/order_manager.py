@@ -183,22 +183,22 @@ class OrderManager:
         try:
             logger.info(f"Step 4a: Creating contract for {ticker.symbol}...")
             
-            # Create contract with correct exchange for EUR stocks
-            from ib_insync import Stock
+            # Use get_contract() from collector which has proper currency/exchange detection
+            # instead of relying on potentially incorrect DB values
+            contract = self.ibkr_collector.get_contract(
+                symbol=ticker.symbol,
+                exchange='SMART',  # Let IBKR auto-route
+                currency=None  # Auto-detect: USD first, then EUR
+            )
             
-            # Determine exchange based on currency
-            if ticker.currency == 'EUR':
-                exchange = 'SBF'  # Use SBF directly for European stocks
-                primary_exchange = 'SBF'
-            else:
-                exchange = 'SMART'
-                primary_exchange = ''
+            if not contract:
+                logger.error(f"Step 4a FAILED: Could not qualify contract for {ticker.symbol}")
+                order.status = OrderStatus.ERROR
+                order.status_message = f"Could not qualify contract for {ticker.symbol}"
+                self.db.commit()
+                return False
             
-            contract = Stock(ticker.symbol, exchange, ticker.currency)
-            if primary_exchange:
-                contract.primaryExchange = primary_exchange
-            
-            logger.info(f"Step 4a OK: Contract created: {contract.symbol} on {contract.exchange} (currency: {ticker.currency})")
+            logger.info(f"Step 4a OK: Contract created: {contract.symbol} on {contract.exchange} (currency: {contract.currency})")
             logger.info(f"Step 4b: Creating IBKR order object...")
             
             # Create IBKR order object
