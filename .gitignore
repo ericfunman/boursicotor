@@ -26,6 +26,7 @@ wheels/
 # Environment
 .env
 .env.local
+env
 
 # IB Gateway credentials (IMPORTANT - contains login credentials)
 ibgateway_config.ini
