@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from backend.models import Ticker, HistoricalData, SessionLocal
 from backend.config import logger, DATA_CONFIG
+from numpy.random import Generator
+import numpy as np
 
 # IBKR client is optional - will use mock data if not available
 IBKR_AVAILABLE = False

@@ -5,6 +5,8 @@ import pandas as pd
 import numpy as np
 from typing import Optional
 from backend.config import logger
+from numpy.random import Generator
+import numpy as np
 
 
 class TechnicalIndicators:

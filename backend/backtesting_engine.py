@@ -13,6 +13,8 @@ import pickle
 from backend.config import logger
 from backend.models import SessionLocal, Ticker, HistoricalData, Base
 from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Boolean
+from numpy.random import Generator
+import numpy as np
 
 
 @dataclass
