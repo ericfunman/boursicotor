@@ -165,13 +165,18 @@ class IBKRCollector:
                 logger.error("Symbol must be provided")
                 return None
             
-            # If currency not specified, try common currencies
+            # If currency not specified, try currencies based on exchange
             currencies_to_try = []
             if currency:
                 currencies_to_try = [currency]
             else:
-                # Try USD first (most common for US stocks), then EUR (European stocks)
-                currencies_to_try = ['USD', 'EUR']
+                # Determine currency order based on exchange
+                if exchange in ['SBF', 'EURONEXT', 'XETRA', 'BME']:
+                    # European exchanges - EUR first, then USD
+                    currencies_to_try = ['EUR', 'USD']
+                else:
+                    # Default: USD first (US stocks on SMART/NASDAQ), then EUR
+                    currencies_to_try = ['USD', 'EUR']
             
             # Determine exchanges to try
             exchanges_to_try = []
