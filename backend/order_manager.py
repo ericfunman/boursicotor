@@ -232,6 +232,10 @@ class OrderManager:
             
             logger.info(f"Step 4 COMPLETE: Order {order.id} submitted to IBKR with ID {ib_order.orderId}")
             
+            # Monitor order execution (non-blocking - in thread)
+            logger.info(f"Step 4f: Starting order monitoring in background...")
+            self._monitor_order_async(order.id, trade)
+            
             return True
             
         except Exception as e:
@@ -245,6 +249,109 @@ class OrderManager:
             except:
                 pass
             return False
+    
+    def _monitor_order_async(self, order_id: int, trade):
+        """
+        Monitor order execution asynchronously in background thread
+        Updates DB as IBKR sends status updates
+        
+        Args:
+            order_id: Order ID to monitor
+            trade: IBTrade object from placeOrder()
+        """
+        def monitor():
+            try:
+                logger.info(f"[Monitor] Started monitoring order {order_id}")
+                db = SessionLocal()
+                
+                # Wait for order to be filled (max 60 seconds)
+                import time
+                start = time.time()
+                ibkr_order_id = None
+                
+                while time.time() - start < 60:
+                    try:
+                        # Get order from DB
+                        order = db.query(Order).filter(Order.id == order_id).first()
+                        if not order:
+                            logger.warning(f"[Monitor] Order {order_id} not found in DB")
+                            break
+                        
+                        ibkr_order_id = order.ibkr_order_id
+                        
+                        # Query IBKR for open orders to get latest status
+                        if self.ibkr_collector and self.ibkr_collector.ib.isConnected():
+                            open_orders = self.ibkr_collector.ib.openOrders()
+                            
+                            # Find our order in IBKR's list
+                            our_order = None
+                            for t in open_orders:
+                                if t.order.orderId == ibkr_order_id:
+                                    our_order = t
+                                    break
+                            
+                            if our_order:
+                                # Update from IBKR trade status
+                                status = our_order.orderStatus.status
+                                filled = our_order.orderStatus.filled
+                                remaining = our_order.orderStatus.remaining
+                                avg_price = our_order.orderStatus.avgFillPrice
+                                
+                                # Update DB
+                                order.filled_quantity = int(filled)
+                                order.remaining_quantity = int(remaining)
+                                if avg_price > 0:
+                                    order.avg_fill_price = avg_price
+                                
+                                logger.info(f"[Monitor] Order {order_id}: status={status}, filled={filled}, remaining={remaining}, avg={avg_price:.2f}")
+                                
+                                # Check if fully filled
+                                if int(filled) >= int(order.quantity):
+                                    order.status = OrderStatus.FILLED
+                                    order.status_message = f"Filled at {avg_price:.2f} ({int(filled)} shares)"
+                                    logger.info(f"[Monitor] ✅ Order {order_id} FILLED: {int(filled)}/{int(order.quantity)} @ {avg_price:.2f}")
+                                    db.commit()
+                                    break
+                                elif int(filled) > 0:
+                                    order.status = OrderStatus.SUBMITTED  # Still waiting for more fills
+                                    order.status_message = f"Partially filled: {int(filled)}/{int(order.quantity)}"
+                                    db.commit()
+                            else:
+                                # Order not in open orders - might be filled already
+                                # Check fills - iterate through all fills and check orderId
+                                total_filled = 0
+                                try:
+                                    fills = self.ibkr_collector.ib.fills()
+                                    for fill_item in fills:
+                                        # fill_item should have contract, execution, etc
+                                        if hasattr(fill_item, 'contract') and hasattr(fill_item, 'execution'):
+                                            if hasattr(fill_item.execution, 'orderId') and fill_item.execution.orderId == ibkr_order_id:
+                                                total_filled += int(fill_item.execution.shares)
+                                except Exception as e:
+                                    logger.error(f"[Monitor] Error getting fills: {e}")
+                                
+                                if total_filled >= order.quantity:
+                                    logger.info(f"[Monitor] Order {order_id} found in fills: {total_filled}")
+                                    order.status = OrderStatus.FILLED
+                                    order.filled_quantity = total_filled
+                                    db.commit()
+                                    break
+                        
+                        time.sleep(1)  # Check every second
+                        
+                    except Exception as e:
+                        logger.error(f"[Monitor] Error updating order {order_id}: {e}")
+                        time.sleep(1)
+                
+                db.close()
+                logger.info(f"[Monitor] Stopped monitoring order {order_id}")
+                
+            except Exception as e:
+                logger.error(f"[Monitor] Exception in monitor thread: {e}")
+        
+        # Start monitoring in background thread
+        thread = threading.Thread(target=monitor, daemon=True)
+        thread.start()
     
     def _place_order_with_ibkr_async(self, order_id: int, ticker_id: int) -> bool:
         """

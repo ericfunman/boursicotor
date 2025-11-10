@@ -3362,16 +3362,13 @@ def trading_page():
         
         st.markdown("---")
         
-        # Auto-refresh toggle
+        # Manual refresh button
         col_refresh1, col_refresh2 = st.columns([3, 1])
         with col_refresh1:
             st.markdown("### 📋 Ordres en Cours")
         with col_refresh2:
-            auto_refresh_orders = st.checkbox("🔄 Auto-refresh", value=False, key="auto_refresh_orders")
-        
-        # Auto-refresh if enabled
-        if auto_refresh_orders:
-            st_autorefresh(interval=2000, limit=None, key="trading_orders_refresh")  # 2 seconds
+            if st.button("🔄 Rafraîchir", key="refresh_orders_btn"):
+                st.rerun()
         
         try:
             open_orders = collector.ib.openOrders()
