@@ -3388,7 +3388,7 @@ def trading_page():
                 # Cancel order section
                 if st.checkbox("Annuler un ordre"):
                     order_id_to_cancel = st.number_input("Order ID à annuler", min_value=1, step=1)
-                    if st.button("❌ Annuler l'ordre", type="secondary"):
+                    if st.button("❌ Annuler l'ordre", type="secondary", key="cancel_order_btn"):
                         try:
                             # Find the order
                             order_to_cancel = None
