@@ -114,6 +114,18 @@ def connect_global_ibkr():
             # Use client_id=1 for Streamlit main connection
             st.session_state.global_ibkr = IBKRCollector(client_id=1)
         
+        # Check if already connected before calling connect()
+        if st.session_state.global_ibkr_connected:
+            # Already connected - just verify it's still alive
+            try:
+                # Quick check: if ib is available, we're probably connected
+                if hasattr(st.session_state.global_ibkr, 'ib') and st.session_state.global_ibkr.ib is not None:
+                    if hasattr(st.session_state.global_ibkr.ib, 'isConnected') and st.session_state.global_ibkr.ib.isConnected():
+                        return True, "✅ Déjà connecté à IBKR"
+            except:
+                pass  # Fall through to reconnect if check fails
+        
+        # Not connected yet, or verification failed - connect now
         if st.session_state.global_ibkr.connect():
             st.session_state.global_ibkr_connected = True
             return True, "✅ Connecté à IBKR"
@@ -3150,24 +3162,19 @@ def trading_page():
         from backend.ibkr_collector import IBKRCollector
         from ib_insync import Stock, MarketOrder, LimitOrder
         
-        # Initialize IBKR connection state (using global_ibkr from startup)
-        if 'ibkr_connected' not in st.session_state:
-            st.session_state.ibkr_connected = False
+        # Connection state managed globally (initialized in main())
         
         # Connection section
         col_connect1, col_connect2 = st.columns([2, 1])
         
         with col_connect1:
-            if not st.session_state.ibkr_connected:
+            if not st.session_state.get('global_ibkr_connected', False):
                 if st.button("🔌 Connecter à IBKR", type="primary", width='stretch'):
                     try:
                         with st.spinner("Connexion à IB Gateway..."):
-                            # Use global IBKR connection (client_id=1) - avoid multiple instances
-                            if 'global_ibkr' not in st.session_state:
-                                st.session_state.global_ibkr = IBKRCollector(client_id=1)
-                            
-                            if st.session_state.global_ibkr.connect():
-                                st.session_state.ibkr_connected = True
+                            # Use global IBKR connection from main()
+                            success, message = connect_global_ibkr()
+                            if success:
                                 st.success("✅ Connecté à IBKR!")
                                 st.rerun()
                             else:
@@ -3176,18 +3183,17 @@ def trading_page():
                         st.error(f"❌ Erreur: {e}")
             else:
                 if st.button("🔌 Déconnecter", width='stretch'):
-                    if st.session_state.global_ibkr:
-                        st.session_state.global_ibkr.disconnect()
-                    st.session_state.ibkr_connected = False
+                    disconnect_global_ibkr()
+                    st.success("Déconnecté")
                     st.rerun()
         
         with col_connect2:
-            if st.session_state.ibkr_connected:
+            if st.session_state.get('global_ibkr_connected', False):
                 st.success("🟢 Connecté")
             else:
                 st.error("🔴 Déconnecté")
         
-        if not st.session_state.ibkr_connected:
+        if not st.session_state.get('global_ibkr_connected', False):
             st.info("👆 Connectez-vous à IB Gateway pour commencer le trading")
             st.markdown("---")
             st.markdown("""
