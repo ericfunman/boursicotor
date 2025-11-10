@@ -12,6 +12,43 @@ from backend.models import SessionLocal, DataCollectionJob, JobStatus
 from backend.config import logger
 
 
+def retry_on_db_lock(func, max_retries=3, initial_wait=0.1):
+    """
+    Retry a function if it fails with database lock error
+    
+    Args:
+        func: Function to retry
+        max_retries: Maximum number of retries
+        initial_wait: Initial wait time in seconds
+    
+    Returns:
+        Result of func()
+    """
+    import sqlite3
+    from sqlalchemy.exc import OperationalError
+    
+    wait_time = initial_wait
+    last_error = None
+    
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except (OperationalError, sqlite3.OperationalError) as e:
+            if "database is locked" in str(e).lower():
+                last_error = e
+                if attempt < max_retries - 1:
+                    logger.warning(f"Database locked, retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
+                    wait_time *= 2  # Exponential backoff
+                else:
+                    logger.error(f"Database still locked after {max_retries} retries")
+                    raise
+            else:
+                raise
+    
+    raise last_error
+
+
 class JobManager:
     """Manage data collection jobs"""
     
@@ -58,8 +95,13 @@ class JobManager:
             )
             
             db.add(job)
-            db.commit()
-            db.refresh(job)
+            
+            # Retry on database lock
+            def commit_job():
+                db.commit()
+                db.refresh(job)
+            
+            retry_on_db_lock(commit_job, max_retries=3)
             
             logger.info(f"Created job {job.id} for {ticker_symbol} from {source}")
             return job
@@ -79,7 +121,10 @@ class JobManager:
             job = db.query(DataCollectionJob).filter(DataCollectionJob.id == job_id).first()
             if job:
                 job.celery_task_id = celery_task_id
-                db.commit()
+                # Retry on database lock
+                def commit_update():
+                    db.commit()
+                retry_on_db_lock(commit_update, max_retries=3)
         except Exception as e:
             logger.error(f"Error updating task ID: {e}")
             db.rollback()
@@ -202,7 +247,11 @@ class JobManager:
             job.current_step = "Cancelled by user"
             job.completed_at = datetime.utcnow()
             job.progress = 0
-            db.commit()
+            
+            # Retry on database lock
+            def commit_cancel():
+                db.commit()
+            retry_on_db_lock(commit_cancel, max_retries=3)
             
             logger.info(f"✅ Cancelled job {job_id}")
             return True

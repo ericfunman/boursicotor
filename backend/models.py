@@ -31,8 +31,32 @@ def format_datetime_paris(dt: datetime, fmt: str = '%Y-%m-%d %H:%M:%S') -> str:
     paris_dt = datetime_paris(dt)
     return paris_dt.strftime(fmt)
 
-# Create engine
-engine = create_engine(DATABASE_URL, echo=False, pool_size=10, max_overflow=20)
+# Create engine with database-specific optimizations
+if DATABASE_URL.startswith("sqlite://"):
+    # SQLite-specific configuration to handle concurrent access
+    from sqlalchemy.pool import StaticPool
+    engine = create_engine(
+        DATABASE_URL,
+        echo=False,
+        connect_args={"timeout": 30, "check_same_thread": False},  # 30s timeout for locks, allow cross-thread
+        poolclass=StaticPool,  # Use static pool for SQLite
+        isolation_level="SERIALIZABLE"
+    )
+    
+    # Enable WAL mode for better concurrent access
+    def on_connect(dbapi_conn, connection_record):
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging for better concurrency
+        cursor.execute("PRAGMA synchronous=NORMAL")  # Balance between safety and performance
+        cursor.execute("PRAGMA cache_size=10000")  # Increase cache
+        cursor.close()
+    
+    from sqlalchemy import event
+    event.listen(engine, "connect", on_connect)
+else:
+    # PostgreSQL configuration
+    engine = create_engine(DATABASE_URL, echo=False, pool_size=10, max_overflow=20)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
