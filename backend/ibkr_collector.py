@@ -208,9 +208,9 @@ class IBKRCollector:
                         
                         thread = threading.Thread(target=qualify, daemon=True)
                         thread.start()
-                        # Increased timeout to 30s - European stocks (TTE, WLN) need more time
-                        # when multiple connections are active (UI + Celery workers)
-                        thread.join(timeout=30)
+                        # Using client_id=1 for both UI and Celery prevents concurrent connection throttling
+                        # Reduced timeout back to 15s since no multi-client conflicts
+                        thread.join(timeout=15)
                         
                         if error[0]:
                             logger.debug(f"Exchange {ex}, currency {curr} failed for {symbol}: {error[0]}")

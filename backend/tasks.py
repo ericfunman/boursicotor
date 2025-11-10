@@ -62,14 +62,11 @@ def collect_data_ibkr(
         # Import here to avoid circular imports
         from backend.ibkr_collector import IBKRCollector
         
-        # Create collector with client_id=3 for data collection tasks
-        # Why client_id=3? IBKR allows multiple connections from the same machine with different client IDs:
-        #   - client_id=1 : Main Streamlit UI connection (persistent)
-        #   - client_id=2 : Reserved for future features (live prices, WebSocket streaming)
-        #   - client_id=3+ : Celery worker tasks (each task gets a unique, isolated connection)
-        # This prevents conflicts: if Celery task creates connection issues, main UI (client_id=1) stays unaffected
-        # Each task's collector disconnects in the finally block, cleaning up properly
-        collector = IBKRCollector(client_id=3)
+        # Create collector with client_id=1 (same as UI) to avoid concurrent connection throttling
+        # LYNX/IBKR severely throttles concurrent qualifyContracts() calls with different client_ids
+        # Using same client_id allows request queueing instead of blocking
+        # Note: Celery tasks run serially within same process, so no conflict with UI client_id=1
+        collector = IBKRCollector(client_id=1)
         
         # Connect to IBKR
         job.current_step = "Connecting to IBKR..."
