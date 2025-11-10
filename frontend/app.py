@@ -519,8 +519,8 @@ def data_collection_page():
         st_autorefresh(interval=3000, key="collection_page_refresh")  # 3 seconds - faster for immediate visibility
         st.info("🔄 Rafraîchissement automatique activé (3 secondes) - collectes en cours")
     
-    # Create tabs for Collection and Interpolation
-    tab_collect, tab_interp = st.tabs(["📥 Collecte IBKR", "🔬 Interpolation"])
+    # Create tabs for Collection, Data Overview, and Interpolation
+    tab_collect, tab_overview, tab_interp = st.tabs(["📥 Collecte IBKR", "📊 Données Collectées", "🔬 Interpolation"])
     
     with tab_collect:
         col1, col2 = st.columns(2)
@@ -734,13 +734,10 @@ def data_collection_page():
                     st.code(traceback.format_exc())
         
         with col2:
-            st.subheader("⚙️ Options de collecte")
-            st.info("💡 Les données sont collectées en arrière-plan via Celery. Vous pouvez suivre la progression dans l'onglet **Historique des collectes**.")
+            st.subheader("� Résultat de la collecte")
             
             # Display collected data if ticker is selected
             if selected_ticker:
-                st.markdown("---")
-                st.subheader(f"📊 Données collectées : {selected_ticker}")
                 
                 db = SessionLocal()
                 try:
@@ -758,56 +755,14 @@ def data_collection_page():
                             HistoricalData.ticker_id == ticker_in_db.id
                         ).order_by(HistoricalData.timestamp.asc()).all()
                         
-                        # Get all historical data for display (no limit)
-                        data_records = db.query(HistoricalData).filter(
-                            HistoricalData.ticker_id == ticker_in_db.id
-                        ).order_by(HistoricalData.timestamp.desc()).all()
-                        
                         if all_ticker_data:
-                            # Calculate stats
-                            total_records = len(all_ticker_data)
-                            first_date = all_ticker_data[0].timestamp
-                            last_date = all_ticker_data[-1].timestamp
-                            days_covered = (last_date - first_date).days + 1
-                            
-                            # Show summary metrics as simple markdown (smaller font)
-                            col_a, col_b, col_c, col_d = st.columns(4)
-                            with col_a:
-                                st.markdown(f"**📈 Total points**  \n`{total_records}`")
-                            with col_b:
-                                st.markdown(f"**📅 Premiers données**  \n`{first_date.strftime('%Y-%m-%d')}`")
-                            with col_c:
-                                st.markdown(f"**📅 Derniers données**  \n`{last_date.strftime('%Y-%m-%d')}`")
-                            with col_d:
-                                st.markdown(f"**📊 Durée (jours)**  \n`{days_covered}`")
-                            
-                            # Display last 50 records as preview
-                            if data_records:
-                                # Convert to DataFrame
-                                data_list = []
-                                for record in reversed(data_records):  # Reverse to get chronological order
-                                    from backend.models import format_datetime_paris
-                                    
-                                    date_str = format_datetime_paris(record.timestamp)
-                                    
-                                    data_list.append({
-                                        '📅 Date': date_str,
-                                        'Open': f"€{record.open:.2f}" if record.open else "N/A",
-                                        'High': f"€{record.high:.2f}" if record.high else "N/A",
-                                        'Low': f"€{record.low:.2f}" if record.low else "N/A",
-                                        'Close': f"€{record.close:.2f}" if record.close else "N/A",
-                                        'Volume': f"{int(record.volume):,}" if record.volume else "N/A"
-                                    })
-                                
-                                df_display = pd.DataFrame(data_list)
-                            
-                            # Don't show detailed data table (user only wants summary)
-                            
+                            st.success(f"✅ {selected_ticker} - Données collectées avec succès!")
+                           
                             # Action buttons
                             col_delete, col_chart = st.columns([1, 3])
                             
                             with col_delete:
-                                if st.button(f"�️ Supprimer {selected_ticker}", key=f"delete_{selected_ticker}"):
+                                if st.button(f"🗑️ Supprimer {selected_ticker}", key=f"delete_{selected_ticker}"):
                                     try:
                                         # Get ticker ID for deletion
                                         ticker_id = ticker_in_db.id
@@ -851,9 +806,9 @@ def data_collection_page():
                                             line=dict(color='#1f77b4', width=2)
                                         ))
                                         fig.update_layout(
-                                            title=f"Évolution du prix de {selected_ticker} ({days_covered} jours)",
+                                            title=f"Évolution du prix de {selected_ticker}",
                                             xaxis_title="Date",
-                                            yaxis_title="Prix (USD)",
+                                            yaxis_title="Prix (EUR)",
                                             hovermode='x unified',
                                             height=500
                                         )
@@ -872,6 +827,95 @@ def data_collection_page():
                         st.code(traceback.format_exc())
                 finally:
                     db.close()
+    
+    # Data Overview tab - Show all collected tickers in a table
+    with tab_overview:
+        st.subheader("📊 Vue d'ensemble des données collectées")
+        st.info("ℹ️ Tableau récapitulatif de tous les tickers collectés avec statistiques sur les données")
+        
+        db = SessionLocal()
+        try:
+            from backend.models import Ticker as TickerModel, HistoricalData
+            from sqlalchemy import func
+            
+            # Get all tickers with data
+            tickers_with_stats = db.query(
+                TickerModel.symbol,
+                TickerModel.name,
+                func.count(HistoricalData.id).label('total_points'),
+                func.min(HistoricalData.timestamp).label('first_date'),
+                func.max(HistoricalData.timestamp).label('last_date')
+            ).join(
+                HistoricalData,
+                TickerModel.id == HistoricalData.ticker_id
+            ).group_by(
+                TickerModel.id,
+                TickerModel.symbol,
+                TickerModel.name
+            ).order_by(TickerModel.symbol).all()
+            
+            if tickers_with_stats:
+                # Prepare data for display
+                overview_data = []
+                for ticker in tickers_with_stats:
+                    days_covered = (ticker.last_date - ticker.first_date).days + 1 if ticker.first_date and ticker.last_date else 0
+                    
+                    overview_data.append({
+                        '📈 Ticker': ticker.symbol,
+                        '🏢 Nom': ticker.name,
+                        '📊 Points': f"{ticker.total_points:,}",
+                        '📅 Début': ticker.first_date.strftime('%Y-%m-%d') if ticker.first_date else 'N/A',
+                        '📅 Fin': ticker.last_date.strftime('%Y-%m-%d') if ticker.last_date else 'N/A',
+                        '⏱️ Durée (jours)': days_covered
+                    })
+                
+                df_overview = pd.DataFrame(overview_data)
+                
+                # Display as table
+                st.dataframe(
+                    df_overview,
+                    use_container_width=True,
+                    height=400,
+                    hide_index=True
+                )
+                
+                # Summary statistics
+                st.markdown("---")
+                col_summary1, col_summary2, col_summary3 = st.columns(3)
+                
+                total_tickers = len(tickers_with_stats)
+                total_points = sum(t.total_points for t in tickers_with_stats)
+                avg_points = int(total_points / total_tickers) if total_tickers > 0 else 0
+                
+                with col_summary1:
+                    st.metric("🎯 Total Tickers", total_tickers)
+                with col_summary2:
+                    st.metric("📊 Total Points", f"{total_points:,}")
+                with col_summary3:
+                    st.metric("📈 Points Moyens", f"{avg_points:,}")
+                
+                # Export option
+                st.markdown("---")
+                if st.button("💾 Exporter le tableau (CSV)", use_container_width=True):
+                    csv = df_overview.to_csv(index=False)
+                    st.download_button(
+                        label="Télécharger CSV",
+                        data=csv,
+                        file_name=f"boursicotor_data_overview_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )
+            else:
+                st.warning("⚠️ Aucune donnée collectée pour le moment.")
+                st.info("💡 Utilisez l'onglet **Collecte IBKR** pour commencer à collecter des données sur TTE, WLN, TSL ou d'autres actions.")
+        
+        except Exception as e:
+            st.error(f"❌ Erreur lors du chargement des données : {e}")
+            import traceback
+            with st.expander("Détails de l'erreur"):
+                st.code(traceback.format_exc())
+        finally:
+            db.close()
     
     # Interpolation tab
     with tab_interp:
