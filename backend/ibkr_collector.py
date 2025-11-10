@@ -157,33 +157,12 @@ class IBKRCollector:
             from ib_insync import Contract
             
             # If ISIN provided, try that first (much faster for European stocks)
-            if isin:
-                try:
-                    logger.info(f"Attempting to qualify {isin} via ISIN...")
-                    contract = Contract(secType='STK', primaryExchange='SMART', tradingClass=symbol)
-                    contract.isin = isin
-                    
-                    result = [None]
-                    def qualify_isin():
-                        try:
-                            result[0] = self.ib.qualifyContracts(contract)
-                        except:
-                            pass
-                    
-                    thread = threading.Thread(target=qualify_isin, daemon=True)
-                    thread.start()
-                    thread.join(timeout=10)  # ISIN should be faster
-                    
-                    if result[0]:
-                        qualified = result[0][0]
-                        logger.info(f"✅ Contract qualified via ISIN: {qualified.symbol} on {qualified.primaryExchange} ({qualified.currency})")
-                        return qualified
-                except Exception as e:
-                    logger.debug(f"ISIN lookup failed: {e}")
+            # NOTE: Contract doesn't accept isin directly, so we skip this for now
+            # and rely on symbol-based lookup with proper exchange ordering
             
             # Fallback to symbol-based lookup
             if not symbol:
-                logger.error("Neither symbol nor ISIN provided")
+                logger.error("Symbol must be provided")
                 return None
             
             # If currency not specified, try common currencies
@@ -197,11 +176,11 @@ class IBKRCollector:
             # Determine exchanges to try
             exchanges_to_try = []
             if exchange == 'SMART':
-                # For SMART routing, try multiple exchanges:
-                # - SMART first (auto-routing for US stocks)
-                # - SBF (Euronext/European stocks)
-                # - NASDAQ (explicit US)
-                exchanges_to_try = ['SMART', 'SBF', 'NASDAQ']
+                # For SMART routing, try exchanges in order:
+                # - SBF first (Euronext - faster for EU stocks like TTE, WLN)
+                # - SMART (auto-routing for US stocks)
+                # - NASDAQ (explicit US if SMART fails)
+                exchanges_to_try = ['SBF', 'SMART', 'NASDAQ']
             else:
                 exchanges_to_try = [exchange]
             
