@@ -116,7 +116,7 @@ jobs:
           -v || true
     
     - name: SonarQube Scan
-      if: secrets.SONAR_HOST_URL != '' && secrets.SONAR_TOKEN != ''
+      if: ${{ secrets.SONAR_HOST_URL != '' && secrets.SONAR_TOKEN != '' }}
       uses: SonarSource/sonarqube-scan-action@master
       env:
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
