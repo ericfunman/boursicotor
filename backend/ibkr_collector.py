@@ -137,7 +137,7 @@ class IBKRCollector:
     
     def get_contract(self, symbol: str = None, exchange: str = 'SMART', currency: str = None, isin: str = None) -> Optional[Stock]:
         """
-        Get and qualify a stock contract with timeout protection
+        Get and qualify a stock contract
         
         Tries to qualify with multiple exchanges and currencies to handle both US and European stocks.
         Supports both symbol and ISIN lookup - ISIN is faster for European stocks.
@@ -152,7 +152,6 @@ class IBKRCollector:
             Qualified contract or None
         """
         try:
-            import threading
             import time
             from ib_insync import Contract
             
@@ -195,36 +194,30 @@ class IBKRCollector:
                     try:
                         contract = Stock(symbol, ex, curr)
                         
-                        # Call qualifyContracts with timeout protection
-                        # Use threading to avoid blocking indefinitely
-                        result = [None]
-                        error = [None]
-                        
-                        def qualify():
+                        # Call qualifyContracts directly (blocking - on main thread)
+                        # This avoids threading issues with ib_insync's asyncio integration
+                        # Retry up to 3 times with progressive backoff if it fails
+                        max_retries = 3
+                        for attempt in range(max_retries):
                             try:
-                                result[0] = self.ib.qualifyContracts(contract)
+                                contracts = self.ib.qualifyContracts(contract)
+                                
+                                if contracts:
+                                    qualified = contracts[0]
+                                    logger.info(f"Contract qualified: {qualified.symbol} on {qualified.primaryExchange} (exchange: {qualified.exchange}, currency: {qualified.currency})")
+                                    return qualified
+                                else:
+                                    logger.debug(f"Exchange {ex}, currency {curr} - no contracts found for {symbol}")
+                                break  # Exit retry loop if qualifyContracts succeeded (even if no contracts found)
+                                
                             except Exception as e:
-                                error[0] = e
-                        
-                        thread = threading.Thread(target=qualify, daemon=True)
-                        thread.start()
-                        # Using client_id=1 for both UI and Celery prevents concurrent connection throttling
-                        # Reduced timeout back to 15s since no multi-client conflicts
-                        thread.join(timeout=15)
-                        
-                        if error[0]:
-                            logger.debug(f"Exchange {ex}, currency {curr} failed for {symbol}: {error[0]}")
-                            continue
-                        
-                        if thread.is_alive():
-                            logger.debug(f"Exchange {ex}, currency {curr} timeout for {symbol} (>30s)")
-                            continue
-                        
-                        contracts = result[0]
-                        if contracts:
-                            qualified = contracts[0]
-                            logger.info(f"Contract qualified: {qualified.symbol} on {qualified.primaryExchange} (exchange: {qualified.exchange}, currency: {qualified.currency})")
-                            return qualified
+                                if attempt < max_retries - 1:
+                                    wait_time = 0.5 * (2 ** attempt)  # 0.5s, 1s, 2s
+                                    logger.debug(f"Exchange {ex}, currency {curr} - attempt {attempt + 1} failed for {symbol}, retrying in {wait_time}s: {e}")
+                                    time.sleep(wait_time)
+                                else:
+                                    logger.debug(f"Exchange {ex}, currency {curr} - all {max_retries} attempts failed for {symbol}: {e}")
+                                    break
                     except Exception as e:
                         logger.debug(f"Exception in get_contract for {ex}/{curr}/{symbol}: {e}")
                         continue
