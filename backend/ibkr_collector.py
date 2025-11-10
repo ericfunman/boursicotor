@@ -185,21 +185,19 @@ class IBKRCollector:
             # Check if this is a known European stock
             european_stock = self.EUROPEAN_STOCKS.get(symbol.upper())
             if european_stock and exchange == 'SMART':
-                # For known European stocks with SMART routing, prioritize EUR + European exchanges
-                exchange = european_stock['exchange']
+                # For known European stocks with SMART routing, use SMART (don't force exchange)
+                # This avoids IBKR API restriction for direct SBF routing
                 currency = european_stock['currency']
-                logger.info(f"Known European stock: {symbol} → preferring {exchange}/{currency}")
+                logger.info(f"Known European stock: {symbol} → using SMART with {currency}")
                 
-                # For known stocks, return contract directly WITHOUT qualifying
-                # (qualifyContracts can block indefinitely on some systems)
-                # IBKR will validate it when we place the order
+                # Create contract with SMART exchange to avoid direct routing restrictions
                 try:
-                    contract = Stock(symbol, exchange, currency)
-                    logger.info(f"Contract created (unqualified): {symbol} on {exchange}/{currency}")
+                    contract = Stock(symbol, 'SMART', currency)
+                    logger.info(f"Contract created (unqualified): {symbol} on SMART/{currency}")
                     # Return unqualified contract - IBKR validates on placeOrder
                     return contract
                 except Exception as e:
-                    logger.debug(f"Could not create contract for {symbol} on {exchange}/{currency}: {e}")
+                    logger.debug(f"Could not create contract for {symbol} on SMART/{currency}: {e}")
             
             # If currency not specified, try currencies based on exchange
             currencies_to_try = []

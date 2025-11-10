@@ -87,6 +87,10 @@ def test_order_execution():
         
         # After timeout, check final status
         logger.info(f"\n⏱️ Timeout reached (30s)")
+        
+        # Wait a bit more for background thread to finish
+        time.sleep(3)
+        
         db = SessionLocal()
         final_order = db.query(Order).filter(Order.id == order.id).first()
         db.close()
