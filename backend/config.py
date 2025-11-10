@@ -107,3 +107,9 @@ FRENCH_TICKERS = {
 }
 
 logger.info("Configuration loaded successfully")
+
+# Security validation at startup
+from backend.security import validate_startup
+if not validate_startup():
+    logger.warning("⚠️ Security validation completed with warnings")
+
