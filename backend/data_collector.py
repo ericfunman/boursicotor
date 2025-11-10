@@ -30,6 +30,7 @@ class DataCollector:
         # Only Yahoo Finance and IBKR are supported now
         
     def __del__(self):
+        """TODO: Add docstring."""
         self.db.close()
     
     def ensure_ticker_exists(self, symbol: str, name: str = "", exchange: str = "EURONEXT") -> Ticker:

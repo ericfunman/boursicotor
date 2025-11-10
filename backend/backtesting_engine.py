@@ -79,6 +79,7 @@ class Strategy:
     """Classe de base pour les stratégies de trading"""
     
     def __init__(self, name: str, parameters: Dict = None):
+        """TODO: Add docstring."""
         self.name = name
         self.parameters = parameters if parameters is not None else {}
     
@@ -110,10 +111,12 @@ class RandomStrategy(Strategy):
     """Stratégie aléatoire pour tester le moteur"""
     
     def __init__(self, seed: int = 42):
+        """TODO: Add docstring."""
         super().__init__('RandomStrategy', {'seed': seed})
         self.seed = seed
     
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
+        """TODO: Add docstring."""
         np.random.seed(self.seed)
         signals = np.random.choice([0, 1, -1], size=len(df), p=[0.8, 0.1, 0.1])
         return pd.Series(signals, index=df.index)
@@ -123,6 +126,7 @@ class MovingAverageCrossover(Strategy):
     """Stratégie de croisement de moyennes mobiles"""
     
     def __init__(self, fast_period: int = 10, slow_period: int = 30):
+        """TODO: Add docstring."""
         super().__init__('MovingAverageCrossover', {
             'fast_period': fast_period,
             'slow_period': slow_period
@@ -152,6 +156,7 @@ class RSIStrategy(Strategy):
     """Stratégie basée sur le RSI"""
     
     def __init__(self, rsi_period: int = 14, oversold: int = 30, overbought: int = 70):
+        """TODO: Add docstring."""
         super().__init__('RSIStrategy', {
             'rsi_period': rsi_period,
             'oversold': oversold,
@@ -292,6 +297,7 @@ class AdvancedMultiIndicatorStrategy(Strategy):
         self.min_signals = min_signals
     
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
+        """TODO: Add docstring."""
         signals_list = []
         
         # 1. Moving Average Crossover
@@ -393,6 +399,7 @@ class MomentumBreakoutStrategy(Strategy):
         self.rsi_max = rsi_max
     
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
+        """TODO: Add docstring."""
         signals = pd.Series(0, index=df.index)
         
         # Calculate indicators
@@ -452,6 +459,7 @@ class MeanReversionStrategy(Strategy):
         self.zscore_threshold = zscore_threshold
     
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
+        """TODO: Add docstring."""
         signals = pd.Series(0, index=df.index)
         
         # Bollinger Bands
@@ -564,6 +572,7 @@ class UltraAggressiveStrategy(Strategy):
             setattr(self, key, value)
     
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
+        """TODO: Add docstring."""
         signals_list = []
         
         # 1. Multi-timeframe Moving Averages
@@ -803,6 +812,7 @@ class MegaIndicatorStrategy(Strategy):
             setattr(self, key, value)
     
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
+        """TODO: Add docstring."""
         signals_list = []
         
         # 1-5. Multiple Moving Averages (5 MAs)

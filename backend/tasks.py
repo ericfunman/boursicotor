@@ -14,11 +14,13 @@ class DatabaseTask(Task):
     
     @property
     def db(self):
+        """TODO: Add docstring."""
         if self._db is None:
             self._db = SessionLocal()
         return self._db
     
     def after_return(self, *args, **kwargs):
+        """TODO: Add docstring."""
         if self._db is not None:
             self._db.close()
             self._db = None

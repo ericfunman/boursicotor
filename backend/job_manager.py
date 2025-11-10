@@ -98,6 +98,7 @@ class JobManager:
             
             # Retry on database lock
             def commit_job():
+                """TODO: Add docstring."""
                 db.commit()
                 db.refresh(job)
             
@@ -123,6 +124,7 @@ class JobManager:
                 job.celery_task_id = celery_task_id
                 # Retry on database lock
                 def commit_update():
+                    """TODO: Add docstring."""
                     db.commit()
                 retry_on_db_lock(commit_update, max_retries=3)
         except Exception as e:
@@ -250,6 +252,7 @@ class JobManager:
             
             # Retry on database lock
             def commit_cancel():
+                """TODO: Add docstring."""
                 db.commit()
             retry_on_db_lock(commit_cancel, max_retries=3)
             

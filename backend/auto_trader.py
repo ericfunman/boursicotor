@@ -475,6 +475,7 @@ class AutoTraderManager:
     """Manages multiple AutoTrader instances"""
     
     def __init__(self, ibkr_collector: Optional[IBKRCollector] = None):
+        """TODO: Add docstring."""
         self.ibkr_collector = ibkr_collector
         self.traders: Dict[int, AutoTrader] = {}  # session_id -> AutoTrader
     

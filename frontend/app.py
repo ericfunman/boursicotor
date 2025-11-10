@@ -3658,6 +3658,7 @@ def order_placement_page():
                                 error_result = [None]
                                 
                                 def place_order():
+                                    """TODO: Add docstring."""
                                     try:
                                         order_result[0] = order_manager.create_order(
                                             symbol=selected_symbol,

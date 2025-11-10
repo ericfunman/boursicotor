@@ -269,6 +269,7 @@ class OrderManager:
             ibkr_order_id: The IBKR order ID (for matching fills)
         """
         def monitor():
+            """TODO: Add docstring."""
             try:
                 logger.info(f"[Monitor] Starting async monitoring for order {order_id} (IBKR ID: {ibkr_order_id})")
                 

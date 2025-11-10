@@ -54,6 +54,7 @@ if DATABASE_URL.startswith("sqlite://"):
     
     # Enable WAL mode for better concurrent access
     def on_connect(dbapi_conn, connection_record):
+        """TODO: Add docstring."""
         cursor = dbapi_conn.cursor()
         cursor.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging for better concurrency
         cursor.execute("PRAGMA synchronous=NORMAL")  # Balance between safety and performance

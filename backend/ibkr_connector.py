@@ -16,6 +16,7 @@ class IBKRWrapper(EWrapper):
     """Classe pour recevoir les callbacks de l'API IBKR"""
     
     def __init__(self):
+        """TODO: Add docstring."""
         EWrapper.__init__(self)
         self.next_order_id = None
         self.market_data = {}
@@ -90,6 +91,7 @@ class IBKRClient(EClient):
     """Classe client pour envoyer des requêtes à IBKR"""
     
     def __init__(self, wrapper):
+        """TODO: Add docstring."""
         EClient.__init__(self, wrapper)
 
 
