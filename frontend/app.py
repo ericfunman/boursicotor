@@ -3362,8 +3362,16 @@ def trading_page():
         
         st.markdown("---")
         
-        # Open Orders
-        st.subheader("📋 Ordres en Cours")
+        # Auto-refresh toggle
+        col_refresh1, col_refresh2 = st.columns([3, 1])
+        with col_refresh1:
+            st.markdown("### 📋 Ordres en Cours")
+        with col_refresh2:
+            auto_refresh_orders = st.checkbox("🔄 Auto-refresh", value=False, key="auto_refresh_orders")
+        
+        # Auto-refresh if enabled
+        if auto_refresh_orders:
+            st_autorefresh(interval=2000, limit=None, key="trading_orders_refresh")  # 2 seconds
         
         try:
             open_orders = collector.ib.openOrders()
@@ -3375,38 +3383,46 @@ def trading_page():
                         'Order ID': trade.order.orderId,
                         'Symbol': trade.contract.symbol,
                         'Action': trade.order.action,
-                        'Quantity': trade.order.totalQuantity,
+                        'Qty': trade.order.totalQuantity,
                         'Type': trade.order.orderType,
                         'Status': trade.orderStatus.status,
                         'Filled': trade.orderStatus.filled,
-                        'Remaining': trade.orderStatus.remaining
+                        'Remaining': trade.orderStatus.remaining,
+                        'Avg Price': f"{trade.orderStatus.avgFillPrice:.2f}" if trade.orderStatus.avgFillPrice > 0 else "N/A"
                     })
                 
                 orders_df = pd.DataFrame(orders_data)
-                st.dataframe(orders_df, width='stretch')
+                st.dataframe(orders_df, width='stretch', use_container_width=True)
                 
-                # Cancel order section
-                if st.checkbox("Annuler un ordre"):
-                    order_id_to_cancel = st.number_input("Order ID à annuler", min_value=1, step=1)
-                    if st.button("❌ Annuler l'ordre", type="secondary", key="cancel_order_btn"):
-                        try:
-                            # Find the order
-                            order_to_cancel = None
-                            for trade in open_orders:
-                                if trade.order.orderId == order_id_to_cancel:
-                                    order_to_cancel = trade
-                                    break
-                            
-                            if order_to_cancel:
-                                collector.ib.cancelOrder(order_to_cancel.order)
-                                st.success(f"✅ Ordre {order_id_to_cancel} annulé")
-                                collector.ib.sleep(1)
-                                st.rerun()
-                            else:
-                                st.error(f"❌ Ordre {order_id_to_cancel} non trouvé")
+                # Action buttons for each order - Direct cancel buttons
+                st.markdown("#### Actions rapides")
+                
+                # Create columns for buttons
+                button_cols = st.columns(min(3, len(open_orders)))  # Max 3 buttons per row
+                
+                for idx, trade in enumerate(open_orders):
+                    col = button_cols[idx % len(button_cols)]
+                    with col:
+                        order_id = trade.order.orderId
+                        symbol = trade.contract.symbol
+                        qty = trade.order.totalQuantity
+                        status = trade.orderStatus.status
                         
-                        except Exception as e:
-                            st.error(f"❌ Erreur: {e}")
+                        button_text = f"❌ Annuler\n{symbol} {qty}\n(#{order_id})"
+                        
+                        if st.button(
+                            button_text,
+                            type="secondary",
+                            use_container_width=True,
+                            key=f"cancel_order_{order_id}"
+                        ):
+                            try:
+                                collector.ib.cancelOrder(trade.order)
+                                st.success(f"✅ Ordre {order_id} annulé!")
+                                collector.ib.sleep(0.5)
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Erreur: {e}")
             else:
                 st.info("ℹ️ Aucun ordre en cours")
         
