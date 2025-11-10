@@ -1,0 +1,5104 @@
+{
+  "total": 586,
+  "issues": [
+    {
+      "key": "AZpukiHY8jeHW_LR6aT2",
+      "rule": "python:S5713",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:backend/strategy_adapter.py",
+      "project": "ericfunman_boursicotor",
+      "line": 23,
+      "hash": "10ad4a4551083c0ddbcb5863814db038",
+      "textRange": {
+        "startLine": 23,
+        "endLine": 23,
+        "startOffset": 16,
+        "endOffset": 36
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/strategy_adapter.py",
+              "textRange": {
+                "startLine": 23,
+                "endLine": 23,
+                "startOffset": 38,
+                "endOffset": 48
+              },
+              "msg": "Parent class."
+            }
+          ]
+        }
+      ],
+      "status": "OPEN",
+      "message": "Remove this redundant Exception class; it derives from another which is already caught.",
+      "effort": "1min",
+      "debt": "1min",
+      "tags": [
+        "bad-practice",
+        "error-handling",
+        "unused"
+      ],
+      "creationDate": "2025-11-10T16:20:28+0000",
+      "updateDate": "2025-11-10T16:20:28+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "LOGICAL",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuhS9OHL-oNKL7nGWV",
+      "rule": "python:S5713",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:frontend/app.py",
+      "project": "ericfunman_boursicotor",
+      "line": 4489,
+      "hash": "ce2dd1a6c41db68554a8866f7d1beee8",
+      "textRange": {
+        "startLine": 4489,
+        "endLine": 4489,
+        "startOffset": 57,
+        "endOffset": 76
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:frontend/app.py",
+              "textRange": {
+                "startLine": 4489,
+                "endLine": 4489,
+                "startOffset": 44,
+                "endOffset": 55
+              },
+              "msg": "Parent class."
+            }
+          ]
+        }
+      ],
+      "status": "OPEN",
+      "message": "Remove this redundant Exception class; it derives from another which is already caught.",
+      "effort": "1min",
+      "debt": "1min",
+      "tags": [
+        "bad-practice",
+        "error-handling",
+        "unused"
+      ],
+      "creationDate": "2025-11-10T16:06:19+0000",
+      "updateDate": "2025-11-10T16:06:19+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "LOGICAL",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1T",
+      "rule": "python:S3776",
+      "severity": "CRITICAL",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 1989,
+      "hash": "59854cc63fa0c02df91057e825ff3a9f",
+      "textRange": {
+        "startLine": 1989,
+        "endLine": 1989,
+        "startOffset": 8,
+        "endOffset": 33
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2012,
+                "endLine": 2012,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2027,
+                "endLine": 2027,
+                "startOffset": 8,
+                "endOffset": 11
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2036,
+                "endLine": 2036,
+                "startOffset": 12,
+                "endOffset": 14
+              },
+              "msg": "+2 (incl 1 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2038,
+                "endLine": 2038,
+                "startOffset": 12,
+                "endOffset": 16
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2040,
+                "endLine": 2040,
+                "startOffset": 12,
+                "endOffset": 16
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2042,
+                "endLine": 2042,
+                "startOffset": 12,
+                "endOffset": 16
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2044,
+                "endLine": 2044,
+                "startOffset": 12,
+                "endOffset": 16
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2046,
+                "endLine": 2046,
+                "startOffset": 12,
+                "endOffset": 16
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2048,
+                "endLine": 2048,
+                "startOffset": 12,
+                "endOffset": 16
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2050,
+                "endLine": 2050,
+                "startOffset": 12,
+                "endOffset": 16
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2052,
+                "endLine": 2052,
+                "startOffset": 12,
+                "endOffset": 16
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2054,
+                "endLine": 2054,
+                "startOffset": 12,
+                "endOffset": 16
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2089,
+                "endLine": 2089,
+                "startOffset": 12,
+                "endOffset": 15
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2101,
+                "endLine": 2101,
+                "startOffset": 16,
+                "endOffset": 18
+              },
+              "msg": "+2 (incl 1 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2110,
+                "endLine": 2110,
+                "startOffset": 16,
+                "endOffset": 18
+              },
+              "msg": "+2 (incl 1 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2117,
+                "endLine": 2117,
+                "startOffset": 16,
+                "endOffset": 18
+              },
+              "msg": "+2 (incl 1 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2121,
+                "endLine": 2121,
+                "startOffset": 16,
+                "endOffset": 18
+              },
+              "msg": "+2 (incl 1 for nesting)"
+            }
+          ]
+        }
+      ],
+      "status": "OPEN",
+      "message": "Refactor this function to reduce its Cognitive Complexity from 22 to the 15 allowed.",
+      "effort": "12min",
+      "debt": "12min",
+      "tags": [
+        "architecture",
+        "brain-overload"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "FOCUSED",
+      "cleanCodeAttributeCategory": "ADAPTABLE",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1U",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 2034,
+      "hash": "a12938a81df4d620f50e3f934b7f7cb1",
+      "textRange": {
+        "startLine": 2034,
+        "endLine": 2034,
+        "startOffset": 28,
+        "endOffset": 44
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1V",
+      "rule": "python:S3776",
+      "severity": "CRITICAL",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 2276,
+      "hash": "ffd2a38953f19fd887d723cce2d7738c",
+      "textRange": {
+        "startLine": 2276,
+        "endLine": 2276,
+        "startOffset": 8,
+        "endOffset": 20
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2296,
+                "endLine": 2296,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2296,
+                "endLine": 2296,
+                "startOffset": 26,
+                "endOffset": 29
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2299,
+                "endLine": 2299,
+                "startOffset": 12,
+                "endOffset": 18
+              },
+              "msg": "+2 (incl 1 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2325,
+                "endLine": 2325,
+                "startOffset": 8,
+                "endOffset": 11
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2331,
+                "endLine": 2331,
+                "startOffset": 12,
+                "endOffset": 14
+              },
+              "msg": "+2 (incl 1 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2331,
+                "endLine": 2331,
+                "startOffset": 43,
+                "endOffset": 46
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2333,
+                "endLine": 2333,
+                "startOffset": 16,
+                "endOffset": 18
+              },
+              "msg": "+3 (incl 2 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2335,
+                "endLine": 2335,
+                "startOffset": 20,
+                "endOffset": 22
+              },
+              "msg": "+4 (incl 3 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2337,
+                "endLine": 2337,
+                "startOffset": 20,
+                "endOffset": 24
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2343,
+                "endLine": 2343,
+                "startOffset": 12,
+                "endOffset": 14
+              },
+              "msg": "+2 (incl 1 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2343,
+                "endLine": 2343,
+                "startOffset": 27,
+                "endOffset": 30
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2346,
+                "endLine": 2346,
+                "startOffset": 16,
+                "endOffset": 18
+              },
+              "msg": "+3 (incl 2 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2348,
+                "endLine": 2348,
+                "startOffset": 20,
+                "endOffset": 22
+              },
+              "msg": "+4 (incl 3 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2356,
+                "endLine": 2356,
+                "startOffset": 12,
+                "endOffset": 16
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2358,
+                "endLine": 2358,
+                "startOffset": 16,
+                "endOffset": 18
+              },
+              "msg": "+3 (incl 2 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2387,
+                "endLine": 2387,
+                "startOffset": 16,
+                "endOffset": 18
+              },
+              "msg": "+3 (incl 2 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2387,
+                "endLine": 2387,
+                "startOffset": 36,
+                "endOffset": 39
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2389,
+                "endLine": 2389,
+                "startOffset": 20,
+                "endOffset": 22
+              },
+              "msg": "+4 (incl 3 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2399,
+                "endLine": 2399,
+                "startOffset": 12,
+                "endOffset": 16
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2399,
+                "endLine": 2399,
+                "startOffset": 29,
+                "endOffset": 32
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2437,
+                "endLine": 2437,
+                "startOffset": 12,
+                "endOffset": 14
+              },
+              "msg": "+2 (incl 1 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2440,
+                "endLine": 2440,
+                "startOffset": 12,
+                "endOffset": 16
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2446,
+                "endLine": 2446,
+                "startOffset": 12,
+                "endOffset": 16
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2452,
+                "endLine": 2452,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2456,
+                "endLine": 2456,
+                "startOffset": 12,
+                "endOffset": 14
+              },
+              "msg": "+2 (incl 1 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2466,
+                "endLine": 2466,
+                "startOffset": 12,
+                "endOffset": 16
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2501,
+                "endLine": 2501,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2501,
+                "endLine": 2501,
+                "startOffset": 30,
+                "endOffset": 32
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2503,
+                "endLine": 2503,
+                "startOffset": 60,
+                "endOffset": 62
+              },
+              "msg": "+2 (incl 1 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2511,
+                "endLine": 2511,
+                "startOffset": 8,
+                "endOffset": 12
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2513,
+                "endLine": 2513,
+                "startOffset": 60,
+                "endOffset": 62
+              },
+              "msg": "+2 (incl 1 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2523,
+                "endLine": 2523,
+                "startOffset": 56,
+                "endOffset": 58
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2532,
+                "endLine": 2532,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2536,
+                "endLine": 2536,
+                "startOffset": 12,
+                "endOffset": 14
+              },
+              "msg": "+2 (incl 1 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2538,
+                "endLine": 2538,
+                "startOffset": 12,
+                "endOffset": 16
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2540,
+                "endLine": 2540,
+                "startOffset": 8,
+                "endOffset": 12
+              },
+              "msg": "+1"
+            }
+          ]
+        }
+      ],
+      "status": "OPEN",
+      "message": "Refactor this function to reduce its Cognitive Complexity from 61 to the 15 allowed.",
+      "effort": "51min",
+      "debt": "51min",
+      "tags": [
+        "architecture",
+        "brain-overload"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "FOCUSED",
+      "cleanCodeAttributeCategory": "ADAPTABLE",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1W",
+      "rule": "python:S3776",
+      "severity": "CRITICAL",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 2720,
+      "hash": "d9d0773ee3b108b5b141f2a8d4dac979",
+      "textRange": {
+        "startLine": 2720,
+        "endLine": 2720,
+        "startOffset": 8,
+        "endOffset": 31
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2733,
+                "endLine": 2733,
+                "startOffset": 8,
+                "endOffset": 11
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2738,
+                "endLine": 2738,
+                "startOffset": 12,
+                "endOffset": 14
+              },
+              "msg": "+2 (incl 1 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2739,
+                "endLine": 2739,
+                "startOffset": 16,
+                "endOffset": 18
+              },
+              "msg": "+3 (incl 2 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2744,
+                "endLine": 2744,
+                "startOffset": 16,
+                "endOffset": 20
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2746,
+                "endLine": 2746,
+                "startOffset": 20,
+                "endOffset": 22
+              },
+              "msg": "+4 (incl 3 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2749,
+                "endLine": 2749,
+                "startOffset": 12,
+                "endOffset": 16
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2750,
+                "endLine": 2750,
+                "startOffset": 16,
+                "endOffset": 18
+              },
+              "msg": "+3 (incl 2 for nesting)"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2755,
+                "endLine": 2755,
+                "startOffset": 16,
+                "endOffset": 20
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2757,
+                "endLine": 2757,
+                "startOffset": 20,
+                "endOffset": 22
+              },
+              "msg": "+4 (incl 3 for nesting)"
+            }
+          ]
+        }
+      ],
+      "status": "OPEN",
+      "message": "Refactor this function to reduce its Cognitive Complexity from 20 to the 15 allowed.",
+      "effort": "10min",
+      "debt": "10min",
+      "tags": [
+        "architecture",
+        "brain-overload"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "FOCUSED",
+      "cleanCodeAttributeCategory": "ADAPTABLE",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1X",
+      "rule": "python:S125",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 2727,
+      "hash": "e62a6eee670afbc15b4a23b82d099455",
+      "textRange": {
+        "startLine": 2727,
+        "endLine": 2727,
+        "startOffset": 46,
+        "endOffset": 75
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Remove this commented out code.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "unused"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1Y",
+      "rule": "python:S107",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 2815,
+      "hash": "586d1d2630f8da96e323ff2ae2272bd7",
+      "textRange": {
+        "startLine": 2815,
+        "endLine": 2849,
+        "startOffset": 17,
+        "endOffset": 38
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Method \"__init__\" has 30 parameters, which is greater than the 13 authorized.",
+      "effort": "20min",
+      "debt": "20min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "brain-overload"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "FOCUSED",
+      "cleanCodeAttributeCategory": "ADAPTABLE",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1Z",
+      "rule": "python:S3776",
+      "severity": "CRITICAL",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 2911,
+      "hash": "5896fabcb2be1c7d4937b7c63a3a48e0",
+      "textRange": {
+        "startLine": 2911,
+        "endLine": 2911,
+        "startOffset": 8,
+        "endOffset": 24
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2928,
+                "endLine": 2928,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2932,
+                "endLine": 2932,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2936,
+                "endLine": 2936,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2940,
+                "endLine": 2940,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2944,
+                "endLine": 2944,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2948,
+                "endLine": 2948,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2952,
+                "endLine": 2952,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2989,
+                "endLine": 2989,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2989,
+                "endLine": 2989,
+                "startOffset": 31,
+                "endOffset": 34
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2994,
+                "endLine": 2994,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 2994,
+                "endLine": 2994,
+                "startOffset": 34,
+                "endOffset": 37
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 3002,
+                "endLine": 3002,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 3002,
+                "endLine": 3002,
+                "startOffset": 29,
+                "endOffset": 32
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 3010,
+                "endLine": 3010,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 3010,
+                "endLine": 3010,
+                "startOffset": 25,
+                "endOffset": 28
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 3015,
+                "endLine": 3015,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 3015,
+                "endLine": 3015,
+                "startOffset": 24,
+                "endOffset": 27
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 3025,
+                "endLine": 3025,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 3025,
+                "endLine": 3025,
+                "startOffset": 24,
+                "endOffset": 27
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 3030,
+                "endLine": 3030,
+                "startOffset": 8,
+                "endOffset": 10
+              },
+              "msg": "+1"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+              "textRange": {
+                "startLine": 3030,
+                "endLine": 3030,
+                "startOffset": 30,
+                "endOffset": 33
+              },
+              "msg": "+1"
+            }
+          ]
+        }
+      ],
+      "status": "OPEN",
+      "message": "Refactor this function to reduce its Cognitive Complexity from 21 to the 15 allowed.",
+      "effort": "11min",
+      "debt": "11min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "architecture",
+        "brain-overload"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "FOCUSED",
+      "cleanCodeAttributeCategory": "ADAPTABLE",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1a",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3057,
+      "hash": "191b417d555eb0f2ec40e84c89eeb999",
+      "textRange": {
+        "startLine": 3057,
+        "endLine": 3057,
+        "startOffset": 15,
+        "endOffset": 32
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1b",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3058,
+      "hash": "d2e09a70c8aa3bb1316d379c4fcee47b",
+      "textRange": {
+        "startLine": 3058,
+        "endLine": 3058,
+        "startOffset": 15,
+        "endOffset": 32
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1c",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3063,
+      "hash": "ff6de549c5b5ec2dae8c50760da1054b",
+      "textRange": {
+        "startLine": 3063,
+        "endLine": 3063,
+        "startOffset": 17,
+        "endOffset": 34
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1d",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3064,
+      "hash": "3285d8abeda4e009e748de8849c73a11",
+      "textRange": {
+        "startLine": 3064,
+        "endLine": 3064,
+        "startOffset": 19,
+        "endOffset": 36
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1e",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3065,
+      "hash": "6dbe64beae35cb417b6e700947e40fb0",
+      "textRange": {
+        "startLine": 3065,
+        "endLine": 3065,
+        "startOffset": 21,
+        "endOffset": 38
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1f",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3071,
+      "hash": "92ece3398cb115838bb85d663d2ba774",
+      "textRange": {
+        "startLine": 3071,
+        "endLine": 3071,
+        "startOffset": 20,
+        "endOffset": 37
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1g",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3072,
+      "hash": "25af065768a2f05bbdc1b911b428c4e6",
+      "textRange": {
+        "startLine": 3072,
+        "endLine": 3072,
+        "startOffset": 20,
+        "endOffset": 37
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1h",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3074,
+      "hash": "db99f139134501bb9eccb868274e6f88",
+      "textRange": {
+        "startLine": 3074,
+        "endLine": 3074,
+        "startOffset": 25,
+        "endOffset": 42
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1i",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3075,
+      "hash": "ca338e65950916f8bfadfec1715894da",
+      "textRange": {
+        "startLine": 3075,
+        "endLine": 3075,
+        "startOffset": 27,
+        "endOffset": 44
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1j",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3076,
+      "hash": "c979a6905b6121b236afa9b762c0074c",
+      "textRange": {
+        "startLine": 3076,
+        "endLine": 3076,
+        "startOffset": 22,
+        "endOffset": 39
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1k",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3077,
+      "hash": "6800cf296ae7956b81e96fdf7e7a0db3",
+      "textRange": {
+        "startLine": 3077,
+        "endLine": 3077,
+        "startOffset": 22,
+        "endOffset": 39
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1l",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3078,
+      "hash": "d463af2a11e4c5899adf979adc576316",
+      "textRange": {
+        "startLine": 3078,
+        "endLine": 3078,
+        "startOffset": 24,
+        "endOffset": 41
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1m",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3084,
+      "hash": "4aca3a2e3dce32cf6369bf509ef468e7",
+      "textRange": {
+        "startLine": 3084,
+        "endLine": 3084,
+        "startOffset": 20,
+        "endOffset": 37
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1n",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3085,
+      "hash": "6d41dda2816f282377bd7e107e69b2e7",
+      "textRange": {
+        "startLine": 3085,
+        "endLine": 3085,
+        "startOffset": 20,
+        "endOffset": 37
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1o",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3086,
+      "hash": "bc4de0c3ca792ed708b060f4d3df1ea8",
+      "textRange": {
+        "startLine": 3086,
+        "endLine": 3086,
+        "startOffset": 23,
+        "endOffset": 40
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1p",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3087,
+      "hash": "eddab1e0ade2fa66a95fa5882a21828e",
+      "textRange": {
+        "startLine": 3087,
+        "endLine": 3087,
+        "startOffset": 25,
+        "endOffset": 42
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1q",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3088,
+      "hash": "1d35ff7d5504cb88cb1c46d58d1bf256",
+      "textRange": {
+        "startLine": 3088,
+        "endLine": 3088,
+        "startOffset": 27,
+        "endOffset": 44
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1r",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3089,
+      "hash": "0e2d005070a39d81b64885eb286ff26d",
+      "textRange": {
+        "startLine": 3089,
+        "endLine": 3089,
+        "startOffset": 22,
+        "endOffset": 39
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1s",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3090,
+      "hash": "340dd84841b7e91a8a8bbe45fcb0165a",
+      "textRange": {
+        "startLine": 3090,
+        "endLine": 3090,
+        "startOffset": 19,
+        "endOffset": 36
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1t",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3091,
+      "hash": "b6f52777c03398dfb69804d81fb23226",
+      "textRange": {
+        "startLine": 3091,
+        "endLine": 3091,
+        "startOffset": 20,
+        "endOffset": 37
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1u",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3092,
+      "hash": "4c4d074785c931ffb223a0292713a8fd",
+      "textRange": {
+        "startLine": 3092,
+        "endLine": 3092,
+        "startOffset": 20,
+        "endOffset": 37
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1v",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3093,
+      "hash": "c069f5d65d4be6f87e253da763345054",
+      "textRange": {
+        "startLine": 3093,
+        "endLine": 3093,
+        "startOffset": 27,
+        "endOffset": 44
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1w",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3094,
+      "hash": "4455217deda78af92d6a1e983f4da86d",
+      "textRange": {
+        "startLine": 3094,
+        "endLine": 3094,
+        "startOffset": 29,
+        "endOffset": 46
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1x",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3095,
+      "hash": "740458e100ea2f03055b1b61a092d533",
+      "textRange": {
+        "startLine": 3095,
+        "endLine": 3095,
+        "startOffset": 23,
+        "endOffset": 40
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1y",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3096,
+      "hash": "5d88a59b8dde212b6ebf3717e1052ea7",
+      "textRange": {
+        "startLine": 3096,
+        "endLine": 3096,
+        "startOffset": 22,
+        "endOffset": 39
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1z",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3097,
+      "hash": "f4ee10ac96569fd9537fb5b96bfc4548",
+      "textRange": {
+        "startLine": 3097,
+        "endLine": 3097,
+        "startOffset": 24,
+        "endOffset": 41
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G10",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3103,
+      "hash": "14a4d66cdede79e682f6ec3ec0dd686e",
+      "textRange": {
+        "startLine": 3103,
+        "endLine": 3103,
+        "startOffset": 28,
+        "endOffset": 45
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G11",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3104,
+      "hash": "9cde565d93dd838f2a48d63d27fb3f9e",
+      "textRange": {
+        "startLine": 3104,
+        "endLine": 3104,
+        "startOffset": 31,
+        "endOffset": 48
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G12",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3105,
+      "hash": "5e563c2ef9a5ca4d0642c733dab0dd99",
+      "textRange": {
+        "startLine": 3105,
+        "endLine": 3105,
+        "startOffset": 30,
+        "endOffset": 47
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G13",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3106,
+      "hash": "bc4de0c3ca792ed708b060f4d3df1ea8",
+      "textRange": {
+        "startLine": 3106,
+        "endLine": 3106,
+        "startOffset": 23,
+        "endOffset": 40
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G14",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3107,
+      "hash": "052ab5564d0825a1dc4c7b538e46e416",
+      "textRange": {
+        "startLine": 3107,
+        "endLine": 3107,
+        "startOffset": 20,
+        "endOffset": 37
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G15",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3108,
+      "hash": "19fc2eb394167d18bb018f5996f60f2f",
+      "textRange": {
+        "startLine": 3108,
+        "endLine": 3108,
+        "startOffset": 20,
+        "endOffset": 37
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G16",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3114,
+      "hash": "13081e46c479bb1049cb42102fb18457",
+      "textRange": {
+        "startLine": 3114,
+        "endLine": 3114,
+        "startOffset": 22,
+        "endOffset": 39
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G17",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3115,
+      "hash": "340dd84841b7e91a8a8bbe45fcb0165a",
+      "textRange": {
+        "startLine": 3115,
+        "endLine": 3115,
+        "startOffset": 19,
+        "endOffset": 36
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G18",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3116,
+      "hash": "bc4de0c3ca792ed708b060f4d3df1ea8",
+      "textRange": {
+        "startLine": 3116,
+        "endLine": 3116,
+        "startOffset": 23,
+        "endOffset": 40
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G19",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3117,
+      "hash": "49c4f1c6f360720daa5852af8867f894",
+      "textRange": {
+        "startLine": 3117,
+        "endLine": 3117,
+        "startOffset": 25,
+        "endOffset": 42
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1-",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3118,
+      "hash": "dc13a6a4304eca6d5d149fb23de5e1f4",
+      "textRange": {
+        "startLine": 3118,
+        "endLine": 3118,
+        "startOffset": 27,
+        "endOffset": 44
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G1_",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3119,
+      "hash": "089b939b4328797cbbf9d5cc41a23bd6",
+      "textRange": {
+        "startLine": 3119,
+        "endLine": 3119,
+        "startOffset": 29,
+        "endOffset": 46
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G2A",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3125,
+      "hash": "10d1cfe851303e35b45e66586471dee0",
+      "textRange": {
+        "startLine": 3125,
+        "endLine": 3125,
+        "startOffset": 25,
+        "endOffset": 42
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G2B",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3126,
+      "hash": "ceebb1272a220a39281bc6fe80e9cecb",
+      "textRange": {
+        "startLine": 3126,
+        "endLine": 3126,
+        "startOffset": 20,
+        "endOffset": 37
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G2C",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3127,
+      "hash": "ece061dac343c092f1d6e3a895fe9883",
+      "textRange": {
+        "startLine": 3127,
+        "endLine": 3127,
+        "startOffset": 22,
+        "endOffset": 39
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G2D",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3128,
+      "hash": "57152117b1a9988970c9e2f164fa1b31",
+      "textRange": {
+        "startLine": 3128,
+        "endLine": 3128,
+        "startOffset": 20,
+        "endOffset": 37
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G2E",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3129,
+      "hash": "bc4de0c3ca792ed708b060f4d3df1ea8",
+      "textRange": {
+        "startLine": 3129,
+        "endLine": 3129,
+        "startOffset": 23,
+        "endOffset": 40
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-jnAnhYDX2i5G2F",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3130,
+      "hash": "eddab1e0ade2fa66a95fa5882a21828e",
+      "textRange": {
+        "startLine": 3130,
+        "endLine": 3130,
+        "startOffset": 25,
+        "endOffset": 42
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2G",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3131,
+      "hash": "1d35ff7d5504cb88cb1c46d58d1bf256",
+      "textRange": {
+        "startLine": 3131,
+        "endLine": 3131,
+        "startOffset": 27,
+        "endOffset": 44
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2H",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3132,
+      "hash": "c979a6905b6121b236afa9b762c0074c",
+      "textRange": {
+        "startLine": 3132,
+        "endLine": 3132,
+        "startOffset": 22,
+        "endOffset": 39
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2I",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3133,
+      "hash": "6800cf296ae7956b81e96fdf7e7a0db3",
+      "textRange": {
+        "startLine": 3133,
+        "endLine": 3133,
+        "startOffset": 22,
+        "endOffset": 39
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2J",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3134,
+      "hash": "f5751824a5bc4b3523e557a753246f0d",
+      "textRange": {
+        "startLine": 3134,
+        "endLine": 3134,
+        "startOffset": 24,
+        "endOffset": 41
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2K",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3135,
+      "hash": "0e2d005070a39d81b64885eb286ff26d",
+      "textRange": {
+        "startLine": 3135,
+        "endLine": 3135,
+        "startOffset": 22,
+        "endOffset": 39
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2L",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3136,
+      "hash": "340dd84841b7e91a8a8bbe45fcb0165a",
+      "textRange": {
+        "startLine": 3136,
+        "endLine": 3136,
+        "startOffset": 19,
+        "endOffset": 36
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2M",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3137,
+      "hash": "b6f52777c03398dfb69804d81fb23226",
+      "textRange": {
+        "startLine": 3137,
+        "endLine": 3137,
+        "startOffset": 20,
+        "endOffset": 37
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2N",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3138,
+      "hash": "4c4d074785c931ffb223a0292713a8fd",
+      "textRange": {
+        "startLine": 3138,
+        "endLine": 3138,
+        "startOffset": 20,
+        "endOffset": 37
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2O",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3139,
+      "hash": "e59d22aed77311f54df75da7fc068c16",
+      "textRange": {
+        "startLine": 3139,
+        "endLine": 3139,
+        "startOffset": 23,
+        "endOffset": 40
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2P",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3140,
+      "hash": "317c747a89140d088a20b8c77e73a3ef",
+      "textRange": {
+        "startLine": 3140,
+        "endLine": 3140,
+        "startOffset": 25,
+        "endOffset": 42
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2Q",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3141,
+      "hash": "26c4dc34bcc76f4cf693f6dc4de48236",
+      "textRange": {
+        "startLine": 3141,
+        "endLine": 3141,
+        "startOffset": 27,
+        "endOffset": 44
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2R",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3142,
+      "hash": "ad5cedc9827fcb2b49c5d75a206be28f",
+      "textRange": {
+        "startLine": 3142,
+        "endLine": 3142,
+        "startOffset": 28,
+        "endOffset": 45
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2S",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3143,
+      "hash": "f6a7ad3bd522528973ed6d6a1b128a92",
+      "textRange": {
+        "startLine": 3143,
+        "endLine": 3143,
+        "startOffset": 30,
+        "endOffset": 47
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2T",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3144,
+      "hash": "da4d267b704f87c8e3b5c379d4dc5fa7",
+      "textRange": {
+        "startLine": 3144,
+        "endLine": 3144,
+        "startOffset": 32,
+        "endOffset": 49
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2U",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3145,
+      "hash": "4abf4a553f30c0df2c61ac422a8929eb",
+      "textRange": {
+        "startLine": 3145,
+        "endLine": 3145,
+        "startOffset": 23,
+        "endOffset": 40
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2V",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3146,
+      "hash": "00cd166b78df83068bb6f1a2d6148602",
+      "textRange": {
+        "startLine": 3146,
+        "endLine": 3146,
+        "startOffset": 28,
+        "endOffset": 45
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2W",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3147,
+      "hash": "cc43b19d9b1eb0a38537aecf68ec0d45",
+      "textRange": {
+        "startLine": 3147,
+        "endLine": 3147,
+        "startOffset": 27,
+        "endOffset": 44
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2X",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3148,
+      "hash": "f9f2f9c0eb1f6b9f7d6e972045edb06f",
+      "textRange": {
+        "startLine": 3148,
+        "endLine": 3148,
+        "startOffset": 23,
+        "endOffset": 40
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2Y",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3149,
+      "hash": "436050680aab974bf8a6760092747926",
+      "textRange": {
+        "startLine": 3149,
+        "endLine": 3149,
+        "startOffset": 26,
+        "endOffset": 43
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2Z",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3150,
+      "hash": "08e27d7c1210cdfb166ac2f58680e5ff",
+      "textRange": {
+        "startLine": 3150,
+        "endLine": 3150,
+        "startOffset": 24,
+        "endOffset": 41
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2a",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3157,
+      "hash": "51062b116ca983d3cff1a76a983f8bec",
+      "textRange": {
+        "startLine": 3157,
+        "endLine": 3157,
+        "startOffset": 12,
+        "endOffset": 29
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2b",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3158,
+      "hash": "357c85eb3cd2b09d0b443b69f26f65cd",
+      "textRange": {
+        "startLine": 3158,
+        "endLine": 3158,
+        "startOffset": 12,
+        "endOffset": 29
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2c",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3159,
+      "hash": "5e57c07b8a1754b7d377bb8a1769fc72",
+      "textRange": {
+        "startLine": 3159,
+        "endLine": 3159,
+        "startOffset": 12,
+        "endOffset": 29
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2d",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3160,
+      "hash": "38a937b40f88d379903da2900238ccbb",
+      "textRange": {
+        "startLine": 3160,
+        "endLine": 3160,
+        "startOffset": 12,
+        "endOffset": 29
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2e",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3161,
+      "hash": "3d00a93651b43e59ecd1625aa41ed1e6",
+      "textRange": {
+        "startLine": 3161,
+        "endLine": 3161,
+        "startOffset": 12,
+        "endOffset": 29
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2f",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3166,
+      "hash": "28e53cb8134fcba5b35932d2100d87c8",
+      "textRange": {
+        "startLine": 3166,
+        "endLine": 3166,
+        "startOffset": 29,
+        "endOffset": 45
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2g",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3174,
+      "hash": "bc4de0c3ca792ed708b060f4d3df1ea8",
+      "textRange": {
+        "startLine": 3174,
+        "endLine": 3174,
+        "startOffset": 23,
+        "endOffset": 40
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2h",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3175,
+      "hash": "eddab1e0ade2fa66a95fa5882a21828e",
+      "textRange": {
+        "startLine": 3175,
+        "endLine": 3175,
+        "startOffset": 25,
+        "endOffset": 42
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2i",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3176,
+      "hash": "1d35ff7d5504cb88cb1c46d58d1bf256",
+      "textRange": {
+        "startLine": 3176,
+        "endLine": 3176,
+        "startOffset": 27,
+        "endOffset": 44
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2j",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3178,
+      "hash": "c979a6905b6121b236afa9b762c0074c",
+      "textRange": {
+        "startLine": 3178,
+        "endLine": 3178,
+        "startOffset": 22,
+        "endOffset": 39
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2k",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3179,
+      "hash": "6800cf296ae7956b81e96fdf7e7a0db3",
+      "textRange": {
+        "startLine": 3179,
+        "endLine": 3179,
+        "startOffset": 22,
+        "endOffset": 39
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2l",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3180,
+      "hash": "f5751824a5bc4b3523e557a753246f0d",
+      "textRange": {
+        "startLine": 3180,
+        "endLine": 3180,
+        "startOffset": 24,
+        "endOffset": 41
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2m",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3182,
+      "hash": "0e2d005070a39d81b64885eb286ff26d",
+      "textRange": {
+        "startLine": 3182,
+        "endLine": 3182,
+        "startOffset": 22,
+        "endOffset": 39
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2n",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3183,
+      "hash": "340dd84841b7e91a8a8bbe45fcb0165a",
+      "textRange": {
+        "startLine": 3183,
+        "endLine": 3183,
+        "startOffset": 19,
+        "endOffset": 36
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2o",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3185,
+      "hash": "b6f52777c03398dfb69804d81fb23226",
+      "textRange": {
+        "startLine": 3185,
+        "endLine": 3185,
+        "startOffset": 20,
+        "endOffset": 37
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2p",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3186,
+      "hash": "4c4d074785c931ffb223a0292713a8fd",
+      "textRange": {
+        "startLine": 3186,
+        "endLine": 3186,
+        "startOffset": 20,
+        "endOffset": 37
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2q",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3188,
+      "hash": "e59d22aed77311f54df75da7fc068c16",
+      "textRange": {
+        "startLine": 3188,
+        "endLine": 3188,
+        "startOffset": 23,
+        "endOffset": 40
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2r",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3190,
+      "hash": "ad5cedc9827fcb2b49c5d75a206be28f",
+      "textRange": {
+        "startLine": 3190,
+        "endLine": 3190,
+        "startOffset": 28,
+        "endOffset": 45
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2s",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3192,
+      "hash": "4abf4a553f30c0df2c61ac422a8929eb",
+      "textRange": {
+        "startLine": 3192,
+        "endLine": 3192,
+        "startOffset": 23,
+        "endOffset": 40
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2t",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3194,
+      "hash": "d4738447829756a5f9f10030d678626b",
+      "textRange": {
+        "startLine": 3194,
+        "endLine": 3194,
+        "startOffset": 23,
+        "endOffset": 40
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2u",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3196,
+      "hash": "f1215801757fbe7add8f8115672bc251",
+      "textRange": {
+        "startLine": 3196,
+        "endLine": 3196,
+        "startOffset": 24,
+        "endOffset": 41
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2v",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3198,
+      "hash": "f9f2f9c0eb1f6b9f7d6e972045edb06f",
+      "textRange": {
+        "startLine": 3198,
+        "endLine": 3198,
+        "startOffset": 23,
+        "endOffset": 40
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2w",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3200,
+      "hash": "426cfc0dc8b11306faf99710e206e78a",
+      "textRange": {
+        "startLine": 3200,
+        "endLine": 3200,
+        "startOffset": 22,
+        "endOffset": 39
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2x",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3209,
+      "hash": "3a604fff492e36667461d29ef3e0e5bd",
+      "textRange": {
+        "startLine": 3209,
+        "endLine": 3209,
+        "startOffset": 20,
+        "endOffset": 37
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2y",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3210,
+      "hash": "0112a3f921ceebd1f199112cb04ac60e",
+      "textRange": {
+        "startLine": 3210,
+        "endLine": 3210,
+        "startOffset": 21,
+        "endOffset": 38
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G2z",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3211,
+      "hash": "c2433215fc155ae78e36211473df8d11",
+      "textRange": {
+        "startLine": 3211,
+        "endLine": 3211,
+        "startOffset": 22,
+        "endOffset": 39
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpue-joAnhYDX2i5G20",
+      "rule": "python:S6711",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:backend/backtesting_engine.py",
+      "project": "ericfunman_boursicotor",
+      "line": 3212,
+      "hash": "fe73299b6a5ba2b7f36441352f78f096",
+      "textRange": {
+        "startLine": 3212,
+        "endLine": 3212,
+        "startOffset": 26,
+        "endOffset": 43
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Use a \"numpy.random.Generator\" here instead of this legacy function.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "data-science",
+        "numpy"
+      ],
+      "creationDate": "2025-11-10T15:56:10+0000",
+      "updateDate": "2025-11-10T15:56:10+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    }
+  ],
+  "by_type": {
+    "CODE_SMELL": 586
+  },
+  "by_severity": {
+    "MINOR": 105,
+    "CRITICAL": 127,
+    "MAJOR": 353,
+    "INFO": 1
+  }
+}
