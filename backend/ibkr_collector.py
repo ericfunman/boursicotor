@@ -190,20 +190,16 @@ class IBKRCollector:
                 currency = european_stock['currency']
                 logger.info(f"Known European stock: {symbol} → preferring {exchange}/{currency}")
                 
-                # For known stocks, try to qualify just once with known exchange/currency
-                # This avoids long waits on qualifyContracts
+                # For known stocks, return contract directly WITHOUT qualifying
+                # (qualifyContracts can block indefinitely on some systems)
+                # IBKR will validate it when we place the order
                 try:
                     contract = Stock(symbol, exchange, currency)
-                    contracts = self.ib.qualifyContracts(contract)
-                    
-                    if contracts:
-                        qualified = contracts[0]
-                        logger.info(f"Contract qualified: {qualified.symbol} on {qualified.primaryExchange} (exchange: {qualified.exchange}, currency: {qualified.currency})")
-                        return qualified
-                    else:
-                        logger.debug(f"Known stock {symbol} not found on {exchange}/{currency}")
+                    logger.info(f"Contract created (unqualified): {symbol} on {exchange}/{currency}")
+                    # Return unqualified contract - IBKR validates on placeOrder
+                    return contract
                 except Exception as e:
-                    logger.debug(f"Could not qualify known stock {symbol} on {exchange}/{currency}: {e}")
+                    logger.debug(f"Could not create contract for {symbol} on {exchange}/{currency}: {e}")
             
             # If currency not specified, try currencies based on exchange
             currencies_to_try = []
