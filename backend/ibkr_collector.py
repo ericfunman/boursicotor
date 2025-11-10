@@ -164,8 +164,11 @@ class IBKRCollector:
             # Determine exchanges to try
             exchanges_to_try = []
             if exchange == 'SMART':
-                # For SMART routing, try SMART first
-                exchanges_to_try = ['SMART']
+                # For SMART routing, try multiple exchanges:
+                # - SMART first (auto-routing for US stocks)
+                # - SBF (Euronext/European stocks)
+                # - NASDAQ (explicit US)
+                exchanges_to_try = ['SMART', 'SBF', 'NASDAQ']
             else:
                 exchanges_to_try = [exchange]
             
