@@ -1,3 +1,6 @@
+
+"""Module documentation."""
+
 import re
 
 with open('frontend/app.py', 'r', encoding='utf-8') as f:

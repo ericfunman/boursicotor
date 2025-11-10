@@ -1,3 +1,6 @@
+
+"""Module documentation."""
+
 import sqlite3
 
 conn = sqlite3.connect('boursicotor.db')
