@@ -1144,7 +1144,7 @@ def data_collection_page():
                         hovermode='x'
                     )
                     
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, key="live_price_chart")
                     
                     # Volume chart
                     fig_volume = go.Figure(data=[go.Bar(
@@ -1161,7 +1161,7 @@ def data_collection_page():
                         height=200
                     )
                     
-                    st.plotly_chart(fig_volume, width='stretch')
+                    st.plotly_chart(fig_volume, width='stretch', key="live_volume_chart")
                     
                     # Statistics
                     col1, col2, col3, col4 = st.columns(4)
@@ -1555,7 +1555,7 @@ def technical_analysis_page():
                 height=500
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="historical_price_chart")
             
             # Data table
             st.dataframe(df.tail(20), use_container_width=True)
@@ -1655,7 +1655,7 @@ def technical_analysis_page():
     fig.add_trace(go.Bar(x=df.index, y=df['volume'], name='Volume'), row=4, col=1)
     
     fig.update_layout(height=1000, showlegend=True, xaxis=dict(rangeslider=dict(visible=False)))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key="technical_analysis_chart")
     
     # Indicator values
     st.subheader("📊 Valeurs actuelles des indicateurs")
@@ -2464,23 +2464,6 @@ def backtesting_page():
                         
                     else:
                         st.error("Erreur lors de l'exécution du backtest")
-
-
-def auto_trading_page():
-    """Auto trading page"""
-    st.header("🤖 Trading Automatique")
-    st.warning("⚠️ Mode Paper Trading activé")
-    
-    st.info("🚧 Module de trading automatique en cours de développement")
-    
-    st.markdown("""
-    ### Fonctionnalités à venir:
-    - Configuration des stratégies actives
-    - Gestion des risques (stop-loss, take-profit)
-    - Monitoring en temps réel
-    - Alertes et notifications
-    - Historique des trades automatiques
-    """)
 
 
 def live_prices_page():
@@ -4159,7 +4142,7 @@ def order_placement_page():
                                 yaxis_title="Nombre d'Ordres",
                                 hovermode='x unified'
                             )
-                            st.plotly_chart(fig_bar, use_container_width=True)
+                            st.plotly_chart(fig_bar, use_container_width=True, key="daily_orders_chart")
                         
                         # Chart 2: Order volume by day
                         st.markdown("**📅 Volume d'Ordres par Jour**")
@@ -4192,7 +4175,7 @@ def order_placement_page():
                                 yaxis_title="Volume (€)",
                                 hovermode='x unified'
                             )
-                            st.plotly_chart(fig_bar, use_container_width=True)
+                            st.plotly_chart(fig_bar, use_container_width=True, key="daily_volume_chart")
                     else:
                         st.info("📊 Aucun ordre rempli pour générer des graphiques")
                 
@@ -4498,14 +4481,22 @@ def auto_trading_page():
                                 
                                 # Calculate indicators for visualization
                                 try:
-                                    from backend.strategy_runner import StrategyRunner
+                                    # Try to import strategy runner, but it's optional
+                                    try:
+                                        from backend.strategy_runner import StrategyRunner
+                                        runner = StrategyRunner()
+                                        use_indicators = True
+                                    except (ImportError, ModuleNotFoundError):
+                                        use_indicators = False
                                     
-                                    runner = StrategyRunner()
-                                    buffer_df_copy = buffer_df.copy()
-                                    buffer_df_copy['date'] = buffer_df_copy['timestamp']
-                                    buffer_df_copy = buffer_df_copy.set_index('date')
-                                    
-                                    signals_df = runner.generate_signals(buffer_df_copy, trader.strategy)
+                                    if use_indicators:
+                                        buffer_df_copy = buffer_df.copy()
+                                        buffer_df_copy['date'] = buffer_df_copy['timestamp']
+                                        buffer_df_copy = buffer_df_copy.set_index('date')
+                                        
+                                        signals_df = runner.generate_signals(buffer_df_copy, trader.strategy)
+                                    else:
+                                        signals_df = None
                                     
                                     if signals_df is not None and not signals_df.empty:
                                         # Create chart
@@ -4571,7 +4562,11 @@ def auto_trading_page():
                                             showlegend=True
                                         )
                                         
-                                        st.plotly_chart(fig, use_container_width=True)
+                                        st.plotly_chart(
+                                            fig,
+                                            use_container_width=True,
+                                            key=f"signals_chart_{session['id']}"
+                                        )
                                         
                                         # Show latest indicator values
                                         st.markdown("**📊 Dernières Valeurs des Indicateurs**")
@@ -4609,7 +4604,11 @@ def auto_trading_page():
                                         xaxis_title="Temps",
                                         yaxis_title="Prix (€)"
                                     )
-                                    st.plotly_chart(fig, use_container_width=True)
+                                    st.plotly_chart(
+                                        fig,
+                                        use_container_width=True,
+                                        key=f"fallback_chart_{session['id']}"
+                                    )
                             else:
                                 st.info("⏳ En attente de données... Le système récupère les cours.")
                             
