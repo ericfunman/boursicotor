@@ -496,6 +496,12 @@ def data_collection_page():
     """Data collection page"""
     st.header("💾 Collecte de Données")
     
+    # Auto-refresh when jobs are active (like in jobs_monitoring_page)
+    active_jobs = get_cached_active_jobs()
+    if active_jobs and st_autorefresh:
+        st_autorefresh(interval=3000, key="collection_page_refresh")  # 3 seconds - faster for immediate visibility
+        st.info("🔄 Rafraîchissement automatique activé (3 secondes) - collectes en cours")
+    
     # Create tabs for Collection and Interpolation
     tab_collect, tab_interp = st.tabs(["📥 Collecte IBKR", "🔬 Interpolation"])
     
