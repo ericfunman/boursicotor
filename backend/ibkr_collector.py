@@ -28,6 +28,20 @@ except ImportError:
 class IBKRCollector:
     """Collect market data from Interactive Brokers / Lynx"""
     
+    # Known European stocks and their preferred exchange/currency
+    EUROPEAN_STOCKS = {
+        'TTE': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'TotalEnergies'},
+        'WLN': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'Walnur'},  # XETRA but try SBF first
+        'FP': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'L\'Oreal'},
+        'MC': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'LVMH'},
+        'OR': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'L\'Oreal'},
+        'AC': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'AccorHotels'},
+        'ALO': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'Alstom'},
+        'BNP': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'BNP Paribas'},
+        'LR': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'Legrand'},
+        'SAF': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'Safran'},
+    }
+    
     # Interval hierarchy in seconds (for aggregation logic)
     INTERVAL_SECONDS = {
         '1 secs': 1,
@@ -163,6 +177,14 @@ class IBKRCollector:
             if not symbol:
                 logger.error("Symbol must be provided")
                 return None
+            
+            # Check if this is a known European stock
+            european_stock = self.EUROPEAN_STOCKS.get(symbol.upper())
+            if european_stock and exchange == 'SMART':
+                # For known European stocks with SMART routing, prioritize EUR + European exchanges
+                exchange = european_stock['exchange']
+                currency = european_stock['currency']
+                logger.info(f"Known European stock: {symbol} → preferring {exchange}/{currency}")
             
             # If currency not specified, try currencies based on exchange
             currencies_to_try = []

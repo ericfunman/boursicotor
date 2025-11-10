@@ -801,22 +801,23 @@ def data_collection_page():
                                 
                                 df_display = pd.DataFrame(data_list)
                             
-                            # Display table with smaller font size
-                            st.markdown("""
-                            <style>
-                                .dataframe-display {
-                                    font-size: 12px !important;
-                                }
-                                div[data-testid="stDataFrame"] {
-                                    font-size: 12px !important;
-                                }
-                                div[data-testid="stDataFrame"] button {
-                                    font-size: 11px !important;
-                                }
-                            </style>
-                            """, unsafe_allow_html=True)
-                            
-                            st.dataframe(df_display, use_container_width=True, height=400)
+                            # Display table with smaller font size in collapsible expander
+                            with st.expander("📋 Afficher les données détaillées", expanded=False):
+                                st.markdown("""
+                                <style>
+                                    .dataframe-display {
+                                        font-size: 12px !important;
+                                    }
+                                    div[data-testid="stDataFrame"] {
+                                        font-size: 12px !important;
+                                    }
+                                    div[data-testid="stDataFrame"] button {
+                                        font-size: 11px !important;
+                                    }
+                                </style>
+                                """, unsafe_allow_html=True)
+                                
+                                st.dataframe(df_display, use_container_width=True, height=400)
                             
                             # Action buttons
                             col_delete, col_chart = st.columns([1, 3])
@@ -1329,7 +1330,7 @@ def jobs_monitoring_page():
                         
                         with col1:
                             st.markdown(f"**{job.ticker_symbol}** - {job.source}")
-                            st.caption(f"Démarré: {job.started_at.strftime('%d/%m/%Y %H:%M:%S') if job.started_at else 'N/A'}")
+                            st.caption(f"Démarré: {format_datetime_paris(job.started_at) if job.started_at else 'N/A'}")
                             st.caption(f"Durée: {job.duration} | Intervalle: {job.interval}")
                             
                             # Progress bar
@@ -1383,8 +1384,8 @@ def jobs_monitoring_page():
                             st.markdown(f"**Intervalle:** {job.interval}")
                         
                         with col2:
-                            st.markdown(f"**Démarré:** {job.started_at.strftime('%d/%m/%Y %H:%M:%S') if job.started_at else 'N/A'}")
-                            st.markdown(f"**Complété:** {job.completed_at.strftime('%d/%m/%Y %H:%M:%S') if job.completed_at else 'N/A'}")
+                            st.markdown(f"**Démarré:** {format_datetime_paris(job.started_at) if job.started_at else 'N/A'}")
+                            st.markdown(f"**Complété:** {format_datetime_paris(job.completed_at) if job.completed_at else 'N/A'}")
                             
                             if job.started_at and job.completed_at:
                                 duration = (job.completed_at - job.started_at).total_seconds()
@@ -1417,8 +1418,8 @@ def jobs_monitoring_page():
                             st.markdown(f"**Intervalle:** {job.interval}")
                         
                         with col2:
-                            st.markdown(f"**Démarré:** {job.started_at.strftime('%d/%m/%Y %H:%M:%S') if job.started_at else 'N/A'}")
-                            st.markdown(f"**Échoué:** {job.completed_at.strftime('%d/%m/%Y %H:%M:%S') if job.completed_at else 'N/A'}")
+                            st.markdown(f"**Démarré:** {format_datetime_paris(job.started_at) if job.started_at else 'N/A'}")
+                            st.markdown(f"**Échoué:** {format_datetime_paris(job.completed_at) if job.completed_at else 'N/A'}")
                         
                         if job.error_message:
                             st.error(f"**Erreur:** {job.error_message}")
@@ -1448,8 +1449,8 @@ def jobs_monitoring_page():
                         "Durée": job.duration,
                         "Intervalle": job.interval,
                         "Progression": f"{job.progress or 0}%",
-                        "Créé": job.created_at.strftime('%d/%m %H:%M'),
-                        "Complété": job.completed_at.strftime('%d/%m %H:%M') if job.completed_at else "-"
+                        "Créé": format_datetime_paris(job.created_at) if job.created_at else "N/A",
+                        "Complété": format_datetime_paris(job.completed_at) if job.completed_at else "-"
                     })
                 
                 import pandas as pd
