@@ -113,8 +113,8 @@ class IBKRCollector:
                 return True
             
             logger.info(f"Connecting to IBKR at {self.host}:{self.port}...")
-            # Increased timeout from default to 15s to match LYNX API response times
-            self.ib.connect(self.host, self.port, clientId=self.client_id, timeout=15)
+            # Increased timeout from 15s to 20s for Celery background tasks which are less prioritized
+            self.ib.connect(self.host, self.port, clientId=self.client_id, timeout=20)
             self.connected = True
             logger.info("✅ Connected to IBKR successfully")
             
@@ -188,14 +188,14 @@ class IBKRCollector:
                         
                         thread = threading.Thread(target=qualify, daemon=True)
                         thread.start()
-                        thread.join(timeout=15)  # Wait max 15 seconds (increased from 3s based on diagnostics)
+                        thread.join(timeout=20)  # Wait max 20 seconds (increased from 15s - Celery tasks need more time)
                         
                         if error[0]:
                             logger.debug(f"Exchange {ex}, currency {curr} failed for {symbol}: {error[0]}")
                             continue
                         
                         if thread.is_alive():
-                            logger.debug(f"Exchange {ex}, currency {curr} timeout for {symbol} (>15s)")
+                            logger.debug(f"Exchange {ex}, currency {curr} timeout for {symbol} (>20s)")
                             continue
                         
                         contracts = result[0]
