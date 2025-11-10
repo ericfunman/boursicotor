@@ -20,7 +20,7 @@ class StrategyAdapter:
         try:
             params = json.loads(strategy.parameters) if strategy.parameters else {}
             return 'buy_conditions' in params and 'sell_conditions' in params
-        except:
+        except (json.JSONDecodeError, ValueError, TypeError):
             return False
     
     @staticmethod

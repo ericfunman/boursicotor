@@ -1983,7 +1983,7 @@ class BacktestingEngine:
             return (strategy_dict, result.to_dict())
         except Exception as e:
             # En cas d'erreur, retourner un résultat vide
-            print(f"Error in worker: {e}", flush=True)
+            logger.error(f"Error in worker: {e}")
             raise
     
     def run_parallel_optimization(
@@ -2252,7 +2252,7 @@ class BacktestingEngine:
         
         elapsed = time.time() - start_time
         if elapsed > 1:  # Log if backtest took more than 1 second
-            print(f"[VECTORIZED] Backtest took {elapsed:.2f}s for {len(df)} points", flush=True)
+            logger.debug(f"[VECTORIZED] Backtest took {elapsed:.2f}s for {len(df)} points")
         
         result = BacktestResult(
             strategy_name=strategy.name,
@@ -2298,7 +2298,7 @@ class BacktestingEngine:
                 return self.run_backtest_vectorized(df, strategy, symbol)
             except Exception as e:
                 # Fallback to loop version if vectorized fails
-                print(f"Warning: Vectorized backtest failed ({e}), falling back to loop version", flush=True)
+                logger.warning(f"Vectorized backtest failed ({e}), falling back to loop version")
         
         # Original loop-based version
         # logger.info(f"🔄 Running backtest for {symbol} with strategy: {strategy.name}")
@@ -2507,7 +2507,7 @@ class BacktestingEngine:
                 f"trades: {len(trades)}, avg_profit_per_trade: {avg_profit:.4f}, "
                 f"final_capital: {final_capital:.2f}, allow_short: {self.allow_short}"
             )
-            print(msg, flush=True)
+            logger.warning(msg)
         elif len(trades) > 100:
             avg_profit = (
                 sum(t.profit for t in trades) / len(trades) if trades else 0
@@ -2516,7 +2516,7 @@ class BacktestingEngine:
                 f"INFO: Backtest - return: {total_return:.2f}%, "
                 f"trades: {len(trades)}, avg_profit_per_trade: {avg_profit:.4f}"
             )
-            print(msg, flush=True)
+            logger.info(msg)
         
         winning_trades = sum(1 for t in trades if t.profit > 0)
         losing_trades = sum(1 for t in trades if t.profit <= 0)
