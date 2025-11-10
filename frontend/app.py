@@ -770,6 +770,18 @@ def data_collection_page():
                             last_date = all_ticker_data[-1].timestamp
                             days_covered = (last_date - first_date).days + 1
                             
+                            # CSS to reduce metric font size
+                            st.markdown("""
+                            <style>
+                                div[data-testid="stMetric"] {
+                                    font-size: 14px !important;
+                                }
+                                div[data-testid="stMetric"] > div:first-child {
+                                    font-size: 12px !important;
+                                }
+                            </style>
+                            """, unsafe_allow_html=True)
+                            
                             # Show summary metrics
                             col_a, col_b, col_c, col_d = st.columns(4)
                             with col_a:
@@ -1246,6 +1258,9 @@ def data_collection_page():
 def jobs_monitoring_page():
     """Job monitoring page - Shows async data collection progress"""
     st.header("📋 Historique des collectes de données")
+    
+    # Import timezone conversion function
+    from backend.models import format_datetime_paris
 
     # Auto-refresh for progress bars (every 5 seconds when jobs are active)
     active_jobs = get_cached_active_jobs()
