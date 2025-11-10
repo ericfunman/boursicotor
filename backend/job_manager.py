@@ -235,7 +235,7 @@ class JobManager:
                         try:
                             celery_app.control.purge()
                             logger.info("Purged Celery queue")
-                        except:
+                        except Exception:
                             pass
                         
                         # Restart the worker

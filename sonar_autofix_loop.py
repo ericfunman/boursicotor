@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 SonarCloud Issues Auto-Fix Loop
 Boucle automatique de récupération et correction des issues SonarCloud
 """
 
-import subprocess
+import os
 import sys
+import subprocess
 import time
 import json
 from pathlib import Path
 from datetime import datetime
+
+# Ensure UTF-8 encoding on Windows
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+sys.stdout.reconfigure(encoding='utf-8') if hasattr(sys.stdout, 'reconfigure') else None
 
 class AutoFixLoop:
     """Boucle automatique de correction des issues SonarCloud"""

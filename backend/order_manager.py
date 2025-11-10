@@ -165,7 +165,7 @@ class OrderManager:
             try:
                 self.db.rollback()
                 self._close_db()
-            except:
+            except Exception:
                 pass
             return None
     
@@ -254,7 +254,7 @@ class OrderManager:
             order.status_message = str(e)
             try:
                 self.db.commit()
-            except:
+            except Exception:
                 pass
             return False
     

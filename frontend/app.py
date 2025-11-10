@@ -122,7 +122,7 @@ def connect_global_ibkr():
                 if hasattr(st.session_state.global_ibkr, 'ib') and st.session_state.global_ibkr.ib is not None:
                     if hasattr(st.session_state.global_ibkr.ib, 'isConnected') and st.session_state.global_ibkr.ib.isConnected():
                         return True, "✅ Déjà connecté à IBKR"
-            except:
+            except Exception:
                 pass  # Fall through to reconnect if check fails
         
         # Not connected yet, or verification failed - connect now
@@ -143,7 +143,7 @@ def disconnect_global_ibkr():
     if st.session_state.global_ibkr is not None:
         try:
             st.session_state.global_ibkr.disconnect()
-        except:
+        except Exception:
             pass
         st.session_state.global_ibkr = None
         st.session_state.global_ibkr_connected = False
@@ -156,7 +156,7 @@ def get_cached_active_jobs():
         from backend.job_manager import JobManager
         job_manager = JobManager()
         return job_manager.get_active_jobs()
-    except:
+    except Exception:
         return []
 
 
@@ -195,7 +195,7 @@ def main():
                     st.caption(f"... et {len(active_jobs) - 3} autre(s) job(s)")
                 
                 st.markdown("---")
-    except:
+    except Exception:
         pass  # Silently fail if Celery not configured
     
     st.markdown("---")
@@ -2749,7 +2749,7 @@ def live_prices_page():
                             # Always cancel market data subscription
                             try:
                                 collector.ib.cancelMktData(contract)
-                            except:
+                            except Exception:
                                 pass
                     else:
                         st.error(f"❌ Impossible de trouver le contrat pour {selected_symbol}")

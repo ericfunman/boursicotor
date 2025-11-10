@@ -196,6 +196,7 @@ class MultiIndicatorStrategy(Strategy):
         macd_slow: int = 26,
         macd_signal: int = 9
     ):
+    """TODO: Add docstring."""
         super().__init__('MultiIndicatorStrategy', {
             'ma_fast': ma_fast,
             'ma_slow': ma_slow,
@@ -265,6 +266,7 @@ class AdvancedMultiIndicatorStrategy(Strategy):
         volume_ma: int = 20,
         min_signals: int = 4
     ):
+    """TODO: Add docstring."""
         super().__init__('AdvancedMultiIndicatorStrategy', {
             'ma_fast': ma_fast,
             'ma_slow': ma_slow,
@@ -383,6 +385,7 @@ class MomentumBreakoutStrategy(Strategy):
         rsi_min: int = 40,
         rsi_max: int = 80
     ):
+    """TODO: Add docstring."""
         super().__init__('MomentumBreakoutStrategy', {
             'lookback_period': lookback_period,
             'breakout_threshold': breakout_threshold,
@@ -443,6 +446,7 @@ class MeanReversionStrategy(Strategy):
         rsi_overbought: int = 75,
         zscore_threshold: float = 2.0
     ):
+    """TODO: Add docstring."""
         super().__init__('MeanReversionStrategy', {
             'bb_period': bb_period,
             'bb_std': bb_std,
@@ -777,6 +781,7 @@ class MegaIndicatorStrategy(Strategy):
         adx_period: int = 14,
         min_signals: int = 2  # MEGA agressif: 2/25 = 8%
     ):
+    """TODO: Add docstring."""
         # Default values
         if ma_periods is None:
             ma_periods = [5, 10, 20, 50, 100]
@@ -2857,6 +2862,7 @@ class EnhancedMovingAverageStrategy(Strategy):
                  # Optional custom name
                  name: str = "EnhancedMA",
                  description: str = ""):
+    """TODO: Add docstring."""
         self.name = name
         self.description = description
         self.parameters = {

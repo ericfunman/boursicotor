@@ -15,7 +15,7 @@ try:
     redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
     redis_client.ping()
     logger.info("[Live Task] Redis connected for live data caching")
-except:
+except Exception:
     redis_client = None
     logger.warning("[Live Task] Redis not available for live data caching")
 
@@ -137,7 +137,7 @@ def stream_live_data_continuous(self, symbol: str, duration: int = 300):
         # Cancel market data subscription
         try:
             collector.ib.cancelMktData(contract)
-        except:
+        except Exception:
             pass
         
         collector.disconnect()
