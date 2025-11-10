@@ -12,6 +12,11 @@ import sys
 import os
 from pathlib import Path
 
+# Set timezone to Europe/Paris at startup
+os.environ['TZ'] = 'Europe/Paris'
+import time
+time.tzset() if hasattr(time, 'tzset') else None  # tzset only works on Unix-like systems
+
 # Auto-refresh for progress bars
 try:
     from streamlit_autorefresh import st_autorefresh

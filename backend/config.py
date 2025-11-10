@@ -67,13 +67,14 @@ ML_CONFIG = {
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOG_FILE = LOGS_DIR / os.getenv("LOG_FILE", "boursicotor.log")
 
-# Configure logger
+# Configure logger with Europe/Paris timezone
 logger.add(
     LOG_FILE,
     rotation="1 day",
     retention="30 days",
     level=LOG_LEVEL,
-    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} | {message}"
+    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} | {message}",
+    tz="Europe/Paris"  # Use Paris timezone for logs
 )
 
 # API Configuration

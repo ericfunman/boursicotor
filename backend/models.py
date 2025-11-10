@@ -7,8 +7,29 @@ from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 import enum
 from backend.config import DATABASE_URL, logger
+import pytz
 
 Base = declarative_base()
+
+# Timezone definitions
+PARIS_TZ = pytz.timezone('Europe/Paris')
+UTC_TZ = pytz.UTC
+
+def datetime_paris(dt: datetime) -> datetime:
+    """Convert UTC datetime to Europe/Paris timezone"""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        # Assume UTC if no timezone
+        dt = UTC_TZ.localize(dt)
+    return dt.astimezone(PARIS_TZ)
+
+def format_datetime_paris(dt: datetime, fmt: str = '%Y-%m-%d %H:%M:%S') -> str:
+    """Format datetime in Europe/Paris timezone"""
+    if dt is None:
+        return "N/A"
+    paris_dt = datetime_paris(dt)
+    return paris_dt.strftime(fmt)
 
 # Create engine
 engine = create_engine(DATABASE_URL, echo=False, pool_size=10, max_overflow=20)
