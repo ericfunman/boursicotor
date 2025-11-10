@@ -169,6 +169,10 @@ class IBKRCollector:
             import time
             from ib_insync import Contract
             
+            # Add timeout for the entire operation (default 10 seconds)
+            start_time = time.time()
+            timeout_seconds = 10
+            
             # If ISIN provided, try that first (much faster for European stocks)
             # NOTE: Contract doesn't accept isin directly, so we skip this for now
             # and rely on symbol-based lookup with proper exchange ordering
@@ -185,6 +189,21 @@ class IBKRCollector:
                 exchange = european_stock['exchange']
                 currency = european_stock['currency']
                 logger.info(f"Known European stock: {symbol} → preferring {exchange}/{currency}")
+                
+                # For known stocks, try to qualify just once with known exchange/currency
+                # This avoids long waits on qualifyContracts
+                try:
+                    contract = Stock(symbol, exchange, currency)
+                    contracts = self.ib.qualifyContracts(contract)
+                    
+                    if contracts:
+                        qualified = contracts[0]
+                        logger.info(f"Contract qualified: {qualified.symbol} on {qualified.primaryExchange} (exchange: {qualified.exchange}, currency: {qualified.currency})")
+                        return qualified
+                    else:
+                        logger.debug(f"Known stock {symbol} not found on {exchange}/{currency}")
+                except Exception as e:
+                    logger.debug(f"Could not qualify known stock {symbol} on {exchange}/{currency}: {e}")
             
             # If currency not specified, try currencies based on exchange
             currencies_to_try = []
@@ -213,6 +232,11 @@ class IBKRCollector:
             # Try combinations of exchange and currency
             for curr in currencies_to_try:
                 for ex in exchanges_to_try:
+                    # Check timeout
+                    if time.time() - start_time > timeout_seconds:
+                        logger.warning(f"Timeout ({timeout_seconds}s) reached while qualifying contract for {symbol}")
+                        return None
+                    
                     try:
                         contract = Stock(symbol, ex, curr)
                         
