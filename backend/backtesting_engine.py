@@ -2032,8 +2032,6 @@ class BacktestingEngine:
                 'ultimate', 'ultimate', 'ultimate'  # 85% ULTIMATE
             ]
             strategy_type = np.random.choice(strategy_types)
-                p=[0.01, 0.01, 0.01, 0.01, 0.01, 0.02, 0.03, 0.03, 0.02, 0.283, 0.283, 0.284]
-            )
             
             if strategy_type == 'ma':
                 strategy = generator.generate_random_ma_strategy()
