@@ -188,14 +188,16 @@ class IBKRCollector:
                         
                         thread = threading.Thread(target=qualify, daemon=True)
                         thread.start()
-                        thread.join(timeout=20)  # Wait max 20 seconds (increased from 15s - Celery tasks need more time)
+                        # Increased timeout to 30s - European stocks (TTE, WLN) need more time
+                        # when multiple connections are active (UI + Celery workers)
+                        thread.join(timeout=30)
                         
                         if error[0]:
                             logger.debug(f"Exchange {ex}, currency {curr} failed for {symbol}: {error[0]}")
                             continue
                         
                         if thread.is_alive():
-                            logger.debug(f"Exchange {ex}, currency {curr} timeout for {symbol} (>20s)")
+                            logger.debug(f"Exchange {ex}, currency {curr} timeout for {symbol} (>30s)")
                             continue
                         
                         contracts = result[0]
