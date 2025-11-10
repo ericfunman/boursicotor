@@ -117,16 +117,16 @@ jobs:
           --cov-report=term-missing \
           -v || true
     
-    - name: SonarQube Scan
+    - name: SonarCloud Scan
       continue-on-error: true
-      uses: SonarSource/sonarqube-scan-action@master
+      uses: SonarSource/sonarcloud-github-action@master
       env:
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       with:
         args: >
           -Dsonar.projectKey=boursicotor
-          -Dsonar.projectName=Boursicotor
+          -Dsonar.organization=ericfunman
           -Dsonar.sources=backend,frontend
           -Dsonar.tests=tests
           -Dsonar.coverage.exclusions=tests/**
