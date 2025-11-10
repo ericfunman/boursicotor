@@ -733,100 +733,7 @@ def data_collection_page():
                 with st.expander("Détails de l'erreur"):
                     st.code(traceback.format_exc())
         
-        with col2:
-            st.subheader("� Résultat de la collecte")
-            
-            # Display collected data if ticker is selected
-            if selected_ticker:
-                
-                db = SessionLocal()
-                try:
-                    from backend.models import Ticker as TickerModel, HistoricalData
-                    import plotly.graph_objects as go
-                    
-                    # Get ticker from database
-                    ticker_in_db = db.query(TickerModel).filter(
-                        TickerModel.symbol == selected_ticker
-                    ).first()
-                    
-                    if ticker_in_db:
-                        # Get all historical data for stats
-                        all_ticker_data = db.query(HistoricalData).filter(
-                            HistoricalData.ticker_id == ticker_in_db.id
-                        ).order_by(HistoricalData.timestamp.asc()).all()
-                        
-                        if all_ticker_data:
-                            st.success(f"✅ {selected_ticker} - Données collectées avec succès!")
-                           
-                            # Action buttons
-                            col_delete, col_chart = st.columns([1, 3])
-                            
-                            with col_delete:
-                                if st.button(f"🗑️ Supprimer {selected_ticker}", key=f"delete_{selected_ticker}"):
-                                    try:
-                                        # Get ticker ID for deletion
-                                        ticker_id = ticker_in_db.id
-                                        
-                                        # Delete all historical data for this ticker
-                                        rows_deleted = db.query(HistoricalData).filter(
-                                            HistoricalData.ticker_id == ticker_id
-                                        ).delete(synchronize_session=False)
-                                        
-                                        db.commit()
-                                        logger.info(f"Deleted {rows_deleted} historical records for {selected_ticker}")
-                                        
-                                        # Delete the ticker itself
-                                        db.delete(ticker_in_db)
-                                        db.commit()
-                                        
-                                        st.success(f"✅ {selected_ticker} supprimé ({rows_deleted} points)")
-                                        st.rerun()
-                                    except Exception as del_error:
-                                        db.rollback()
-                                        logger.error(f"Error deleting {selected_ticker}: {del_error}")
-                                        st.error(f"❌ Erreur lors de la suppression : {del_error}")
-                            
-                            with col_chart:
-                                if st.button("📈 Afficher le graphique complet", key=f"chart_{selected_ticker}"):
-                                    try:
-                                        chart_data = pd.DataFrame([
-                                            {
-                                                'Date': record.timestamp,
-                                                'Close': record.close
-                                            }
-                                            for record in all_ticker_data
-                                        ])
-                                        
-                                        fig = go.Figure()
-                                        fig.add_trace(go.Scatter(
-                                            x=chart_data['Date'],
-                                            y=chart_data['Close'],
-                                            mode='lines',
-                                            name='Close',
-                                            line=dict(color='#1f77b4', width=2)
-                                        ))
-                                        fig.update_layout(
-                                            title=f"Évolution du prix de {selected_ticker}",
-                                            xaxis_title="Date",
-                                            yaxis_title="Prix (EUR)",
-                                            hovermode='x unified',
-                                            height=500
-                                        )
-                                        st.plotly_chart(fig, use_container_width=True)
-                                    except Exception as chart_error:
-                                        st.error(f"❌ Erreur lors de l'affichage du graphique : {chart_error}")
-                        else:
-                            st.info(f"ℹ️ Aucune donnée collectée pour {selected_ticker} pour le moment")
-                    else:
-                        st.info(f"ℹ️ {selected_ticker} n'a pas encore de données en base")
-                
-                except Exception as e:
-                    st.error(f"❌ Erreur lors de l'affichage des données : {e}")
-                    import traceback
-                    with st.expander("Détails de l'erreur"):
-                        st.code(traceback.format_exc())
-                finally:
-                    db.close()
+        
     
     # Data Overview tab - Show all collected tickers in a table
     with tab_overview:
@@ -2907,7 +2814,7 @@ def live_prices_page():
                 
                 volume_placeholder.metric(
                     "Volume",
-                    f"{current_volume:,}"
+                    f"{int(current_volume):,}" if current_volume else "N/A"
                 )
                 
                 time_placeholder.metric(
