@@ -3139,9 +3139,8 @@ def trading_page():
         from backend.ibkr_collector import IBKRCollector
         from ib_insync import Stock, MarketOrder, LimitOrder
         
-        # Initialize IBKR collector in session state
-        if 'ibkr_collector' not in st.session_state:
-            st.session_state.ibkr_collector = None
+        # Initialize IBKR connection state (using global_ibkr from startup)
+        if 'ibkr_connected' not in st.session_state:
             st.session_state.ibkr_connected = False
         
         # Connection section
@@ -3152,8 +3151,11 @@ def trading_page():
                 if st.button("🔌 Connecter à IBKR", type="primary", width='stretch'):
                     try:
                         with st.spinner("Connexion à IB Gateway..."):
-                            st.session_state.ibkr_collector = IBKRCollector()
-                            if st.session_state.ibkr_collector.connect():
+                            # Use global IBKR connection (client_id=1) - avoid multiple instances
+                            if 'global_ibkr' not in st.session_state:
+                                st.session_state.global_ibkr = IBKRCollector(client_id=1)
+                            
+                            if st.session_state.global_ibkr.connect():
                                 st.session_state.ibkr_connected = True
                                 st.success("✅ Connecté à IBKR!")
                                 st.rerun()
@@ -3163,9 +3165,8 @@ def trading_page():
                         st.error(f"❌ Erreur: {e}")
             else:
                 if st.button("🔌 Déconnecter", width='stretch'):
-                    if st.session_state.ibkr_collector:
-                        st.session_state.ibkr_collector.disconnect()
-                    st.session_state.ibkr_collector = None
+                    if st.session_state.global_ibkr:
+                        st.session_state.global_ibkr.disconnect()
                     st.session_state.ibkr_connected = False
                     st.rerun()
         
@@ -3188,7 +3189,8 @@ def trading_page():
             """)
             return
         
-        collector = st.session_state.ibkr_collector
+        # Use global IBKR connection (client_id=1)
+        collector = st.session_state.global_ibkr
         
         st.markdown("---")
         

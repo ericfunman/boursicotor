@@ -61,12 +61,15 @@ def collect_data_ibkr(
         
         # Import here to avoid circular imports
         from backend.ibkr_collector import IBKRCollector
+        import random
         
-        # Create collector with client_id=1 (same as UI) to avoid concurrent connection throttling
-        # LYNX/IBKR severely throttles concurrent qualifyContracts() calls with different client_ids
-        # Using same client_id allows request queueing instead of blocking
-        # Note: Celery tasks run serially within same process, so no conflict with UI client_id=1
-        collector = IBKRCollector(client_id=1)
+        # Use a dynamic client_id for Celery tasks (4-999)
+        # This avoids conflicts with UI (client_id=1) and allows multiple concurrent Celery workers
+        # Each task disconnects after completion, freeing the client_id for reuse
+        celery_client_id = random.randint(4, 999)
+        logger.info(f"Celery task using client_id={celery_client_id}")
+        
+        collector = IBKRCollector(client_id=celery_client_id)
         
         # Connect to IBKR
         job.current_step = "Connecting to IBKR..."
