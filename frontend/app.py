@@ -718,10 +718,8 @@ def data_collection_page():
                     st.info(f"📊 Source: IBKR | Période: {selected_duration} | Intervalle: {selected_interval}")
                     st.info("🔄 La collecte s'exécute en arrière-plan. Consultez la page **Historique des collectes** pour suivre la progression.")
                     
-                    # Wait a moment then show collected data
-                    import time
-                    time.sleep(1)
-                    st.rerun()
+                    # Mark in session state to show updated data on next auto-refresh
+                    st.session_state.collection_started = True
             
             except ImportError as e:
                 st.error("❌ Celery n'est pas installé ou configuré correctement")
@@ -760,10 +758,10 @@ def data_collection_page():
                             HistoricalData.ticker_id == ticker_in_db.id
                         ).order_by(HistoricalData.timestamp.asc()).all()
                         
-                        # Get historical data (last 50 for preview)
+                        # Get all historical data for display (no limit)
                         data_records = db.query(HistoricalData).filter(
                             HistoricalData.ticker_id == ticker_in_db.id
-                        ).order_by(HistoricalData.timestamp.desc()).limit(50).all()
+                        ).order_by(HistoricalData.timestamp.desc()).all()
                         
                         if all_ticker_data:
                             # Calculate stats
@@ -788,16 +786,37 @@ def data_collection_page():
                                 # Convert to DataFrame
                                 data_list = []
                                 for record in reversed(data_records):  # Reverse to get chronological order
+                                    from backend.models import format_datetime_paris
+                                    
+                                    date_str = format_datetime_paris(record.timestamp)
+                                    
                                     data_list.append({
-                                        '📅 Date': record.timestamp.strftime('%Y-%m-%d %H:%M'),
-                                        'Open': f"${record.open:.2f}" if record.open else "N/A",
-                                        'High': f"${record.high:.2f}" if record.high else "N/A",
-                                        'Low': f"${record.low:.2f}" if record.low else "N/A",
-                                        'Close': f"${record.close:.2f}" if record.close else "N/A",
+                                        '📅 Date': date_str,
+                                        'Open': f"€{record.open:.2f}" if record.open else "N/A",
+                                        'High': f"€{record.high:.2f}" if record.high else "N/A",
+                                        'Low': f"€{record.low:.2f}" if record.low else "N/A",
+                                        'Close': f"€{record.close:.2f}" if record.close else "N/A",
                                         'Volume': f"{int(record.volume):,}" if record.volume else "N/A"
                                     })
                                 
                                 df_display = pd.DataFrame(data_list)
+                            
+                            # Display table with smaller font size
+                            st.markdown("""
+                            <style>
+                                .dataframe-display {
+                                    font-size: 12px !important;
+                                }
+                                div[data-testid="stDataFrame"] {
+                                    font-size: 12px !important;
+                                }
+                                div[data-testid="stDataFrame"] button {
+                                    font-size: 11px !important;
+                                }
+                            </style>
+                            """, unsafe_allow_html=True)
+                            
+                            st.dataframe(df_display, use_container_width=True, height=400)
                             
                             # Action buttons
                             col_delete, col_chart = st.columns([1, 3])
