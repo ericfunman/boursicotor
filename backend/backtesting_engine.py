@@ -1772,9 +1772,17 @@ class UltimateStrategy(Strategy):
                 abs(df['low'] - df['close'].shift())
             ], axis=1).max(axis=1)
             
-            avg_short = bp.rolling(window=self.ultimate_osc_short).sum() / tr.rolling(window=self.ultimate_osc_short).sum()
-            avg_medium = bp.rolling(window=self.ultimate_osc_medium).sum() / tr.rolling(window=self.ultimate_osc_medium).sum()
-            avg_long = bp.rolling(window=self.ultimate_osc_long).sum() / tr.rolling(window=self.ultimate_osc_long).sum()
+            # Calculate moving averages for Ultimate Oscillator
+            short_window = self.ultimate_osc_short
+            medium_window = self.ultimate_osc_medium
+            long_window = self.ultimate_osc_long
+            
+            avg_short = bp.rolling(window=short_window).sum() / \
+                tr.rolling(window=short_window).sum()
+            avg_medium = bp.rolling(window=medium_window).sum() / \
+                tr.rolling(window=medium_window).sum()
+            avg_long = bp.rolling(window=long_window).sum() / \
+                tr.rolling(window=long_window).sum()
             
             uo = 100 * ((4 * avg_short + 2 * avg_medium + avg_long) / 7)
             
@@ -1865,7 +1873,13 @@ class UltimateStrategy(Strategy):
 class BacktestingEngine:
     """Moteur de backtesting avec support du short selling et parallélisation"""
     
-    def __init__(self, initial_capital: float = 10000.0, commission: float = 0.001, allow_short: bool = True, min_hold_minutes: int = 0):
+    def __init__(
+        self,
+        initial_capital: float = 10000.0,
+        commission: float = 0.001,
+        allow_short: bool = True,
+        min_hold_minutes: int = 0
+    ):
         """
         Args:
             initial_capital: Capital initial
@@ -2012,8 +2026,12 @@ class BacktestingEngine:
         
         for i in range(num_iterations):
             # Générer stratégie aléatoire avec distribution vers ULTIMATE
-            strategy_type = np.random.choice(
-                ['ma', 'rsi', 'multi', 'advanced', 'momentum', 'mean_reversion', 'ultra_aggressive', 'mega', 'hyper', 'ultimate', 'ultimate', 'ultimate'],
+            strategy_types = [
+                'ma', 'rsi', 'multi', 'advanced', 'momentum',
+                'mean_reversion', 'ultra_aggressive', 'mega', 'hyper',
+                'ultimate', 'ultimate', 'ultimate'  # 85% ULTIMATE
+            ]
+            strategy_type = np.random.choice(strategy_types)
                 p=[0.01, 0.01, 0.01, 0.01, 0.01, 0.02, 0.03, 0.03, 0.02, 0.283, 0.283, 0.284]
             )
             
@@ -2046,7 +2064,11 @@ class BacktestingEngine:
         df_dict['index'] = df.index.astype(str).tolist()
         
         args_list = [
-            (df_dict, strategy.to_dict(), symbol, self.initial_capital, self.commission, self.allow_short, self.min_hold_minutes)
+            (
+                df_dict, strategy.to_dict(), symbol,
+                self.initial_capital, self.commission,
+                self.allow_short, self.min_hold_minutes
+            )
             for strategy in strategies
         ]
         
@@ -2065,8 +2087,12 @@ class BacktestingEngine:
         warnings.filterwarnings('ignore')
         
         with Pool(processes=num_processes) as pool:
-            # Utiliser imap_unordered pour avoir les résultats au fur et à mesure
-            for i, (strategy_dict, result_dict) in enumerate(pool.imap_unordered(self._run_single_backtest_worker, args_list)):
+            # Utiliser imap_unordered pour avoir résultats au fur et à mesure
+            for i, (strategy_dict, result_dict) in enumerate(
+                pool.imap_unordered(
+                    self._run_single_backtest_worker, args_list
+                )
+            ):
                 # Reconstruire les objets
                 strategy = Strategy.from_dict(strategy_dict)
                 result = BacktestResult.from_dict(result_dict)
@@ -2075,7 +2101,10 @@ class BacktestingEngine:
                 
                 # Vérifier si on a atteint l'objectif
                 if result.total_return >= target_return:
-                    logger.info(f"🎯 Objectif atteint! Stratégie #{i+1}: {result.total_return:.2f}%")
+                    logger.info(
+                        f"🎯 Objectif atteint! Stratégie #{i+1}: "
+                        f"{result.total_return:.2f}%"
+                    )
                     pool.terminate()  # Arrêter les autres workers
                     return strategy, result, results
                 
