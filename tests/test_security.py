@@ -252,7 +252,7 @@ class TestSecurityValidator:
         })
         
         result = SecurityValidator.validate_data_quality(df)
-        assert result is True
+        assert result == True  # Use == instead of is for numpy boolean compatibility
     
     
     def test_validate_data_missing_required_columns(self):
