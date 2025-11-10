@@ -30,6 +30,7 @@ class Ticker(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     symbol = Column(String(10), unique=True, nullable=False, index=True)
+    isin = Column(String(12), unique=True, nullable=True, index=True)  # ISIN code for faster lookups
     name = Column(String(100), nullable=False)
     exchange = Column(String(50), default="EURONEXT")
     currency = Column(String(3), default="EUR")

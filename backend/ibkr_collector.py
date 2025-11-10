@@ -135,16 +135,18 @@ class IBKRCollector:
             self.connected = False
             logger.info("Disconnected from IBKR")
     
-    def get_contract(self, symbol: str, exchange: str = 'SMART', currency: str = None) -> Optional[Stock]:
+    def get_contract(self, symbol: str = None, exchange: str = 'SMART', currency: str = None, isin: str = None) -> Optional[Stock]:
         """
         Get and qualify a stock contract with timeout protection
         
         Tries to qualify with multiple exchanges and currencies to handle both US and European stocks.
+        Supports both symbol and ISIN lookup - ISIN is faster for European stocks.
         
         Args:
             symbol: Stock symbol (e.g., 'AAPL', 'TTE', 'WLN')
             exchange: Exchange (default: 'SMART' for automatic routing)
             currency: Currency (default: None to auto-detect - tries USD first, then EUR)
+            isin: ISIN code (e.g., 'FR0000120271' for TTE) - faster for European stocks
         
         Returns:
             Qualified contract or None
@@ -152,6 +154,37 @@ class IBKRCollector:
         try:
             import threading
             import time
+            from ib_insync import Contract
+            
+            # If ISIN provided, try that first (much faster for European stocks)
+            if isin:
+                try:
+                    logger.info(f"Attempting to qualify {isin} via ISIN...")
+                    contract = Contract(secType='STK', primaryExchange='SMART', tradingClass=symbol)
+                    contract.isin = isin
+                    
+                    result = [None]
+                    def qualify_isin():
+                        try:
+                            result[0] = self.ib.qualifyContracts(contract)
+                        except:
+                            pass
+                    
+                    thread = threading.Thread(target=qualify_isin, daemon=True)
+                    thread.start()
+                    thread.join(timeout=10)  # ISIN should be faster
+                    
+                    if result[0]:
+                        qualified = result[0][0]
+                        logger.info(f"✅ Contract qualified via ISIN: {qualified.symbol} on {qualified.primaryExchange} ({qualified.currency})")
+                        return qualified
+                except Exception as e:
+                    logger.debug(f"ISIN lookup failed: {e}")
+            
+            # Fallback to symbol-based lookup
+            if not symbol:
+                logger.error("Neither symbol nor ISIN provided")
+                return None
             
             # If currency not specified, try common currencies
             currencies_to_try = []
