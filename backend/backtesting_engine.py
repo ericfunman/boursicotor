@@ -2237,7 +2237,12 @@ class BacktestingEngine:
         
         # Sharpe ratio
         if len(position_returns) > 1:
-            sharpe_ratio = (position_returns.mean() / position_returns.std() * np.sqrt(252)) if position_returns.std() > 0 else 0
+            pos_returns_mean = position_returns.mean()
+            pos_returns_std = position_returns.std()
+            if pos_returns_std > 0:
+                sharpe_ratio = pos_returns_mean / pos_returns_std * np.sqrt(252)
+            else:
+                sharpe_ratio = 0
         else:
             sharpe_ratio = 0
         
@@ -2438,15 +2443,26 @@ class BacktestingEngine:
                 profit = revenue - (position * entry_price * (1 + self.commission))
                 profit_pct = (profit / (position * entry_price)) * 100
                 capital += revenue
-                # logger.debug(f"  CLOSE LONG: {position} shares @ {current_price:.2f} | Profit: {profit:.2f}€ ({profit_pct:.2f}%)")
+                # logger.debug(
+                #     f"  CLOSE LONG: {position} shares @ {current_price:.2f} | "
+                #     f"Profit: {profit:.2f}€ ({profit_pct:.2f}%)"
+                # )
             else:
                 # Close short
                 shares_to_cover = abs(position)
                 cost = shares_to_cover * current_price * (1 + self.commission)
-                profit = (entry_price - current_price) * shares_to_cover - (shares_to_cover * entry_price * self.commission) - (shares_to_cover * current_price * self.commission)
+                profit_short = (entry_price - current_price) * shares_to_cover
+                short_commission = (
+                    shares_to_cover * entry_price * self.commission +
+                    shares_to_cover * current_price * self.commission
+                )
+                profit = profit_short - short_commission
                 profit_pct = (profit / (shares_to_cover * entry_price)) * 100
                 capital -= cost
-                # logger.debug(f"  COVER SHORT: {shares_to_cover} shares @ {current_price:.2f} | Profit: {profit:.2f}€ ({profit_pct:.2f}%)")
+                # logger.debug(
+                #     f"  COVER SHORT: {shares_to_cover} shares @ "
+                #     f"{current_price:.2f} | Profit: {profit:.2f}€ ({profit_pct:.2f}%)"
+                # )
             
             trade = Trade(
                 entry_date=entry_date,
@@ -2484,7 +2500,12 @@ class BacktestingEngine:
         # Sharpe ratio (simplified)
         if len(equity_curve) > 1:
             returns = pd.Series(equity_curve).pct_change().dropna()
-            sharpe_ratio = (returns.mean() / returns.std() * np.sqrt(252)) if returns.std() > 0 else 0
+            returns_mean = returns.mean()
+            returns_std = returns.std()
+            if returns_std > 0:
+                sharpe_ratio = returns_mean / returns_std * np.sqrt(252)
+            else:
+                sharpe_ratio = 0
         else:
             sharpe_ratio = 0
         
