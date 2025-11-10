@@ -2121,9 +2121,15 @@ class BacktestingEngine:
                 
                 # Log progression - plus fréquent pour voir l'avancement
                 if (i + 1) % 10 == 0:
-                    logger.info(f"   ⚡ Progression: {i+1}/{num_iterations} ({(i+1)/num_iterations*100:.1f}%) | Meilleur: {best_return:.2f}%")
+                    progress_pct = (i + 1) / num_iterations * 100
+                    logger.info(
+                        f"   ⚡ Progression: {i+1}/{num_iterations} "
+                        f"({progress_pct:.1f}%) | Meilleur: {best_return:.2f}%"
+                    )
         
-        logger.info(f"✅ Optimisation terminée. Meilleur résultat: {best_return:.2f}%")
+        logger.info(
+            f"✅ Optimisation terminée. Meilleur résultat: {best_return:.2f}%"
+        )
         
         return best_strategy, best_result, results
     
@@ -2369,7 +2375,10 @@ class BacktestingEngine:
                     )
                     trades.append(trade)
                     
-                    # logger.debug(f"  CLOSE LONG: {position} shares @ {current_price:.2f} | Profit: {profit:.2f}€ ({profit_pct:.2f}%)")
+                    # logger.debug(
+                    #     f"  CLOSE LONG: {position} shares @ {current_price:.2f} | "
+                    #     f"Profit: {profit:.2f}€ ({profit_pct:.2f}%)"
+                    # )
                     position = 0
                     entry_price = None
                     entry_date = None
@@ -2395,7 +2404,13 @@ class BacktestingEngine:
                 cost = shares_to_cover * current_price * (1 + self.commission)
                 
                 # Profit for short = (entry_price - exit_price) * shares - commissions
-                profit = (entry_price - current_price) * shares_to_cover - (shares_to_cover * entry_price * self.commission) - (shares_to_cover * current_price * self.commission)
+                entry_cost = shares_to_cover * entry_price * self.commission
+                exit_cost = shares_to_cover * current_price * self.commission
+                profit = (
+                    (entry_price - current_price) * shares_to_cover
+                    - entry_cost
+                    - exit_cost
+                )
                 profit_pct = (profit / (shares_to_cover * entry_price)) * 100
                 
                 capital -= cost
@@ -2411,7 +2426,10 @@ class BacktestingEngine:
                 )
                 trades.append(trade)
                 
-                # logger.debug(f"  COVER SHORT: {shares_to_cover} shares @ {current_price:.2f} | Profit: {profit:.2f}€ ({profit_pct:.2f}%)")
+                # logger.debug(
+                #     f"  COVER SHORT: {shares_to_cover} shares @ {current_price:.2f} | "
+                #     f"Profit: {profit:.2f}€ ({profit_pct:.2f}%)"
+                # )
                 
                 position = 0
                 entry_price = None
@@ -2477,15 +2495,30 @@ class BacktestingEngine:
         
         # Calculate statistics
         final_capital = capital
-        total_return = ((final_capital - self.initial_capital) / self.initial_capital) * 100
+        total_return = (
+            (final_capital - self.initial_capital) / self.initial_capital
+        ) * 100
         
         # Debug log for suspicious results
         if total_return < -90 or len(trades) > 1000:
-            avg_profit = sum(t.profit for t in trades) / len(trades) if trades else 0
-            print(f"WARNING: Suspicious backtest - return: {total_return:.2f}%, trades: {len(trades)}, avg_profit_per_trade: {avg_profit:.4f}, final_capital: {final_capital:.2f}, allow_short: {self.allow_short}", flush=True)
+            avg_profit = (
+                sum(t.profit for t in trades) / len(trades) if trades else 0
+            )
+            msg = (
+                f"WARNING: Suspicious backtest - return: {total_return:.2f}%, "
+                f"trades: {len(trades)}, avg_profit_per_trade: {avg_profit:.4f}, "
+                f"final_capital: {final_capital:.2f}, allow_short: {self.allow_short}"
+            )
+            print(msg, flush=True)
         elif len(trades) > 100:
-            avg_profit = sum(t.profit for t in trades) / len(trades) if trades else 0
-            print(f"INFO: Backtest - return: {total_return:.2f}%, trades: {len(trades)}, avg_profit_per_trade: {avg_profit:.4f}", flush=True)
+            avg_profit = (
+                sum(t.profit for t in trades) / len(trades) if trades else 0
+            )
+            msg = (
+                f"INFO: Backtest - return: {total_return:.2f}%, "
+                f"trades: {len(trades)}, avg_profit_per_trade: {avg_profit:.4f}"
+            )
+            print(msg, flush=True)
         
         winning_trades = sum(1 for t in trades if t.profit > 0)
         losing_trades = sum(1 for t in trades if t.profit <= 0)
@@ -2526,7 +2559,10 @@ class BacktestingEngine:
             trades=[t.to_dict() for t in trades]
         )
         
-        # logger.info(f"✅ Backtest complete: Return={total_return:.2f}%, Trades={len(trades)}, Win Rate={win_rate:.1f}%")
+        # logger.info(
+        #     f"✅ Backtest complete: Return={total_return:.2f}%, "
+        #     f"Trades={len(trades)}, Win Rate={win_rate:.1f}%"
+        # )
         
         return result
 
@@ -2683,7 +2719,11 @@ class AdvancedIndicators:
         return direction  # Return trend direction
 
     @staticmethod
-    def calculate_parabolic_sar(df: pd.DataFrame, acceleration: float = 0.02, max_acceleration: float = 0.2) -> pd.Series:
+    def calculate_parabolic_sar(
+        df: pd.DataFrame,
+        acceleration: float = 0.02,
+        max_acceleration: float = 0.2,
+    ) -> pd.Series:
         """Parabolic SAR (Stop and Reverse)"""
         sar = pd.Series(index=df.index, dtype=float)
         trend = pd.Series(1, index=df.index)  # 1 = uptrend, -1 = downtrend
@@ -2933,7 +2973,10 @@ class EnhancedMovingAverageStrategy(Strategy):
         filters.append(adx_filter)
 
         volume_filter = pd.Series(False, index=df.index, dtype=bool)
-        volume_filter.loc[volume_ratio.notna()] = (volume_ratio[volume_ratio.notna()] > self.volume_threshold).astype(bool)
+        volume_notna = volume_ratio.notna()
+        volume_filter.loc[volume_notna] = (
+            volume_ratio[volume_notna] > self.volume_threshold
+        ).astype(bool)
         filters.append(volume_filter)
 
         momentum_filter = pd.Series(False, index=df.index, dtype=bool)
@@ -2952,12 +2995,18 @@ class EnhancedMovingAverageStrategy(Strategy):
 
         if self.use_parabolic_sar and parabolic_sar is not None:
             sar_filter = pd.Series(False, index=df.index, dtype=bool)
-            sar_filter.loc[parabolic_sar.notna()] = (df.loc[parabolic_sar.notna(), 'close'] > parabolic_sar[parabolic_sar.notna()]).astype(bool)
+            sar_notna = parabolic_sar.notna()
+            sar_close = df.loc[sar_notna, 'close']
+            sar_values = parabolic_sar[sar_notna]
+            sar_filter.loc[sar_notna] = (sar_close > sar_values).astype(bool)
             filters.append(sar_filter)
         
         if self.use_donchian and donchian_width is not None:
             donchian_filter = pd.Series(False, index=df.index, dtype=bool)
-            donchian_filter.loc[donchian_width.notna()] = (donchian_width[donchian_width.notna()] > self.donchian_threshold).astype(bool)
+            donch_notna = donchian_width.notna()
+            donchian_filter.loc[donch_notna] = (
+                donchian_width[donch_notna] > self.donchian_threshold
+            ).astype(bool)
             filters.append(donchian_filter)
         
         if self.use_vwap and vwap is not None:
@@ -2968,7 +3017,11 @@ class EnhancedMovingAverageStrategy(Strategy):
         if self.use_obv and obv is not None:
             obv_filter = pd.Series(False, index=df.index, dtype=bool)
             obv_shifted = obv.shift(1)
-            obv_filter.loc[(obv.notna()) & (obv_shifted.notna())] = (obv[(obv.notna()) & (obv_shifted.notna())] > obv_shifted[(obv.notna()) & (obv_shifted.notna())]).astype(bool)
+            obv_notna = obv.notna()
+            obv_shifted_notna = obv_shifted.notna()
+            obv_valid_mask = obv_notna & obv_shifted_notna
+            obv_comparison = obv[obv_valid_mask] > obv_shifted[obv_valid_mask]
+            obv_filter.loc[obv_valid_mask] = obv_comparison.astype(bool)
             filters.append(obv_filter)
         
         if self.use_cmf and cmf is not None:
@@ -3338,10 +3391,28 @@ class StrategyGenerator:
         best_return = -np.inf
         
         for i in range(max_iterations):
-            # Generate random strategy (prioritize ULTIMATE with 60+ indicators for maximum pattern detection)
+            # Generate random strategy (prioritize ULTIMATE with 60+ indicators)
+            strategy_choices = [
+                'ma',
+                'rsi',
+                'multi',
+                'advanced',
+                'momentum',
+                'mean_reversion',
+                'ultra_aggressive',
+                'mega',
+                'hyper',
+                'ultimate',
+                'ultimate',
+                'ultimate',
+            ]
+            strategy_probabilities = [
+                0.01, 0.01, 0.01, 0.01, 0.01, 0.02, 0.03, 0.03, 0.02,
+                0.283, 0.283, 0.284,  # 85% ULTIMATE strategy
+            ]
             strategy_type = np.random.choice(
-                ['ma', 'rsi', 'multi', 'advanced', 'momentum', 'mean_reversion', 'ultra_aggressive', 'mega', 'hyper', 'ultimate', 'ultimate', 'ultimate'],
-                p=[0.01, 0.01, 0.01, 0.01, 0.01, 0.02, 0.03, 0.03, 0.02, 0.283, 0.283, 0.284]  # 85% ULTIMATE strategy
+                strategy_choices,
+                p=strategy_probabilities
             )
             
             if strategy_type == 'ma':
