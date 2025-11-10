@@ -96,14 +96,14 @@ SUPPORTED_INTERVALS = [
 
 # French market tickers (examples)
 FRENCH_TICKERS = {
-    "TTE": "TotalEnergies",
-    "WLN": "Worldline",
-    "MC": "LVMH",
-    "OR": "L'Oréal",
-    "AIR": "Airbus",
-    "SAN": "Sanofi",
-    "BNP": "BNP Paribas",
-    "SU": "Schneider Electric",
+    "TTE": {"name": "TotalEnergies", "isin": "FR0000120271"},
+    "WLN": {"name": "Worldline", "isin": "FR0011981968"},
+    "MC": {"name": "LVMH", "isin": "FR0000121014"},
+    "OR": {"name": "L'Oréal", "isin": "FR0000120321"},
+    "AIR": {"name": "Airbus", "isin": "NL0000235190"},
+    "SAN": {"name": "Sanofi", "isin": "FR0000120578"},
+    "BNP": {"name": "BNP Paribas", "isin": "FR0000131104"},
+    "SU": {"name": "Schneider Electric", "isin": "FR0000121972"},
 }
 
 logger.info("Configuration loaded successfully")
