@@ -1361,7 +1361,7 @@ def jobs_monitoring_page():
                 st.info("Aucun job complété récemment")
             else:
                 for job in completed_jobs[:20]:  # Limit to 20 most recent
-                    with st.expander(f"✅ {job.ticker_symbol} - {job.source} ({job.completed_at.strftime('%d/%m/%Y %H:%M')})"):
+                    with st.expander(f"✅ {job.ticker_symbol} - {job.source} ({format_datetime_paris(job.completed_at, '%d/%m/%Y %H:%M') if job.completed_at else 'N/A'})"):
                         col1, col2 = st.columns(2)
                         
                         with col1:
@@ -1395,7 +1395,7 @@ def jobs_monitoring_page():
                 st.info("Aucun job échoué récemment")
             else:
                 for job in failed_jobs[:20]:  # Limit to 20 most recent
-                    with st.expander(f"❌ {job.ticker_symbol} - {job.source} ({job.completed_at.strftime('%d/%m/%Y %H:%M') if job.completed_at else 'N/A'})"):
+                    with st.expander(f"❌ {job.ticker_symbol} - {job.source} ({format_datetime_paris(job.completed_at, '%d/%m/%Y %H:%M') if job.completed_at else 'N/A'})"):
                         col1, col2 = st.columns(2)
                         
                         with col1:
