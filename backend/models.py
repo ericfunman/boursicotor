@@ -25,10 +25,19 @@ def datetime_paris(dt: datetime) -> datetime:
     return dt.astimezone(PARIS_TZ)
 
 def format_datetime_paris(dt: datetime, fmt: str = '%Y-%m-%d %H:%M:%S') -> str:
-    """Format datetime in Europe/Paris timezone"""
+    """Format datetime in Europe/Paris timezone
+    
+    NOTE: This always assumes input is UTC if naive
+    """
     if dt is None:
         return "N/A"
-    paris_dt = datetime_paris(dt)
+    
+    # Force interpretation as UTC if naive (don't rely on tzinfo)
+    if dt.tzinfo is None:
+        dt = UTC_TZ.localize(dt)
+    
+    # Always convert to Paris time
+    paris_dt = dt.astimezone(PARIS_TZ)
     return paris_dt.strftime(fmt)
 
 # Create engine with database-specific optimizations

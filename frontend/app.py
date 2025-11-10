@@ -770,28 +770,16 @@ def data_collection_page():
                             last_date = all_ticker_data[-1].timestamp
                             days_covered = (last_date - first_date).days + 1
                             
-                            # CSS to reduce metric font size
-                            st.markdown("""
-                            <style>
-                                div[data-testid="stMetric"] {
-                                    font-size: 14px !important;
-                                }
-                                div[data-testid="stMetric"] > div:first-child {
-                                    font-size: 12px !important;
-                                }
-                            </style>
-                            """, unsafe_allow_html=True)
-                            
-                            # Show summary metrics
+                            # Show summary metrics as simple markdown (smaller font)
                             col_a, col_b, col_c, col_d = st.columns(4)
                             with col_a:
-                                st.metric("📈 Total points", total_records)
+                                st.markdown(f"**📈 Total points**  \n`{total_records}`")
                             with col_b:
-                                st.metric("📅 Premiers données", first_date.strftime('%Y-%m-%d'))
+                                st.markdown(f"**📅 Premiers données**  \n`{first_date.strftime('%Y-%m-%d')}`")
                             with col_c:
-                                st.metric("📅 Derniers données", last_date.strftime('%Y-%m-%d'))
+                                st.markdown(f"**📅 Derniers données**  \n`{last_date.strftime('%Y-%m-%d')}`")
                             with col_d:
-                                st.metric("📊 Durée (jours)", days_covered)
+                                st.markdown(f"**📊 Durée (jours)**  \n`{days_covered}`")
                             
                             # Display last 50 records as preview
                             if data_records:
@@ -813,23 +801,7 @@ def data_collection_page():
                                 
                                 df_display = pd.DataFrame(data_list)
                             
-                            # Display table with smaller font size in collapsible expander
-                            with st.expander("📋 Afficher les données détaillées", expanded=False):
-                                st.markdown("""
-                                <style>
-                                    .dataframe-display {
-                                        font-size: 12px !important;
-                                    }
-                                    div[data-testid="stDataFrame"] {
-                                        font-size: 12px !important;
-                                    }
-                                    div[data-testid="stDataFrame"] button {
-                                        font-size: 11px !important;
-                                    }
-                                </style>
-                                """, unsafe_allow_html=True)
-                                
-                                st.dataframe(df_display, use_container_width=True, height=400)
+                            # Don't show detailed data table (user only wants summary)
                             
                             # Action buttons
                             col_delete, col_chart = st.columns([1, 3])
@@ -1464,8 +1436,8 @@ def jobs_monitoring_page():
                         "Durée": job.duration,
                         "Intervalle": job.interval,
                         "Progression": f"{job.progress or 0}%",
-                        "Créé": format_datetime_paris(job.created_at) if job.created_at else "N/A",
-                        "Complété": format_datetime_paris(job.completed_at) if job.completed_at else "-"
+                        "Créé": format_datetime_paris(job.created_at, '%d/%m %H:%M') if job.created_at else "N/A",
+                        "Complété": format_datetime_paris(job.completed_at, '%d/%m %H:%M') if job.completed_at else "-"
                     })
                 
                 import pandas as pd
