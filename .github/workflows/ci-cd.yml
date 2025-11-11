@@ -100,29 +100,11 @@ jobs:
         name: test-results-3.10
         path: .
     
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-        cache: 'pip'
-    
-    - name: Install dependencies
-      shell: bash
-      run: |
-        python -m pip install --upgrade pip setuptools wheel
-        pip install pytest pytest-cov
-        pip install python-dotenv loguru requests sqlalchemy pandas numpy
-    
-    - name: Generate coverage report
-      shell: bash
-      run: |
-        python -m pytest tests/test_security.py tests/test_coverage_boost.py tests/test_comprehensive_coverage.py tests/test_high_impact_coverage.py tests/test_additional_coverage.py tests/test_business_logic.py -v --tb=short --cov=backend --cov-report=xml --cov-report=term-missing 2>&1
-    
     - name: Display Final Coverage
       if: always()
       shell: bash
       run: |
-        echo "Coverage report generated"
+        echo "Coverage report downloaded"
         ls -la coverage.xml 2>/dev/null || echo "No coverage file"
     
     - name: SonarCloud Scan
