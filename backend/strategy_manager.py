@@ -10,12 +10,12 @@ from sqlalchemy import text
 from backend.config import logger
 from backend.models import SessionLocal, Strategy as StrategyModel, Backtest as BacktestModel, Ticker
 from backend.backtesting_engine import (
-    Strategy, BacktestResult, BacktestingEngine,
-    MovingAverageCrossover, RSIStrategy, MultiIndicatorStrategy,
-    AdvancedMultiIndicatorStrategy, MomentumBreakoutStrategy, MeanReversionStrategy,
-    UltraAggressiveStrategy, MegaIndicatorStrategy, HyperAggressiveStrategy, UltimateStrategy,
-    EnhancedMovingAverageStrategy, AdvancedIndicators
+    Strategy, BacktestResult, SimpleMovingAverageStrategy, RSIStrategy, EnhancedMovingAverageStrategy
 )
+# Temporarily commented - missing classes:
+# MovingAverageCrossover, MultiIndicatorStrategy, AdvancedMultiIndicatorStrategy,
+# MomentumBreakoutStrategy, MeanReversionStrategy, UltraAggressiveStrategy,
+# MegaIndicatorStrategy, HyperAggressiveStrategy, UltimateStrategy, AdvancedIndicators
 
 
 class StrategyManager:
