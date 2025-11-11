@@ -227,7 +227,7 @@ def test_saxo_search_module():
     try:
         import backend.saxo_search as ss_module
         assert ss_module is not None
-        assert hasattr(ss_module, 'SaxoSearchClient') or True
+        assert hasattr(ss_module, 'SaxoSearchClient')
     except:
         pass
 
@@ -298,7 +298,7 @@ def test_tasks_celery_task_decorator():
 def test_tasks_update_ticker():
     try:
         from backend.tasks import update_ticker_data
-        assert update_ticker_data is not None or True  # Just ensure it exists
+        assert update_ticker_data is not None  # Just ensure it exists
     except:
         pass
 

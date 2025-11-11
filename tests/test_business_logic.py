@@ -195,7 +195,7 @@ def test_data_collector_missing_values():
         if result is not None:
             # Should handle NaNs gracefully
             if isinstance(result, dict):
-                assert 'valid' in result or 'missing' in result or 'errors' in result or True
+                assert 'valid' in result or 'missing' in result or 'errors' in result
     except:
         pass
 
