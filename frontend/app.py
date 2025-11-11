@@ -372,7 +372,12 @@ def dashboard_page():
             
             # Format: account_summary[currency][tag]
             # Try to get EUR first, fallback to USD
-            currency = 'EUR' if 'EUR' in account_summary else ('USD' if 'USD' in account_summary else list(account_summary.keys())[0])
+            if 'EUR' in account_summary:
+                currency = 'EUR'
+            elif 'USD' in account_summary:
+                currency = 'USD'
+            else:
+                currency = list(account_summary.keys())[0]
             
             account_data = account_summary.get(currency, {})
             
@@ -1667,8 +1672,13 @@ def technical_analysis_page():
     with col1:
         if 'rsi_14' in df.columns:
             rsi_value = df['rsi_14'].iloc[-1]
-            st.metric("RSI (14)", f"{rsi_value:.2f}", 
-                     "Suracheté" if rsi_value > 70 else "Survendu" if rsi_value < 30 else "Neutre")
+            if rsi_value > 70:
+                rsi_status = "Suracheté"
+            elif rsi_value < 30:
+                rsi_status = "Survendu"
+            else:
+                rsi_status = "Neutre"
+            st.metric("RSI (14)", f"{rsi_value:.2f}", rsi_status)
     
     with col2:
         if 'macd' in df.columns:
@@ -2991,7 +3001,12 @@ def live_prices_page():
                 
                 with ind_col1:
                     if latest_rsi:
-                        rsi_delta = "Suracheté" if latest_rsi > 70 else "Survendu" if latest_rsi < 30 else "Normal"
+                        if latest_rsi > 70:
+                            rsi_delta = "Suracheté"
+                        elif latest_rsi < 30:
+                            rsi_delta = "Survendu"
+                        else:
+                            rsi_delta = "Normal"
                         st.metric("RSI (14)", f"{latest_rsi:.2f}", rsi_delta)
                     else:
                         st.metric("RSI (14)", "---", "En attente...")
