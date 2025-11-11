@@ -22,7 +22,7 @@ class StrategyManager:
     """Gestionnaire de stratégies"""
     
     @staticmethod
-    def save_strategy(strategy: Strategy, backtest_result: BacktestResult) -> int:
+    def save_strategy(strategy: Strategy, backtest_result: BacktestResult) -> Optional[int]:
         """
         Sauvegarde une stratégie et son résultat de backtest
         
