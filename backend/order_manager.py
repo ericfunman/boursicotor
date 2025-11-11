@@ -242,7 +242,7 @@ class OrderManager:
             
             # Monitor order execution (non-blocking - in thread)
             logger.info(f"Step 4f: Starting order monitoring in background with orderId={actual_order_id}")
-            self._monitor_order_async(order.id, trade, actual_order_id)
+            self._monitor_order_async(order.id, actual_order_id)
             
             return True
             
@@ -258,14 +258,13 @@ class OrderManager:
                 pass
             return False
     
-    def _monitor_order_async(self, order_id: int, trade, ibkr_order_id: int):
+    def _monitor_order_async(self, order_id: int, ibkr_order_id: int):
         """
         Monitor order execution asynchronously in background thread
         Waits for IBKR events and updates DB when order fills
         
         Args:
             order_id: Our DB Order ID to monitor
-            trade: IBTrade object from placeOrder()
             ibkr_order_id: The IBKR order ID (for matching fills)
         """
         def monitor():

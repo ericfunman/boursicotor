@@ -148,7 +148,7 @@ class AutoTrader:
                         self._process_signal(signals)
                     
                     # 5. Update session
-                    self._update_session(current_price, signals)
+                    self._update_session()
                 
                 # Wait for next polling interval
                 db = SessionLocal()
@@ -403,7 +403,7 @@ class AutoTrader:
         finally:
             db.close()
     
-    def _update_session(self, price_data: Optional[Dict], signals: Optional[Dict]):
+    def _update_session(self):
         """Update session with latest state"""
         db = SessionLocal()
         try:
