@@ -1,7 +1,7 @@
 """
 Data collection service for fetching and storing market data
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 import pandas as pd
 from sqlalchemy.orm import Session
@@ -280,7 +280,7 @@ class DataCollector:
             days = DATA_CONFIG["retention_days"]
         
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
             deleted = self.db.query(HistoricalData).filter(
                 HistoricalData.timestamp < cutoff_date
             ).delete()

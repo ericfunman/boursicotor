@@ -2,7 +2,7 @@
 Celery tasks for asynchronous data collection
 """
 from celery import Task
-from datetime import datetime
+from datetime import datetime, timezone
 from backend.celery_config import celery_app
 from backend.models import SessionLocal, DataCollectionJob, JobStatus
 from backend.config import logger
@@ -57,7 +57,7 @@ def collect_data_ibkr(
     try:
         # Update job status to running
         job.status = JobStatus.RUNNING
-        job.started_at = datetime.utcnow()
+        job.started_at = datetime.now(timezone.utc)
         job.current_step = "Initializing IBKR connection..."
         db.commit()
         
@@ -135,14 +135,14 @@ def collect_data_ibkr(
             job.records_total = result.get('total_records', 0)
             job.progress = 100
             job.current_step = "Completed successfully!"
-            job.completed_at = datetime.utcnow()
+            job.completed_at = datetime.now(timezone.utc)
             logger.info(f"✅ Job {job_id} completed: {job.records_new} new, {job.records_updated} updated, total: {job.records_total}")
         else:
             job.status = JobStatus.FAILED
             job.error_message = result.get('error', 'Unknown error')
             job.progress = 0
             job.current_step = "Failed"
-            job.completed_at = datetime.utcnow()
+            job.completed_at = datetime.now(timezone.utc)
             logger.error(f"❌ Job {job_id} failed: {job.error_message}")
         
         db.commit()
@@ -155,7 +155,7 @@ def collect_data_ibkr(
         job.error_message = str(e)
         job.progress = 0
         job.current_step = "Failed with exception"
-        job.completed_at = datetime.utcnow()
+        job.completed_at = datetime.now(timezone.utc)
         db.commit()
         
         # Re-raise for Celery to handle
@@ -181,8 +181,8 @@ def cleanup_old_jobs(days_to_keep: int = 7):
     """
     db = SessionLocal()
     try:
-        from datetime import timedelta
-        cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
+        from datetime import timedelta, timezone
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
         
         deleted = db.query(DataCollectionJob).filter(
             DataCollectionJob.status.in_([JobStatus.COMPLETED, JobStatus.FAILED]),

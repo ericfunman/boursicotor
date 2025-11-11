@@ -91,8 +91,8 @@ class Ticker(Base):
     currency = Column(String(3), default="EUR")
     sector = Column(String(100))
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=datetime.utcnow)
     
     # Relationships
     historical_data = relationship("HistoricalData", back_populates="ticker", cascade="all, delete-orphan")
@@ -136,7 +136,7 @@ class DataCollectionJob(Base):
     error_message = Column(Text)
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     started_at = Column(DateTime)
     completed_at = Column(DateTime)
     
@@ -177,7 +177,7 @@ class HistoricalData(Base):
     bb_middle = Column(Float)
     bb_lower = Column(Float)
     
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationships
     ticker = relationship("Ticker", back_populates="historical_data")
@@ -199,8 +199,8 @@ class Strategy(Base):
     strategy_type = Column(String(50))  # momentum, mean_reversion, ml_based, etc.
     parameters = Column(Text)  # JSON string of parameters
     is_active = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=datetime.utcnow)
     
     # Relationships
     backtests = relationship("Backtest", back_populates="strategy")
@@ -229,7 +229,7 @@ class Backtest(Base):
     avg_loss = Column(Float)
     profit_factor = Column(Float)
     results_json = Column(Text)  # Detailed results as JSON
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationships
     strategy = relationship("Strategy", back_populates="backtests")
@@ -278,7 +278,7 @@ class Order(Base):
     status_message = Column(Text)
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     submitted_at = Column(DateTime)
     filled_at = Column(DateTime)
     cancelled_at = Column(DateTime)
@@ -322,7 +322,7 @@ class Trade(Base):
     is_paper_trade = Column(Boolean, default=True)
     commission = Column(Float, default=0.0)
     notes = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationships
     ticker = relationship("Ticker", back_populates="trades")
@@ -402,7 +402,7 @@ class MLModel(Base):
     parameters = Column(Text)  # JSON string
     feature_importance = Column(Text)  # JSON string
     is_active = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     trained_at = Column(DateTime)
 
 

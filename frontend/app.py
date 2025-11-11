@@ -1230,7 +1230,7 @@ def jobs_monitoring_page():
             if st.button("🧹 Nettoyer jobs bloqués", help="Annule tous les jobs en cours depuis plus de 2h"):
                 try:
                     from datetime import timedelta
-                    cutoff_time = datetime.utcnow() - timedelta(hours=2)
+                    cutoff_time = datetime.now(timezone.utc) - timedelta(hours=2)
                     stuck_jobs = db.query(DataCollectionJob).filter(
                         DataCollectionJob.status.in_([JobStatus.PENDING, JobStatus.RUNNING]),
                         DataCollectionJob.started_at < cutoff_time
@@ -1239,7 +1239,7 @@ def jobs_monitoring_page():
                     count = 0
                     for job in stuck_jobs:
                         job.status = JobStatus.CANCELLED
-                        job.completed_at = datetime.utcnow()
+                        job.completed_at = datetime.now(timezone.utc)
                         job.error_message = "Job bloqué - annulé automatiquement"
                         count += 1
                     
