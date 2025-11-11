@@ -151,7 +151,7 @@ class OrderManager:
             order_id = order.id
             order_status = order.status.value
             
-            logger.info(f"Step 5: Closing database session...")
+            logger.info("Step 5: Closing database session...")
             self._close_db()
             
             logger.info(f"=== CREATE ORDER COMPLETE: Order {order_id}, Status={order_status} ===")
@@ -199,7 +199,7 @@ class OrderManager:
                 return False
             
             logger.info(f"Step 4a OK: Contract created: {contract.symbol} on {contract.exchange} (currency: {contract.currency})")
-            logger.info(f"Step 4b: Creating IBKR order object...")
+            logger.info("Step 4b: Creating IBKR order object...")
             
             # Create IBKR order object
             ib_order = self._create_ib_order(order)
@@ -212,13 +212,13 @@ class OrderManager:
                 return False
             
             logger.info(f"Step 4b OK: IBKR order object created (type={order.order_type})")
-            logger.info(f"Step 4c: Placing order with IBKR...")
+            logger.info("Step 4c: Placing order with IBKR...")
             
             # Place order (IBKR will qualify the contract automatically)
             trade = self.ibkr_collector.ib.placeOrder(contract, ib_order)
             
             logger.info(f"Step 4c OK: placeOrder() returned, trade: {trade}")
-            logger.info(f"Step 4e: Updating order with IBKR IDs...")
+            logger.info("Step 4e: Updating order with IBKR IDs...")
             
             # Get the actual IBKR orderId from trade object
             # IMPORTANT: trade.order.orderId is assigned by IBKR during placeOrder()
@@ -235,7 +235,7 @@ class OrderManager:
             
             logger.info(f"Step 4e: IBKR assigned orderId = {actual_order_id}")
             
-            logger.info(f"Step 4e: Committing order update to DB...")
+            logger.info("Step 4e: Committing order update to DB...")
             self.db.commit()
             
             logger.info(f"Step 4 COMPLETE: Order {order.id} submitted to IBKR with ID {actual_order_id}")
@@ -290,7 +290,7 @@ class OrderManager:
                 
                 # Check if filled in IBKR by verifying portfolio position
                 try:
-                    logger.info(f"[Monitor] Verifying fill by checking portfolio position...")
+                    logger.info("[Monitor] Verifying fill by checking portfolio position...")
                     positions = self.ibkr_collector.ib.positions()
                     
                     # Find our position
@@ -326,7 +326,7 @@ class OrderManager:
                             avg_price = 0
                     else:
                         # Fallback to fills() API
-                        logger.info(f"[Monitor] Position too small, trying fills() API")
+                        logger.info("[Monitor] Position too small, trying fills() API")
                         all_fills = self.ibkr_collector.ib.fills()
                     
                         matching_fills = [
@@ -407,7 +407,7 @@ class OrderManager:
             
             # Check if IBKR is still connected
             if not self.ibkr_collector.ib.isConnected():
-                logger.error(f"[Thread] IBKR not connected!")
+                logger.error("[Thread] IBKR not connected!")
                 order.status = OrderStatus.ERROR
                 order.status_message = "IBKR connection lost"
                 db.commit()
@@ -432,7 +432,7 @@ class OrderManager:
             
             logger.info(f"[Thread] Contract qualified: {contract}")
             
-            logger.info(f"[Thread] Creating IBKR order object...")
+            logger.info("[Thread] Creating IBKR order object...")
             
             # Create IBKR order
             ib_order = self._create_ib_order(order)
@@ -440,7 +440,7 @@ class OrderManager:
             logger.info(f"[Thread] IBKR order object creation completed, result: {ib_order is not None}")
             
             if not ib_order:
-                logger.error(f"[Thread] Could not create IBKR order object")
+                logger.error("[Thread] Could not create IBKR order object")
                 order.status = OrderStatus.ERROR
                 order.status_message = "Could not create IBKR order"
                 db.commit()
@@ -463,7 +463,7 @@ class OrderManager:
             db.commit()
             
             logger.info(f"[Thread] Order {order_id} successfully submitted to IBKR with ID {ib_order.orderId}")
-            logger.info(f"[Thread] Database updated successfully")
+            logger.info("[Thread] Database updated successfully")
             return True
             
         except Exception as e:

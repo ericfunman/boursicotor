@@ -398,7 +398,7 @@ class AutoTrader:
                 else:
                     session.failed_orders += 1
                     db.commit()
-                    logger.error(f"❌ Failed to create order")
+                    logger.error("❌ Failed to create order")
             
         finally:
             db.close()

@@ -1111,7 +1111,7 @@ def data_collection_page():
                 data = query.order_by(HistoricalData.timestamp.asc()).all()
                 
                 if not data:
-                    st.warning(f"⚠️ Aucune donnée disponible pour la période sélectionnée")
+                    st.warning("⚠️ Aucune donnée disponible pour la période sélectionnée")
                 else:
                     # Convert to DataFrame
                     df = pd.DataFrame([{
@@ -1331,7 +1331,7 @@ def jobs_monitoring_page():
                                 duration = (job.completed_at - job.started_at).total_seconds()
                                 st.markdown(f"**Temps écoulé:** {duration:.1f}s")
                         
-                        st.markdown(f"**Résultats:**")
+                        st.markdown("**Résultats:**")
                         col3, col4, col5 = st.columns(3)
                         with col3:
                             st.metric("Nouveaux", job.records_new or 0)
@@ -1838,7 +1838,7 @@ def backtesting_page():
                 max_value=5.0,
                 value=0.09,
                 step=0.01,
-                format="%.2f",
+                format="%.2",
                 help="Commission par trade (achat + vente)"
             )
         
@@ -2165,7 +2165,7 @@ def backtesting_page():
                 best_strategy.name = strategy_name
                 try:
                     with st.spinner(f"Sauvegarde de '{strategy_name}'..."):
-                        logger.info(f"Calling StrategyManager.save_strategy...")
+                        logger.info("Calling StrategyManager.save_strategy...")
                         strategy_id = StrategyManager.save_strategy(best_strategy, best_result)
                         logger.info(f"Save returned ID: {strategy_id}")
                     
@@ -2254,13 +2254,13 @@ def backtesting_page():
                     # Actions
                     col_a, col_b = st.columns(2)
                     with col_a:
-                        if st.button(f"📊 Voir backtests", key=f"view_{strat['id']}"):
+                        if st.button("📊 Voir backtests", key=f"view_{strat['id']}"):
                             backtests = StrategyManager.get_strategy_backtests(strat['id'])
                             if backtests:
                                 st.dataframe(pd.DataFrame(backtests), width='stretch')
                     
                     with col_b:
-                        if st.button(f"🗑️ Supprimer", key=f"delete_{strat['id']}", type="secondary"):
+                        if st.button("🗑️ Supprimer", key=f"delete_{strat['id']}", type="secondary"):
                             try:
                                 if StrategyManager.delete_strategy(strat['id']):
                                     st.success(f"✅ Stratégie '{strat['name']}' supprimée avec succès")
@@ -2415,7 +2415,7 @@ def backtesting_page():
                                     
                                     if original_strategy:
                                         # Create new strategy with updated description
-                                        new_description = f"""Stratégie dérivée de '{selected_strategy_name}'
+                                        new_description = """Stratégie dérivée de '{selected_strategy_name}'
                                         
 📊 Résultats originaux ({original_strategy.description.split('(')[1].split(')')[0] if '(' in original_strategy.description else 'N/A'}):
 {original_strategy.description}
@@ -2890,7 +2890,7 @@ def live_prices_page():
                     signal = f"Calcul... ({len(st.session_state.live_data['price'])}/50 points)"
                     signal_color = "orange"
             else:
-                signal = f"En attente de données..."
+                signal = "En attente de données..."
                 signal_color = "orange"
             
             # Create line chart - ALWAYS, even if no data yet
@@ -3242,7 +3242,7 @@ def trading_page():
             
             limit_price = None
             if order_type == "Limit":
-                limit_price = st.number_input("Prix limite", min_value=0.01, value=10.00, step=0.01, format="%.2f")
+                limit_price = st.number_input("Prix limite", min_value=0.01, value=10.00, step=0.01, format="%.2")
             
             # Submit order button
             if st.button("📤 Envoyer l'ordre", type="primary", width='stretch'):
@@ -3600,7 +3600,7 @@ def order_placement_page():
                         min_value=0.01,
                         value=10.00,
                         step=0.01,
-                        format="%.2f",
+                        format="%.2",
                         help="Prix maximum (achat) ou minimum (vente)"
                     )
                 
@@ -3610,7 +3610,7 @@ def order_placement_page():
                         min_value=0.01,
                         value=9.50,
                         step=0.01,
-                        format="%.2f",
+                        format="%.2",
                         help="Prix de déclenchement de l'ordre"
                     )
                 
@@ -3876,7 +3876,7 @@ def order_placement_page():
                             
                             action_color = 'green' if order.action == 'BUY' else 'red'
                             
-                            st.markdown(f"""
+                            st.markdown("""
                             <div style="padding: 8px; background-color: rgba(0,0,0,0.05); border-radius: 5px; margin-bottom: 5px;">
                                 <strong>#{order.id}</strong> | 
                                 <strong style="color: {action_color};">{order.action}</strong> 
@@ -4627,7 +4627,7 @@ def auto_trading_page():
                                     st.rerun()
                             
                             with col_btn2:
-                                if st.button(f"📊 Voir Ordres", key=f"orders_{session['id']}", width='stretch'):
+                                if st.button("📊 Voir Ordres", key=f"orders_{session['id']}", width='stretch'):
                                     st.info("Consultez l'onglet 'Passage d'Ordres' pour voir tous les ordres")
             
             # Auto-refresh logic
@@ -4653,7 +4653,7 @@ def auto_trading_page():
                         'Action': session['ticker'],
                         'Stratégie': session['strategy'],
                         'Statut': session['status'],
-                        'Actif': '✅' if session['is_active'] else '❌',
+                        'Acti': '✅' if session['is_active'] else '❌',
                         'Position': session['current_position'],
                         'Ordres': session['total_orders'],
                         'P&L (€)': f"{session['total_pnl']:.2f}",

@@ -1205,10 +1205,10 @@ class IBKRCollector:
                         new_coverage = self.get_data_coverage(symbol, interval, start_date, end_date)
                         
                         if new_coverage['is_complete']:
-                            logger.info(f"✅ Complete coverage achieved through aggregation!")
+                            logger.info("✅ Complete coverage achieved through aggregation!")
                             return result
                         else:
-                            logger.info(f"⚠️ Partial coverage from aggregation, will fill remaining gaps from IBKR")
+                            logger.info("⚠️ Partial coverage from aggregation, will fill remaining gaps from IBKR")
                             coverage = new_coverage  # Update coverage for gap filling
             
             # STEP 3: Identify missing ranges that need IBKR queries

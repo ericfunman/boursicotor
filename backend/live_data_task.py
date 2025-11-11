@@ -65,7 +65,7 @@ def stream_live_data_continuous(self, symbol: str, duration: int = 300):
         use_portfolio_fallback = False
         
         # Initial wait to let IBKR send delayed data (longer for delayed data)
-        logger.info(f"[Stream] Waiting for market data to arrive (delayed data may take 2-5 seconds)...")
+        logger.info("[Stream] Waiting for market data to arrive (delayed data may take 2-5 seconds)...")
         wait_count = 0
         for _ in range(15):  # Wait up to 7.5 seconds for delayed data
             if ticker_data.last > 0 or ticker_data.close > 0:
