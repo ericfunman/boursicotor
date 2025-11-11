@@ -297,25 +297,36 @@ class DataCollector:
     def _generate_mock_data(self, symbol: str, duration: str, bar_size: str, ticker: Ticker) -> int:
         """Generate mock historical data for testing when IBKR is not available"""
         import numpy as np
+        import re
         
         logger.info(f"Generating mock data for {symbol}")
         
-        # Parse duration (simplified)
+        # Parse duration (simplified) - extract number and unit
         days = 1
-        if 'D' in duration:
-            days = int(duration.split()[0])
-        elif 'W' in duration:
-            days = int(duration.split()[0]) * 7
-        elif 'M' in duration:
-            days = int(duration.split()[0]) * 30
+        match = re.match(r'(\d+)([DMW])', duration)
+        if match:
+            num, unit = int(match.group(1)), match.group(2)
+            if unit == 'D':
+                days = num
+            elif unit == 'W':
+                days = num * 7
+            elif unit == 'M':
+                days = num * 30
         
-        # Parse bar size
-        if 'min' in bar_size:
-            minutes = int(bar_size.split()[0])
-            periods = (days * 24 * 60) // minutes
-        else:
-            # Default to hourly data
-            periods = days * 24
+        # Parse bar size - extract number and unit
+        minutes = 1
+        match_bar = re.match(r'(\d+)(min|h|d)', bar_size)
+        if match_bar:
+            num, unit = int(match_bar.group(1)), match_bar.group(2)
+            if unit == 'min':
+                minutes = num
+            elif unit == 'h':
+                minutes = num * 60
+            elif unit == 'd':
+                minutes = num * 24 * 60
+        
+        # Calculate periods
+        periods = (days * 24 * 60) // minutes
         
         # Generate timestamps
         end_time = datetime.now()
