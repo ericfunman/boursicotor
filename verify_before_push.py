@@ -48,6 +48,9 @@ def main():
     
     print("\n✅ All checks passed!")
     print("🚀 Ready to push to GitHub")
+    print("\n📌 After push, check GitHub Actions:")
+    print("   https://github.com/ericfunman/boursicotor/actions")
+    print("   (may take 1-2 minutes to complete)")
     return 0
 
 if __name__ == "__main__":

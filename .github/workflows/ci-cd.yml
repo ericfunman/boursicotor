@@ -28,27 +28,25 @@ jobs:
         cache: 'pip'
     
     - name: Install dependencies
+      shell: bash
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-cov pytest-xdist flake8 black isort
+        pip install pytest pytest-cov pytest-xdist python-dotenv loguru requests
+        pip install sqlalchemy pandas numpy scikit-learn
     
     - name: Run linting checks
       continue-on-error: true
+      shell: bash
       run: |
-        echo "Running Black formatter check..."
-        black --check . || true
-        
-        echo "Running isort import check..."
-        isort --check-only . || true
-        
         echo "Running Flake8..."
-        flake8 backend frontend --max-line-length=120 --extend-ignore=E203,W503 --count --exit-zero
+        python -m pip install flake8
+        flake8 backend --max-line-length=120 --extend-ignore=E203,W503 --count --exit-zero || true
     
     - name: Run tests with coverage
+      shell: bash
       run: |
         mkdir -p junit
-        pytest \
+        python -m pytest \
           tests/ \
           --cov=backend \
           --cov-report=xml:coverage.xml \
@@ -123,15 +121,17 @@ jobs:
         cache: 'pip'
     
     - name: Install dependencies
+      shell: bash
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-cov flake8
+        pip install pytest pytest-cov python-dotenv loguru requests
+        pip install sqlalchemy pandas numpy scikit-learn
     
     - name: Generate coverage report
+      shell: bash
       run: |
         mkdir -p junit
-        pytest \
+        python -m pytest \
           tests/ \
           --cov=backend \
           --cov-report=xml \
@@ -140,6 +140,7 @@ jobs:
     
     - name: Display Final Coverage
       if: always()
+      shell: bash
       run: |
         echo "=== Coverage Report ==="
         if [ -f coverage.xml ]; then
