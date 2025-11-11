@@ -145,13 +145,7 @@ jobs:
       run: |
         echo "=== Coverage Report ==="
         if [ -f coverage.xml ]; then
-          python -c "
-import xml.etree.ElementTree as ET
-root = ET.parse('coverage.xml').getroot()
-line_rate = root.get('line-rate', 'N/A')
-coverage_percent = float(line_rate) * 100 if line_rate != 'N/A' else 0
-print(f'Overall Coverage: {coverage_percent:.1f}%')
-"
+          python -c 'import xml.etree.ElementTree as ET; root = ET.parse("coverage.xml").getroot(); line_rate = root.get("line-rate", "N/A"); coverage_percent = float(line_rate) * 100 if line_rate != "N/A" else 0; print(f"Overall Coverage: {coverage_percent:.1f}%")'
         fi
     
     - name: SonarCloud Scan
