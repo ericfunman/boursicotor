@@ -116,7 +116,7 @@ jobs:
     - name: Generate coverage report
       shell: bash
       run: |
-        python -m pytest tests/test_security.py -v --tb=short --cov=backend --cov-report=xml --cov-report=term-missing 2>&1
+        python -m pytest tests/test_security.py tests/test_coverage_boost.py -v --tb=short --cov=backend --cov-report=xml --cov-report=term-missing 2>&1
     
     - name: Display Final Coverage
       if: always()
