@@ -5,11 +5,13 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 import pandas as pd
 from sqlalchemy.orm import Session
+from numpy.random import default_rng
 
 from backend.models import Ticker, HistoricalData, SessionLocal
 from backend.config import logger, DATA_CONFIG
-from numpy.random import Generator
-import numpy as np
+
+# Initialize random number generator
+_rng = default_rng()
 
 # IBKR client is optional - will use mock data if not available
 IBKR_AVAILABLE = False
@@ -326,17 +328,17 @@ class DataCollector:
         
         for i, timestamp in enumerate(timestamps):
             # Generate realistic price movements
-            change = np.random.normal(0, 0.02)  # Random walk with volatility
+            change = _rng.normal(0, 0.02)  # Random walk with volatility
             if i > 0:
                 base_price *= (1 + change)
             
             # Generate OHLC with some spread
             spread = base_price * 0.01  # 1% spread
-            open_price = base_price + np.random.uniform(-spread/2, spread/2)
-            high_price = open_price + abs(np.random.normal(0, spread/2))
-            low_price = open_price - abs(np.random.normal(0, spread/2))
-            close_price = np.random.uniform(low_price, high_price)
-            volume = np.random.randint(1000, 10000)
+            open_price = base_price + _rng.uniform(-spread/2, spread/2)
+            high_price = open_price + abs(_rng.normal(0, spread/2))
+            low_price = open_price - abs(_rng.normal(0, spread/2))
+            close_price = _rng.uniform(low_price, high_price)
+            volume = _rng.integers(1000, 10000)
             
             # Create historical data record
             hist_data = HistoricalData(

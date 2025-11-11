@@ -4,9 +4,11 @@ Technical indicators calculation using pandas and numpy
 import pandas as pd
 import numpy as np
 from typing import Optional
+from numpy.random import default_rng
 from backend.config import logger
-from numpy.random import Generator
-import numpy as np
+
+# Initialize random number generator
+_rng = default_rng()
 
 
 class TechnicalIndicators:
@@ -260,11 +262,11 @@ if __name__ == "__main__":
     dates = pd.date_range('2024-01-01', periods=100, freq='1min')
     df = pd.DataFrame({
         'timestamp': dates,
-        'open': np.random.randn(100).cumsum() + 100,
-        'high': np.random.randn(100).cumsum() + 102,
-        'low': np.random.randn(100).cumsum() + 98,
-        'close': np.random.randn(100).cumsum() + 100,
-        'volume': np.random.randint(1000, 10000, 100)
+        'open': _rng.standard_normal(100).cumsum() + 100,
+        'high': _rng.standard_normal(100).cumsum() + 102,
+        'low': _rng.standard_normal(100).cumsum() + 98,
+        'close': _rng.standard_normal(100).cumsum() + 100,
+        'volume': _rng.integers(1000, 10000, 100)
     })
     df.set_index('timestamp', inplace=True)
     
