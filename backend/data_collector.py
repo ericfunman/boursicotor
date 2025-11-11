@@ -391,13 +391,13 @@ class DataCollector:
             for av_symbol in av_symbols:
                 try:
                     if function == "TIME_SERIES_INTRADAY":
-                        data, meta_data = self.alpha_vantage_client.get_intraday(
+                        data, _ = self.alpha_vantage_client.get_intraday(
                             symbol=av_symbol, 
                             interval=interval, 
                             outputsize='full'
                         )
                     else:
-                        data, meta_data = self.alpha_vantage_client.get_daily(
+                        data, _ = self.alpha_vantage_client.get_daily(
                             symbol=av_symbol, 
                             outputsize='full'
                         )

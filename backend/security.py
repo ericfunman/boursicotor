@@ -297,7 +297,7 @@ def validate_startup() -> bool:
     
     try:
         # Validate credentials
-        manager = get_credential_manager()
+        _ = get_credential_manager()
         logger.info("✅ Credentials validated")
         
         # Check .env file permissions (if using local .env)

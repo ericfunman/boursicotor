@@ -198,7 +198,7 @@ class StrategyAdapter:
         """
         try:
             # Générer tous les signaux
-            signal_times, signal_prices, signal_types = StrategyAdapter.generate_signals(df, strategy)
+            signal_times, _, signal_types = StrategyAdapter.generate_signals(df, strategy)
             
             # Vérifier le dernier signal
             if signal_times and len(signal_times) > 0:

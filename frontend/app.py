@@ -1862,7 +1862,7 @@ def backtesting_page():
                 help="Temps minimum à attendre entre deux trades pour éviter le sur-trading"
             )
         
-        col5, col6 = st.columns(2)
+        col5, _ = st.columns(2)
         
         with col5:
             max_iterations = st.number_input(
@@ -2217,13 +2217,13 @@ def backtesting_page():
                 trades_df = pd.DataFrame(best_result.trades)
                 trades_df['entry_date'] = pd.to_datetime(trades_df['entry_date'])
                 trades_df['exit_date'] = pd.to_datetime(trades_df['exit_date'])
-                st.dataframe(trades_df, width='stretch')
+                st.dataframe(trades_df, use_container_width=True)
     
     with tab2:
         st.subheader("💾 Stratégies Sauvegardées")
         
         # Add refresh button
-        col_refresh1, col_refresh2 = st.columns([1, 5])
+        col_refresh1, _ = st.columns([1, 5])
         with col_refresh1:
             if st.button("🔄 Rafraîchir", key="refresh_strategies"):
                 st.rerun()
@@ -2709,9 +2709,6 @@ def live_prices_page():
                     logger.warning(f"[UI] Could not start Celery task: {e}")
                     st.session_state.live_task_id = None
             
-            # Non-blocking approach: Read latest data from Redis or IBKR
-            max_points = 200  # Keep last 200 points for better visualization
-            
             # Collect one data point from Redis or IBKR (non-blocking approach)
             current_price = None
             current_volume = None
@@ -2730,7 +2727,7 @@ def live_prices_page():
                         current_price = data_point.get('price')
                         current_volume = data_point.get('volume', 0)
                         current_time = datetime.fromisoformat(data_point.get('timestamp', datetime.now().isoformat()))
-                except Exception as redis_err:
+                except Exception:
                     redis_client = None
                 
                 # Fallback: Get from IBKR directly if Redis unavailable
@@ -2819,8 +2816,6 @@ def live_prices_page():
             
             # Calculate indicators for live data if enough points
             # (Always do this, even if no new price yet - keeps graph fresh)
-            buy_signals = []
-            sell_signals = []
             signal_times = []
             _ = []
             signal_types = []
@@ -3127,11 +3122,11 @@ def trading_page():
         
         with col_connect1:
             if not st.session_state.get('global_ibkr_connected', False):
-                if st.button("🔌 Connecter à IBKR", type="primary", width='stretch'):
+                if st.button("🔌 Connecter à IBKR", type="primary", use_container_width=True):
                     try:
                         with st.spinner("Connexion à IB Gateway..."):
                             # Use global IBKR connection from main()
-                            success, message = connect_global_ibkr()
+                            success, _ = connect_global_ibkr()
                             if success:
                                 st.success("✅ Connecté à IBKR!")
                                 st.rerun()
@@ -3354,7 +3349,6 @@ def trading_page():
                         order_id = trade.order.orderId
                         symbol = trade.contract.symbol
                         qty = trade.order.totalQuantity
-                        status = trade.orderStatus.status
                         
                         button_text = f"❌ Annuler\n{symbol} {qty}\n(#{order_id})"
                         
@@ -3654,8 +3648,7 @@ def order_placement_page():
                 col_submit1, col_submit2 = st.columns([2, 1])
                 
                 with col_submit1:
-                    if st.button("📤 Envoyer l'Ordre", type="primary", width="stretch"):
-                        error_occurred = False
+                    if st.button("📤 Envoyer l'Ordre", type="primary", use_container_width=True):
                         try:
                             # Debug: Vérifier que order_manager existe
                             order_manager = st.session_state.order_manager
@@ -3730,7 +3723,6 @@ def order_placement_page():
                                 st.warning("⚠️ Vérifiez les logs dans le terminal Streamlit pour plus de détails")
                         
                         except Exception as e:
-                            error_occurred = True
                             st.error(f"❌ Erreur: {e}")
                             import traceback
                             st.code(traceback.format_exc())
@@ -3881,15 +3873,6 @@ def order_placement_page():
                         
                         with col_info:
                             # Display order info in a nice format
-                            status_emoji = {
-                                'pending': '⏳',
-                                'submitted': '📤',
-                                'filled': '✅',
-                                'cancelled': '❌',
-                                'error': '🚨'
-                            }.get(order.status.value, '❓')
-                            
-                            action_color = 'green' if order.action == 'BUY' else 'red'
                             
                             st.markdown("""
                             <div style="padding: 8px; background-color: rgba(0,0,0,0.05); border-radius: 5px; margin-bottom: 5px;">
@@ -3980,8 +3963,8 @@ def order_placement_page():
             
             # Clean old stuck orders button
             st.markdown("---")
-            col_clean1, col_clean2 = st.columns([3, 1])
-            with col_clean2:
+            _ = st.columns([3, 1])
+            with _[1]:
                 if st.button("🧹 Nettoyer ordres bloqués", help="Marque les ordres submitted de plus de 1 jour comme 'CANCELLED'"):
                     db = SessionLocal()
                     try:
@@ -4032,12 +4015,6 @@ def order_placement_page():
                     for order in orders:
                         ticker = db.query(Ticker).filter(Ticker.id == order.ticker_id).first()
                         strategy = db.query(Strategy).filter(Strategy.id == order.strategy_id).first() if order.strategy_id else None
-                        
-                        # Calculate P&L for filled orders
-                        pnl_str = '-'
-                        if order.status == OrderStatus.FILLED and order.avg_fill_price:
-                            # This is simplified - real P&L needs matching buy/sell orders
-                            pnl_str = f"{order.avg_fill_price * order.filled_quantity:.2f} €"
                         
                         orders_data.append({
                             'ID': order.id,
