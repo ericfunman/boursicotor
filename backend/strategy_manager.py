@@ -22,6 +22,57 @@ class StrategyManager:
     """Gestionnaire de stratégies"""
     
     @staticmethod
+    @staticmethod
+    def _convert_numpy_types(obj):
+        """Convert numpy types to Python native types"""
+        import numpy as np
+        if isinstance(obj, dict):
+            return {k: StrategyManager._convert_numpy_types(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [StrategyManager._convert_numpy_types(item) for item in obj]
+        elif isinstance(obj, (np.integer, np.int64, np.int32, np.int16, np.int8)):
+            return int(obj)
+        elif isinstance(obj, (np.floating, np.float64, np.float32, np.float16)):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, np.bool_):
+            return bool(obj)
+        else:
+            return obj
+    
+    @staticmethod
+    def _get_strategy_type(strategy: Strategy) -> str:
+        """Determine strategy type from class name"""
+        strategy_type = strategy.__class__.__name__
+        type_map = {
+            "MovingAverageCrossover": "MA",
+            "RSIStrategy": "RSI",
+            "MultiIndicatorStrategy": "Multi",
+            "EnhancedMovingAverageStrategy": "EnhancedMA"
+        }
+        return type_map.get(strategy_type, strategy_type)
+    
+    @staticmethod
+    def _create_strategy_model(strategy: Strategy, backtest_result: BacktestResult) -> StrategyModel:
+        """Create a new strategy database model"""
+        strategy_type = StrategyManager._get_strategy_type(strategy)
+        logger.info(f"Creating new strategy with type: {strategy_type}")
+        
+        clean_parameters = StrategyManager._convert_numpy_types(strategy.parameters)
+        
+        # Use custom description if provided, otherwise create default one
+        description = strategy.description if hasattr(strategy, 'description') and strategy.description else f"Strategy with {backtest_result.total_return:.2f}% return on {backtest_result.symbol}"
+        
+        return StrategyModel(
+            name=strategy.name,
+            description=description,
+            strategy_type=strategy_type,
+            parameters=json.dumps(clean_parameters),
+            is_active=True
+        )
+    
+    @staticmethod
     def save_strategy(strategy: Strategy, backtest_result: BacktestResult) -> Optional[int]:
         """
         Sauvegarde une stratégie et son résultat de backtest
@@ -48,51 +99,7 @@ class StrategyManager:
                 logger.info(f"Strategy {strategy.name} already exists, updating...")
                 strategy_db = existing
             else:
-                # Create new strategy
-                # Determine strategy type from class name
-                strategy_type = strategy.__class__.__name__
-                if strategy_type == "MovingAverageCrossover":
-                    strategy_type = "MA"
-                elif strategy_type == "RSIStrategy":
-                    strategy_type = "RSI"
-                elif strategy_type == "MultiIndicatorStrategy":
-                    strategy_type = "Multi"
-                elif strategy_type == "EnhancedMovingAverageStrategy":
-                    strategy_type = "EnhancedMA"
-                
-                logger.info(f"Creating new strategy with type: {strategy_type}")
-                
-                # Convert numpy types to native Python types for JSON serialization
-                def convert_numpy_types(obj):
-                    """Convert numpy types to Python native types"""
-                    import numpy as np
-                    if isinstance(obj, dict):
-                        return {k: convert_numpy_types(v) for k, v in obj.items()}
-                    elif isinstance(obj, (list, tuple)):
-                        return [convert_numpy_types(item) for item in obj]
-                    elif isinstance(obj, (np.integer, np.int64, np.int32, np.int16, np.int8)):
-                        return int(obj)
-                    elif isinstance(obj, (np.floating, np.float64, np.float32, np.float16)):
-                        return float(obj)
-                    elif isinstance(obj, np.ndarray):
-                        return obj.tolist()
-                    elif isinstance(obj, np.bool_):
-                        return bool(obj)
-                    else:
-                        return obj
-                
-                clean_parameters = convert_numpy_types(strategy.parameters)
-                
-                # Use custom description if provided, otherwise create default one
-                description = strategy.description if hasattr(strategy, 'description') and strategy.description else f"Strategy with {backtest_result.total_return:.2f}% return on {backtest_result.symbol}"
-                
-                strategy_db = StrategyModel(
-                    name=strategy.name,
-                    description=description,
-                    strategy_type=strategy_type,
-                    parameters=json.dumps(clean_parameters),
-                    is_active=True
-                )
+                strategy_db = StrategyManager._create_strategy_model(strategy, backtest_result)
                 db.add(strategy_db)
                 db.flush()  # Get the ID
                 logger.info(f"Strategy created with ID: {strategy_db.id}, name: {strategy.name}")
@@ -141,6 +148,33 @@ class StrategyManager:
             db.close()
     
     @staticmethod
+    def _instantiate_strategy(strategy_type: str, parameters: dict) -> Optional[Strategy]:
+        """Instantiate strategy object based on type"""
+        strategy_map = {
+            'MovingAverageCrossover': MovingAverageCrossover,
+            'MA': MovingAverageCrossover,
+            'RSIStrategy': RSIStrategy,
+            'RSI': RSIStrategy,
+            'MultiIndicatorStrategy': MultiIndicatorStrategy,
+            'Multi': MultiIndicatorStrategy,
+            'AdvancedMultiIndicatorStrategy': AdvancedMultiIndicatorStrategy,
+            'MomentumBreakoutStrategy': MomentumBreakoutStrategy,
+            'MeanReversionStrategy': MeanReversionStrategy,
+            'UltraAggressiveStrategy': UltraAggressiveStrategy,
+            'MegaIndicatorStrategy': MegaIndicatorStrategy,
+            'HyperAggressiveStrategy': HyperAggressiveStrategy,
+            'UltimateStrategy': UltimateStrategy,
+            'EnhancedMA': EnhancedMovingAverageStrategy
+        }
+        
+        strategy_class = strategy_map.get(strategy_type)
+        if not strategy_class:
+            logger.error(f"Unknown strategy type: {strategy_type}")
+            return None
+        
+        return strategy_class(**parameters)
+    
+    @staticmethod
     def load_strategy(strategy_id: int) -> Optional[Strategy]:
         """
         Charge une stratégie depuis la base de données
@@ -164,33 +198,11 @@ class StrategyManager:
             strategy_type = strategy_db.strategy_type
             
             # Create strategy based on type
-            if strategy_type == 'MovingAverageCrossover' or strategy_type == 'MA':
-                strategy = MovingAverageCrossover(**parameters)
-            elif strategy_type == 'RSIStrategy' or strategy_type == 'RSI':
-                strategy = RSIStrategy(**parameters)
-            elif strategy_type == 'MultiIndicatorStrategy' or strategy_type == 'Multi':
-                strategy = MultiIndicatorStrategy(**parameters)
-            elif strategy_type == 'AdvancedMultiIndicatorStrategy':
-                strategy = AdvancedMultiIndicatorStrategy(**parameters)
-            elif strategy_type == 'MomentumBreakoutStrategy':
-                strategy = MomentumBreakoutStrategy(**parameters)
-            elif strategy_type == 'MeanReversionStrategy':
-                strategy = MeanReversionStrategy(**parameters)
-            elif strategy_type == 'UltraAggressiveStrategy':
-                strategy = UltraAggressiveStrategy(**parameters)
-            elif strategy_type == 'MegaIndicatorStrategy':
-                strategy = MegaIndicatorStrategy(**parameters)
-            elif strategy_type == 'HyperAggressiveStrategy':
-                strategy = HyperAggressiveStrategy(**parameters)
-            elif strategy_type == 'UltimateStrategy':
-                strategy = UltimateStrategy(**parameters)
-            elif strategy_type == 'EnhancedMA':
-                strategy = EnhancedMovingAverageStrategy(**parameters)
-            else:
-                logger.error(f"Unknown strategy type: {strategy_type}")
-                return None
+            strategy = StrategyManager._instantiate_strategy(strategy_type, parameters)
             
-            logger.info(f"✅ Strategy loaded: {strategy.name}")
+            if strategy:
+                logger.info(f"✅ Strategy loaded: {strategy.name}")
+            
             return strategy
             
         except Exception as e:
