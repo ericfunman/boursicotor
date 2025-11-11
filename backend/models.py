@@ -4,7 +4,7 @@ Database models and connection management
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Text, Index, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
 from backend.config import DATABASE_URL, logger
 from backend.constants import FK_TICKERS_ID, FK_STRATEGIES_ID
@@ -36,7 +36,7 @@ def format_datetime_paris(dt: datetime, fmt: str = '%Y-%m-%d %H:%M:%S') -> str:
     
     # Force interpretation as UTC if naive (don't rely on tzinfo)
     if dt.tzinfo is None:
-        dt = UTC_TZ.localize(dt)
+        dt = dt.replace(tzinfo=UTC_TZ)
     
     # Always convert to Paris time
     paris_dt = dt.astimezone(PARIS_TZ)
