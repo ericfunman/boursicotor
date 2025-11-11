@@ -8,7 +8,7 @@ from numpy.random import default_rng
 from backend.config import logger
 
 # Initialize random number generator
-_rng = default_rng()
+_rng = default_rng(seed=42)
 
 
 class TechnicalIndicators:

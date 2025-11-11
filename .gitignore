@@ -76,6 +76,19 @@ data/
 .pytest_cache/
 .coverage
 htmlcov/
+coverage.xml
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Temporary analysis/fix scripts (for development only)
+analyze_issues_detail.py
+fix_frontend_random.py
+fix_remaining_issues.py
+fix_s6903_datetime.py
+improved_step_fixer.py
+safe_step_by_step_fixer.py
+pragmatic_sonar_fixer.py
+ultimate_sonar_fixer.py
+sonar_secure_loop.py
+fetch_and_fix_sonar_issues.py

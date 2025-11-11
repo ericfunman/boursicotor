@@ -4,6 +4,8 @@ Main Streamlit application for Boursicotor
 import streamlit as st
 import pandas as pd
 import numpy as np
+from numpy.random import default_rng
+_rng_frontend = default_rng()
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
@@ -1984,69 +1986,69 @@ def backtesting_page():
                             progress_bar.progress(progress)
                             
                             # Generate random strategy - Include EnhancedMA
-                            strategy_type = np.random.choice(['ma', 'rsi', 'multi', 'enhanced'])
+                            strategy_type = _rng_frontend.choice(['ma', 'rsi', 'multi', 'enhanced'])
                             
                             if strategy_type == 'ma':
                                 from backend.backtesting_engine import MovingAverageCrossover
-                                fast = np.random.randint(5, 20)
-                                slow = np.random.randint(fast + 5, 50)
+                                fast = _rng_frontend.integers(5, 20)
+                                slow = _rng_frontend.integers(fast + 5, 50)
                                 strategy = MovingAverageCrossover(fast_period=fast, slow_period=slow)
                             elif strategy_type == 'rsi':
                                 from backend.backtesting_engine import RSIStrategy
-                                period = np.random.randint(10, 20)
-                                oversold = np.random.randint(20, 35)
-                                overbought = np.random.randint(65, 80)
+                                period = _rng_frontend.integers(10, 20)
+                                oversold = _rng_frontend.integers(20, 35)
+                                overbought = _rng_frontend.integers(65, 80)
                                 strategy = RSIStrategy(rsi_period=period, oversold=oversold, overbought=overbought)
                             elif strategy_type == 'multi':
                                 from backend.backtesting_engine import MultiIndicatorStrategy
                                 strategy = MultiIndicatorStrategy(
-                                    ma_fast=np.random.randint(5, 15),
-                                    ma_slow=np.random.randint(20, 40),
-                                    rsi_period=np.random.randint(10, 20),
-                                    rsi_oversold=np.random.randint(20, 35),
-                                    rsi_overbought=np.random.randint(65, 80)
+                                    ma_fast=_rng_frontend.integers(5, 15),
+                                    ma_slow=_rng_frontend.integers(20, 40),
+                                    rsi_period=_rng_frontend.integers(10, 20),
+                                    rsi_oversold=_rng_frontend.integers(20, 35),
+                                    rsi_overbought=_rng_frontend.integers(65, 80)
                                 )
                             else:  # enhanced
                                 from backend.backtesting_engine import EnhancedMovingAverageStrategy
                                 
                                     # Randomly decide which ultra-complex indicators to use
-                                use_supertrend = np.random.choice([True, False])
-                                use_parabolic_sar = np.random.choice([True, False])
-                                use_donchian = np.random.choice([True, False])
-                                use_vwap = np.random.choice([True, False])
-                                use_obv = np.random.choice([True, False])
-                                use_cmf = np.random.choice([True, False])
-                                use_elder_ray = np.random.choice([True, False])
+                                use_supertrend = _rng_frontend.choice([True, False])
+                                use_parabolic_sar = _rng_frontend.choice([True, False])
+                                use_donchian = _rng_frontend.choice([True, False])
+                                use_vwap = _rng_frontend.choice([True, False])
+                                use_obv = _rng_frontend.choice([True, False])
+                                use_cmf = _rng_frontend.choice([True, False])
+                                use_elder_ray = _rng_frontend.choice([True, False])
                                 
                                 strategy = EnhancedMovingAverageStrategy(
-                                    fast_period=np.random.randint(15, 25),
-                                    slow_period=np.random.randint(35, 50),
-                                    roc_period=np.random.choice([10, 14]),
-                                    roc_threshold=np.random.uniform(1.0, 4.0),
-                                    adx_period=np.random.choice([14, 20]),
-                                    adx_threshold=np.random.randint(20, 35),
-                                    volume_ratio_short=np.random.choice([3, 5, 10]),
-                                    volume_ratio_long=np.random.choice([15, 20, 30]),
-                                    volume_threshold=np.random.uniform(1.1, 1.5),
-                                    momentum_period=np.random.choice([10, 14]),
-                                    momentum_threshold=np.random.uniform(0.5, 2.0),
-                                    bb_period=np.random.choice([20, 25]),
-                                    bb_width_threshold=np.random.uniform(0.03, 0.08),
+                                    fast_period=_rng_frontend.integers(15, 25),
+                                    slow_period=_rng_frontend.integers(35, 50),
+                                    roc_period=_rng_frontend.choice([10, 14]),
+                                    roc_threshold=_rng_frontend.uniform(1.0, 4.0),
+                                    adx_period=_rng_frontend.choice([14, 20]),
+                                    adx_threshold=_rng_frontend.integers(20, 35),
+                                    volume_ratio_short=_rng_frontend.choice([3, 5, 10]),
+                                    volume_ratio_long=_rng_frontend.choice([15, 20, 30]),
+                                    volume_threshold=_rng_frontend.uniform(1.1, 1.5),
+                                    momentum_period=_rng_frontend.choice([10, 14]),
+                                    momentum_threshold=_rng_frontend.uniform(0.5, 2.0),
+                                    bb_period=_rng_frontend.choice([20, 25]),
+                                    bb_width_threshold=_rng_frontend.uniform(0.03, 0.08),
                                     use_supertrend=use_supertrend,
-                                    supertrend_period=np.random.choice([10, 14, 20]) if use_supertrend else 10,
-                                    supertrend_multiplier=np.random.uniform(2.0, 4.0) if use_supertrend else 3.0,
+                                    supertrend_period=_rng_frontend.choice([10, 14, 20]) if use_supertrend else 10,
+                                    supertrend_multiplier=_rng_frontend.uniform(2.0, 4.0) if use_supertrend else 3.0,
                                     use_parabolic_sar=use_parabolic_sar,
                                     use_donchian=use_donchian,
-                                    donchian_period=np.random.choice([20, 30, 40]) if use_donchian else 20,
-                                    donchian_threshold=np.random.uniform(0.02, 0.06) if use_donchian else 0.04,
+                                    donchian_period=_rng_frontend.choice([20, 30, 40]) if use_donchian else 20,
+                                    donchian_threshold=_rng_frontend.uniform(0.02, 0.06) if use_donchian else 0.04,
                                     use_vwap=use_vwap,
                                     use_obv=use_obv,
                                     use_cmf=use_cmf,
-                                    cmf_period=np.random.choice([14, 20, 21]) if use_cmf else 20,
-                                    cmf_threshold=np.random.uniform(0.0, 0.15) if use_cmf else 0.05,
+                                    cmf_period=_rng_frontend.choice([14, 20, 21]) if use_cmf else 20,
+                                    cmf_threshold=_rng_frontend.uniform(0.0, 0.15) if use_cmf else 0.05,
                                     use_elder_ray=use_elder_ray,
-                                    elder_ray_period=np.random.choice([13, 21, 34]) if use_elder_ray else 13,
-                                    min_signals=np.random.randint(2, 6)
+                                    elder_ray_period=_rng_frontend.choice([13, 21, 34]) if use_elder_ray else 13,
+                                    min_signals=_rng_frontend.integers(2, 6)
                                 )
                             
                             # Run backtest with custom commission

@@ -11,7 +11,7 @@ from backend.models import Ticker, HistoricalData, SessionLocal
 from backend.config import logger, DATA_CONFIG
 
 # Initialize random number generator
-_rng = default_rng()
+_rng = default_rng(seed=42)
 
 # IBKR client is optional - will use mock data if not available
 IBKR_AVAILABLE = False

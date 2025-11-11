@@ -9,7 +9,7 @@ from backend.models import SessionLocal, HistoricalData, Ticker as TickerModel
 from sqlalchemy import and_
 
 # Initialize random number generator
-_rng = default_rng()
+_rng = default_rng(seed=42)
 
 
 class DataInterpolator:

@@ -2,7 +2,7 @@
 Job management service for data collection
 """
 from typing import List, Optional, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 import subprocess
 import platform
@@ -91,7 +91,7 @@ class JobManager:
                 status=JobStatus.PENDING,
                 progress=0,
                 created_by=created_by,
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
             
             db.add(job)
@@ -247,7 +247,7 @@ class JobManager:
             # Update job status
             job.status = JobStatus.CANCELLED
             job.current_step = "Cancelled by user"
-            job.completed_at = datetime.utcnow()
+            job.completed_at = datetime.now(timezone.utc)
             job.progress = 0
             
             # Retry on database lock
