@@ -4485,14 +4485,12 @@ def auto_trading_page():
                                 # Calculate indicators for visualization
                                 try:
                                     # Try to import strategy runner, but it's optional
-                                    try:
-                                        from backend.strategy_runner import StrategyRunner
-                                        runner = StrategyRunner()
-                                        use_indicators = True
-                                    except (ImportError, ModuleNotFoundError):
-                                        use_indicators = False
-                                    
-                                    if use_indicators:
+                                try:
+                                    from backend.strategy_runner import StrategyRunner
+                                    runner = StrategyRunner()
+                                    use_indicators = True
+                                except ImportError:
+                                    use_indicators = False                                    if use_indicators:
                                         buffer_df_copy = buffer_df.copy()
                                         buffer_df_copy['date'] = buffer_df_copy['timestamp']
                                         buffer_df_copy = buffer_df_copy.set_index('date')

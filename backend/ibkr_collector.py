@@ -295,9 +295,8 @@ class IBKRCollector:
             DataFrame with OHLCV data or None
         """
         try:
-            if not self.connected:
-                if not self.connect():
-                    return None
+            if not self.connected and not self.connect():
+                return None
             
             # Get contract
             contract = self.get_contract(symbol, exchange, currency)
@@ -1491,9 +1490,8 @@ class IBKRCollector:
             Dict with account information or None
         """
         try:
-            if not self.connected:
-                if not self.connect():
-                    return None
+            if not self.connected and not self.connect():
+                return None
             
             # Get account summary
             summary = self.ib.accountSummary()
@@ -1519,9 +1517,8 @@ class IBKRCollector:
             List of positions
         """
         try:
-            if not self.connected:
-                if not self.connect():
-                    return []
+            if not self.connected and not self.connect():
+                return []
             
             positions = self.ib.positions()
             
