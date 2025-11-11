@@ -60,3 +60,10 @@ ERROR_TIMEOUT = "Operation timeout"
 ERROR_AUTHENTICATION = "Authentication failed"
 ERROR_NOT_FOUND = "Resource not found"
 ERROR_PERMISSION_DENIED = "Permission denied"
+
+# Database foreign keys (S1192)
+FK_TICKERS_ID = "tickers.id"
+FK_STRATEGIES_ID = "strategies.id"
+
+# IBKR connection messages (S1192)
+MSG_IBKR_NOT_CONNECTED = "❌ Pas connecté à IBKR"

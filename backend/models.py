@@ -7,7 +7,10 @@ from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 import enum
 from backend.config import DATABASE_URL, logger
+from backend.constants import FK_TICKERS_ID, FK_STRATEGIES_ID
 from zoneinfo import ZoneInfo
+
+from typing import Optional
 
 Base = declarative_base()
 
@@ -15,7 +18,7 @@ Base = declarative_base()
 PARIS_TZ = ZoneInfo('Europe/Paris')
 UTC_TZ = ZoneInfo('UTC')
 
-def datetime_paris(dt: datetime) -> datetime:
+def datetime_paris(dt: datetime) -> Optional[datetime]:
     """Convert UTC datetime to Europe/Paris timezone"""
     if dt is None:
         return None
@@ -154,7 +157,7 @@ class HistoricalData(Base):
     __tablename__ = "historical_data"
     
     id = Column(Integer, primary_key=True, index=True)
-    ticker_id = Column(Integer, ForeignKey("tickers.id"), nullable=False, index=True)
+    ticker_id = Column(Integer, ForeignKey(FK_TICKERS_ID), nullable=False, index=True)
     timestamp = Column(DateTime, nullable=False, index=True)
     open = Column(Float, nullable=False)
     high = Column(Float, nullable=False)
@@ -211,8 +214,8 @@ class Backtest(Base):
     __tablename__ = "backtests"
     
     id = Column(Integer, primary_key=True, index=True)
-    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=False, index=True)
-    ticker_id = Column(Integer, ForeignKey("tickers.id"), nullable=False)
+    strategy_id = Column(Integer, ForeignKey(FK_STRATEGIES_ID), nullable=False, index=True)
+    ticker_id = Column(Integer, ForeignKey(FK_TICKERS_ID), nullable=False)
     start_date = Column(DateTime, nullable=False)
     end_date = Column(DateTime, nullable=False)
     initial_capital = Column(Float, nullable=False)
@@ -256,8 +259,8 @@ class Order(Base):
     perm_id = Column(Integer)  # IBKR's permanent order ID
     
     # Order details
-    ticker_id = Column(Integer, ForeignKey("tickers.id"), nullable=False, index=True)
-    strategy_id = Column(Integer, ForeignKey("strategies.id"), index=True)
+    ticker_id = Column(Integer, ForeignKey(FK_TICKERS_ID), nullable=False, index=True)
+    strategy_id = Column(Integer, ForeignKey(FK_STRATEGIES_ID), index=True)
     
     # Order parameters
     action = Column(String(10), nullable=False)  # BUY, SELL
@@ -305,8 +308,8 @@ class Trade(Base):
     __tablename__ = "trades"
     
     id = Column(Integer, primary_key=True, index=True)
-    ticker_id = Column(Integer, ForeignKey("tickers.id"), nullable=False, index=True)
-    strategy_id = Column(Integer, ForeignKey("strategies.id"), index=True)
+    ticker_id = Column(Integer, ForeignKey(FK_TICKERS_ID), nullable=False, index=True)
+    strategy_id = Column(Integer, ForeignKey(FK_STRATEGIES_ID), index=True)
     order_type = Column(String(10), nullable=False)  # BUY, SELL
     quantity = Column(Integer, nullable=False)
     entry_price = Column(Float, nullable=False)
@@ -341,8 +344,8 @@ class AutoTraderSession(Base):
     __tablename__ = "auto_trader_sessions"
     
     id = Column(Integer, primary_key=True, index=True)
-    ticker_id = Column(Integer, ForeignKey("tickers.id"), nullable=False)
-    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=False)
+    ticker_id = Column(Integer, ForeignKey(FK_TICKERS_ID), nullable=False)
+    strategy_id = Column(Integer, ForeignKey(FK_STRATEGIES_ID), nullable=False)
     
     status = Column(Enum(AutoTraderStatus), default=AutoTraderStatus.STOPPED, nullable=False)
     

@@ -14,6 +14,14 @@ import sys
 import os
 from pathlib import Path
 
+# Import UI constants
+from frontend.constants import (
+    MENU_DASHBOARD, MENU_DATA_COLLECTION, MENU_TECHNICAL_ANALYSIS,
+    MENU_AUTO_TRADING, MENU_ORDER_PLACEMENT, MENU_SETTINGS,
+    BTN_REFRESH, ERROR_DETAILS, LABEL_QUANTITY, LABEL_PRICE_EUR,
+    HOVERMODE_X_UNIFIED
+)
+
 # Set timezone to Europe/Paris at startup
 os.environ['TZ'] = 'Europe/Paris'
 import time
@@ -226,9 +234,9 @@ def main():
         # Page selection
         page = st.radio(
             "Navigation",
-            ["📊 Dashboard", "💾 Collecte de Données", "📜 Historique des collectes",
-             "📈 Analyse Technique", "💹 Cours Live", "🔙 Backtesting",
-             "📚 Indicateurs", "📝 Passage d'Ordres", "🤖 Trading Automatique", "⚙️ Paramètres"]
+            [MENU_DASHBOARD, MENU_DATA_COLLECTION, "📜 Historique des collectes",
+             MENU_TECHNICAL_ANALYSIS, "💹 Cours Live", "🔙 Backtesting",
+             "📚 Indicateurs", MENU_ORDER_PLACEMENT, MENU_AUTO_TRADING, MENU_SETTINGS]
         )
         
         st.markdown("---")
@@ -276,13 +284,13 @@ def main():
         st.info("💡 **Connexion partagée**\n\nLa connexion IBKR est partagée entre toutes les pages. Connectez-vous une seule fois ici.")
     
     # Route to selected page
-    if page == "📊 Dashboard":
+    if page == MENU_DASHBOARD:
         dashboard_page()
-    elif page == "💾 Collecte de Données":
+    elif page == MENU_DATA_COLLECTION:
         data_collection_page()
     elif page == "📜 Historique des collectes":
         jobs_monitoring_page()
-    elif page == "📈 Analyse Technique":
+    elif page == MENU_TECHNICAL_ANALYSIS:
         technical_analysis_page()
     elif page == "💹 Cours Live":
         live_prices_page()
@@ -290,17 +298,17 @@ def main():
         backtesting_page()
     elif page == "📚 Indicateurs":
         indicators_page()
-    elif page == "📝 Passage d'Ordres":
+    elif page == MENU_ORDER_PLACEMENT:
         order_placement_page()
-    elif page == "🤖 Trading Automatique":
+    elif page == MENU_AUTO_TRADING:
         auto_trading_page()
-    elif page == "⚙️ Paramètres":
+    elif page == MENU_SETTINGS:
         settings_page()
 
 
 def dashboard_page():
     """Dashboard page - Uses global IBKR connection"""
-    st.header("📊 Dashboard")
+    st.header(MENU_DASHBOARD)
     
     # Initialize session state
     init_global_ibkr_connection()
@@ -494,7 +502,7 @@ def dashboard_page():
                         "Date": fill.time.strftime("%Y-%m-%d %H:%M:%S") if fill.time else "N/A",
                         "Symbole": trade.contract.symbol,
                         "Type": "ACHAT" if fill.side == "BOT" else "VENTE",
-                        "Quantité": fill.shares,
+                        LABEL_QUANTITY: fill.shares,
                         "Prix": f"{fill.price:.2f}",
                         "Commission": f"{fill.commission:.2f}",
                         "Compte": fill.acctNumber
@@ -511,14 +519,14 @@ def dashboard_page():
     except Exception as e:
         st.error(f"❌ Erreur: {e}")
         import traceback
-        with st.expander("Détails de l'erreur"):
+        with st.expander(ERROR_DETAILS):
             st.code(traceback.format_exc())
 
 
 
 def data_collection_page():
     """Data collection page"""
-    st.header("💾 Collecte de Données")
+    st.header(MENU_DATA_COLLECTION)
     
     # Auto-refresh when jobs are active (like in jobs_monitoring_page)
     active_jobs = get_cached_active_jobs()
@@ -731,13 +739,13 @@ def data_collection_page():
             except ImportError as e:
                 st.error("❌ Celery n'est pas installé ou configuré correctement")
                 st.info("� Consultez le fichier CELERY_SETUP.md pour installer et configurer Celery + Redis")
-                with st.expander("Détails de l'erreur"):
+                with st.expander(ERROR_DETAILS):
                     st.code(str(e))
             
             except Exception as e:
                 st.error(f"❌ Erreur lors de la création du job: {e}")
                 import traceback
-                with st.expander("Détails de l'erreur"):
+                with st.expander(ERROR_DETAILS):
                     st.code(traceback.format_exc())
         
         
@@ -826,7 +834,7 @@ def data_collection_page():
         except Exception as e:
             st.error(f"❌ Erreur lors du chargement des données : {e}")
             import traceback
-            with st.expander("Détails de l'erreur"):
+            with st.expander(ERROR_DETAILS):
                 st.code(traceback.format_exc())
         finally:
             db.close()
@@ -1423,13 +1431,13 @@ def jobs_monitoring_page():
     except ImportError as e:
         st.error("❌ Celery n'est pas installé ou configuré correctement")
         st.info("💡 Consultez le fichier CELERY_SETUP.md pour installer et configurer Celery + Redis")
-        with st.expander("Détails de l'erreur"):
+        with st.expander(ERROR_DETAILS):
             st.code(str(e))
     
     except Exception as e:
         st.error(f"❌ Erreur lors de la récupération des jobs: {e}")
         import traceback
-        with st.expander("Détails de l'erreur"):
+        with st.expander(ERROR_DETAILS):
             st.code(traceback.format_exc())
     
     finally:
@@ -1440,7 +1448,7 @@ def jobs_monitoring_page():
 
 def technical_analysis_page():
     """Technical analysis page"""
-    st.header("📈 Analyse Technique")
+    st.header(MENU_TECHNICAL_ANALYSIS)
     
     col1, col2 = st.columns(2)
     
@@ -1557,7 +1565,7 @@ def technical_analysis_page():
             
             fig.update_layout(
                 title=f"{selected_ticker} - {available_tickers[selected_ticker]}",
-                yaxis_title="Prix (€)",
+                yaxis_title=LABEL_PRICE_EUR,
                 xaxis_title="Date",
                 height=500
             )
@@ -1572,7 +1580,7 @@ def technical_analysis_page():
 
 def technical_analysis_page():
     """Technical analysis page"""
-    st.header("📈 Analyse Technique")
+    st.header(MENU_TECHNICAL_ANALYSIS)
     
     # Get tickers with collected data
     available_tickers = get_available_tickers()
@@ -2225,7 +2233,7 @@ def backtesting_page():
         # Add refresh button
         col_refresh1, _ = st.columns([1, 5])
         with col_refresh1:
-            if st.button("🔄 Rafraîchir", key="refresh_strategies"):
+            if st.button(BTN_REFRESH, key="refresh_strategies"):
                 st.rerun()
         
         from backend.strategy_manager import StrategyManager
@@ -2972,14 +2980,14 @@ def live_prices_page():
             fig.update_layout(
                 title=f"{selected_symbol} - Cours en temps réel ({time_scale}) - Signal: {signal}",
                 xaxis_title="Heure",
-                yaxis_title="Prix (€)",
+                yaxis_title=LABEL_PRICE_EUR,
                 xaxis=dict(
                     tickformat='%H:%M:%S',  # Format avec les secondes
                     tickmode='auto',
                     nticks=10
                 ),
                 height=500,
-                hovermode='x unified',
+                hovermode=HOVERMODE_X_UNIFIED,
                 showlegend=True,
                 margin=dict(l=50, r=50, t=50, b=50)
             )
@@ -3242,7 +3250,7 @@ def trading_page():
             col_qty, col_action = st.columns(2)
             
             with col_qty:
-                quantity = st.number_input("Quantité", min_value=1, value=10, step=1)
+                quantity = st.number_input(LABEL_QUANTITY, min_value=1, value=10, step=1)
             
             with col_action:
                 action = st.selectbox("Action", ["BUY", "SELL"])
@@ -3313,7 +3321,7 @@ def trading_page():
         with col_refresh1:
             st.markdown("### 📋 Ordres en Cours")
         with col_refresh2:
-            if st.button("🔄 Rafraîchir", key="refresh_orders_btn"):
+            if st.button(BTN_REFRESH, key="refresh_orders_btn"):
                 st.rerun()
         
         try:
@@ -3414,7 +3422,7 @@ def order_placement_page():
     Dedicated page for order placement and management
     Integrated with database tracking and IBKR execution
     """
-    st.header("📝 Passage d'Ordres")
+    st.header(MENU_ORDER_PLACEMENT)
     
     # Auto-refresh settings
     if 'auto_refresh_enabled' not in st.session_state:
@@ -3447,7 +3455,7 @@ def order_placement_page():
                 st.warning("🟡 Non connecté à IBKR - Les ordres seront enregistrés mais non exécutés")
         
         with col_status2:
-            if st.button("🔄 Rafraîchir"):
+            if st.button(BTN_REFRESH):
                 st.rerun()
         
         with col_status3:
@@ -3585,7 +3593,7 @@ def order_placement_page():
                     action = st.selectbox("Action", ["BUY", "SELL"], help="BUY = Acheter, SELL = Vendre")
                 
                 with col_qty:
-                    quantity = st.number_input("Quantité", min_value=1, value=10, step=1)
+                    quantity = st.number_input(LABEL_QUANTITY, min_value=1, value=10, step=1)
                 
                 # Order type
                 order_type = st.selectbox(
@@ -4135,7 +4143,7 @@ def order_placement_page():
                                 margin=dict(l=0, r=0, t=30, b=0),
                                 xaxis_title="Date",
                                 yaxis_title="Nombre d'Ordres",
-                                hovermode='x unified'
+                                hovermode=HOVERMODE_X_UNIFIED
                             )
                             st.plotly_chart(fig_bar, use_container_width=True, key="daily_orders_chart")
                         
@@ -4168,7 +4176,7 @@ def order_placement_page():
                                 margin=dict(l=0, r=0, t=30, b=0),
                                 xaxis_title="Date",
                                 yaxis_title="Volume (€)",
-                                hovermode='x unified'
+                                hovermode=HOVERMODE_X_UNIFIED
                             )
                             st.plotly_chart(fig_bar, use_container_width=True, key="daily_volume_chart")
                     else:
@@ -4227,7 +4235,7 @@ def order_placement_page():
 
 def auto_trading_page():
     """Automatic trading page with strategy execution"""
-    st.header("🤖 Trading Automatique")
+    st.header(MENU_AUTO_TRADING)
     
     try:
         from backend.auto_trader import AutoTraderManager
@@ -4257,7 +4265,7 @@ def auto_trading_page():
                 st.warning("🟡 Non connecté à IBKR - Connectez-vous pour utiliser le trading automatique")
         
         with col_status2:
-            if st.button("🔄 Rafraîchir", width='stretch'):
+            if st.button(BTN_REFRESH, width='stretch'):
                 st.rerun()
         
         st.markdown("---")
@@ -4552,8 +4560,8 @@ def auto_trading_page():
                                             height=400,
                                             margin=dict(l=0, r=0, t=30, b=0),
                                             xaxis_title="Temps",
-                                            yaxis_title="Prix (€)",
-                                            hovermode='x unified',
+                                            yaxis_title=LABEL_PRICE_EUR,
+                                            hovermode=HOVERMODE_X_UNIFIED,
                                             showlegend=True
                                         )
                                         
@@ -4597,7 +4605,7 @@ def auto_trading_page():
                                         height=300,
                                         margin=dict(l=0, r=0, t=30, b=0),
                                         xaxis_title="Temps",
-                                        yaxis_title="Prix (€)"
+                                        yaxis_title=LABEL_PRICE_EUR
                                     )
                                     st.plotly_chart(
                                         fig,
@@ -5149,7 +5157,7 @@ def indicators_page():
 
 def settings_page():
     """Settings page"""
-    st.header("⚙️ Paramètres")
+    st.header(MENU_SETTINGS)
     
     st.subheader("💼 Configuration IBKR / Lynx")
     
