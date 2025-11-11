@@ -10,16 +10,16 @@ import os
 def run_command(cmd, description):
     """Run a command and report results"""
     print(f"\n{'='*60}")
-    print(f"🔍 {description}")
+    print(f"[*] {description}")
     print(f"{'='*60}")
     
     result = subprocess.run(cmd, shell=True)
     
     if result.returncode != 0:
-        print(f"\n❌ FAILED: {description}")
+        print(f"\n[ERROR] FAILED: {description}")
         return False
     
-    print(f"\n✅ PASSED: {description}")
+    print(f"\n[OK] PASSED: {description}")
     return True
 
 def main():
@@ -36,19 +36,19 @@ def main():
             failed_checks.append(desc)
     
     print(f"\n{'='*60}")
-    print("📊 VERIFICATION SUMMARY")
+    print("VERIFICATION SUMMARY")
     print(f"{'='*60}")
     
     if failed_checks:
-        print(f"\n❌ {len(failed_checks)} check(s) failed:")
+        print(f"\n[ERROR] {len(failed_checks)} check(s) failed:")
         for check in failed_checks:
             print(f"   - {check}")
-        print("\n⚠️  DO NOT PUSH - Fix errors above first!")
+        print("\nDO NOT PUSH - Fix errors above first!")
         return 1
     
-    print("\n✅ All checks passed!")
-    print("🚀 Ready to push to GitHub")
-    print("\n📌 After push, check GitHub Actions:")
+    print("\n[OK] All checks passed!")
+    print("Ready to push to GitHub")
+    print("\nAfter push, check GitHub Actions:")
     print("   https://github.com/ericfunman/boursicotor/actions")
     print("   (may take 1-2 minutes to complete)")
     return 0
