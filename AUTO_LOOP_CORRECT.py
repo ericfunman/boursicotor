@@ -39,10 +39,13 @@ class AutoLoopCorrect:
     def run_command(self, cmd):
         """Exécuter commande shell"""
         try:
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, 
+                                    timeout=300, encoding='utf-8', errors='replace')
             return result.stdout, result.stderr, result.returncode
         except subprocess.TimeoutExpired:
             return "", "Timeout", 1
+        except Exception as e:
+            return "", str(e), 1
     
     def get_pytest_coverage(self):
         """Lancer pytest localement et récupérer la couverture"""
@@ -155,11 +158,13 @@ class AutoLoopCorrect:
         cmd = f'git add -A && git commit -m "{message}" && git push'
         stdout, stderr, rc = self.run_command(cmd)
         
-        if "nothing to commit" in stdout.lower() or rc == 0:
+        # Vérifier le résultat
+        combined = (stdout + stderr).lower()
+        if "nothing to commit" in combined or (rc == 0 and "main" in combined):
             self.log(f"   [OK] Push reussi")
             return True
         else:
-            self.log(f"   [WARN] Erreur commit: {stderr[:100]}")
+            self.log(f"   [WARN] Erreur commit")
             return False
     
     def run_iteration(self):
