@@ -92,3 +92,4 @@ pragmatic_sonar_fixer.py
 ultimate_sonar_fixer.py
 sonar_secure_loop.py
 fetch_and_fix_sonar_issues.py
+validate_yaml.py
