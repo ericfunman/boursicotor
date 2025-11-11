@@ -30,8 +30,8 @@ class DataCollector:
         """
         self.db: Session = SessionLocal()
         
-        # Note: Saxo Bank, Alpha Vantage, and Polygon have been removed
-        # Only Yahoo Finance and IBKR are supported now
+        # Note: Saxo Bank, Alpha Vantage, Polygon, and Yahoo Finance have been removed
+        # Only IBKR is supported as data source
         
     def __del__(self):
         """TODO: Add docstring."""

@@ -249,8 +249,7 @@ class AutoTrader:
     
     def _fetch_live_price(self) -> Optional[Dict]:
         """
-        Fetch current live price
-        Uses IBKR if available, otherwise Yahoo Finance
+        Fetch current live price using IBKR
         
         Returns:
             Dictionary with price data or None if failed

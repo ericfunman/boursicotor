@@ -67,7 +67,7 @@ class JobManager:
         Args:
             ticker_symbol: Stock symbol
             ticker_name: Stock name
-            source: Data source ('ibkr' or 'yahoo')
+            source: Data source (only 'ibkr' supported)
             duration: Duration/period for data collection
             interval: Data interval
             created_by: User who created the job
