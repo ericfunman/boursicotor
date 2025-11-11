@@ -8,6 +8,11 @@ from backend.models import SessionLocal, DataCollectionJob, JobStatus
 from backend.config import logger
 
 
+class IBKRConnectionError(Exception):
+    """Raised when IBKR connection fails"""
+    pass
+
+
 class DatabaseTask(Task):
     """Base task with database session management"""
     _db = None
@@ -79,7 +84,7 @@ def collect_data_ibkr(
         db.commit()
         
         if not collector.connect():
-            raise Exception("Failed to connect to IBKR")
+            raise IBKRConnectionError("Failed to connect to IBKR")
         
         # Progress callback to update job progress
         def progress_callback(current, total):

@@ -522,7 +522,7 @@ class AutoTraderManager:
             return
         
         # Log IBKR connection status
-        ibkr_connected = self.ibkr_collector and self.ibkr_collector.ib.isConnected() if self.ibkr_collector else False
+        ibkr_connected = self.ibkr_collector and self.ibkr_collector.ib.isConnected()
         logger.info(f"Starting session #{session_id} - IBKR connected: {ibkr_connected}")
         
         trader = AutoTrader(session_id, self.ibkr_collector)
@@ -540,7 +540,7 @@ class AutoTraderManager:
     
     def stop_all(self):
         """Stop all active trading sessions"""
-        for session_id in list(self.traders.keys()):
+        for session_id in self.traders.keys():
             self.stop_session(session_id)
     
     def get_all_sessions(self) -> List[Dict]:
