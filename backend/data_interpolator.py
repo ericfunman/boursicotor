@@ -141,9 +141,9 @@ class DataInterpolator:
                     t2 = t * t
                     t3 = t2 * t
                     h00 = 2*t3 - 3*t2 + 1
-                    h10 = t3 - 2*t2 + t
+                    _ = t3 - 2*t2 + t
                     h01 = -2*t3 + 3*t2
-                    h11 = t3 - t2
+                    _ = t3 - t2
                     
                     new_row = {
                         'timestamp': new_time,

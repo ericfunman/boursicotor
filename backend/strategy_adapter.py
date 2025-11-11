@@ -74,7 +74,7 @@ class StrategyAdapter:
             Tuple (signal_times, signal_prices, signal_types)
         """
         signal_times = []
-        signal_prices = []
+        _ = []
         signal_types = []
         
         try:
@@ -128,7 +128,7 @@ class StrategyAdapter:
             Tuple (signal_times, signal_prices, signal_types)
         """
         signal_times = []
-        signal_prices = []
+        _ = []
         signal_types = []
         
         try:

@@ -386,7 +386,7 @@ class DataCollector:
             ]
             
             data = None
-            meta_data = None
+            _ = None
             
             for av_symbol in av_symbols:
                 try:

@@ -1973,7 +1973,7 @@ def backtesting_page():
                         results_container = st.empty()
                         
                         # Search for strategy
-                        generator = StrategyGenerator(target_return=target_return)
+                        _ = StrategyGenerator(target_return=target_return)
                         
                         best_return = -np.inf
                         best_strategy = None
@@ -2812,7 +2812,7 @@ def live_prices_page():
             buy_signals = []
             sell_signals = []
             signal_times = []
-            signal_prices = []
+            _ = []
             signal_types = []
             latest_rsi = None
             latest_macd = None
