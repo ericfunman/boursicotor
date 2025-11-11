@@ -42,6 +42,18 @@ class OrderManager:
             self._db.close()
             self._db = None
     
+    def _validate_order_params(self, order_type: str, limit_price: Optional[float], stop_price: Optional[float]) -> bool:
+        """Validate order parameters based on order type"""
+        if order_type in ["LIMIT", "STOP_LIMIT"] and limit_price is None:
+            logger.error("Limit price required for LIMIT/STOP_LIMIT orders")
+            return False
+        
+        if order_type in ["STOP", "STOP_LIMIT"] and stop_price is None:
+            logger.error("Stop price required for STOP/STOP_LIMIT orders")
+            return False
+        
+        return True
+    
     def create_order(
         self,
         symbol: str,
@@ -85,13 +97,7 @@ class OrderManager:
             logger.info(f"Step 1 OK: Ticker {symbol} found: ID={ticker.id}, Name={ticker.name}")
             
             # Validate order parameters
-            if order_type in ["LIMIT", "STOP_LIMIT"] and limit_price is None:
-                logger.error("Limit price required for LIMIT/STOP_LIMIT orders")
-                self._close_db()
-                return None
-            
-            if order_type in ["STOP", "STOP_LIMIT"] and stop_price is None:
-                logger.error("Stop price required for STOP/STOP_LIMIT orders")
+            if not self._validate_order_params(order_type, limit_price, stop_price):
                 self._close_db()
                 return None
             

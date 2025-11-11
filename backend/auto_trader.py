@@ -325,6 +325,31 @@ class AutoTrader:
             logger.error(f"Error calculating signals: {e}")
             return None
     
+    def _determine_action_and_quantity(self, signal_value: int, session) -> tuple:
+        """
+        Determine trading action and quantity based on signal
+        
+        Args:
+            signal_value: Trading signal (1=BUY, -1=SELL, 0=HOLD)
+            session: AutoTraderSession object
+            
+        Returns:
+            Tuple (action, quantity) or (None, 0) if no action
+        """
+        if signal_value == 1:  # BUY signal
+            if session.current_position < session.max_position_size:
+                quantity = min(
+                    session.max_position_size - session.current_position,
+                    session.max_position_size // 10  # Buy in chunks of 10%
+                )
+                return "BUY", quantity
+                
+        elif signal_value == -1:  # SELL signal
+            if session.current_position > 0:
+                return "SELL", session.current_position  # Sell all
+        
+        return None, 0
+    
     def _process_signal(self, signals: Dict):
         """
         Process trading signal and execute order if conditions are met
@@ -350,23 +375,7 @@ class AutoTrader:
                 return
             
             # Determine action and quantity
-            action = None
-            quantity = 0
-            
-            if signal_value == 1:  # BUY signal
-                # Check if we can buy (not already in position or want to add)
-                if session.current_position < session.max_position_size:
-                    action = "BUY"
-                    quantity = min(
-                        session.max_position_size - session.current_position,
-                        session.max_position_size // 10  # Buy in chunks of 10%
-                    )
-                    
-            elif signal_value == -1:  # SELL signal
-                # Check if we have position to sell
-                if session.current_position > 0:
-                    action = "SELL"
-                    quantity = session.current_position  # Sell all
+            action, quantity = self._determine_action_and_quantity(signal_value, session)
             
             if action and quantity > 0:
                 logger.info(f"🎯 Signal detected: {action} {quantity} {self.ticker.symbol} @ {current_price}")
