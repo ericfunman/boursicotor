@@ -308,7 +308,7 @@ class AutoTrader:
             signal_dict = {
                 'timestamp': datetime.now(),
                 'price': latest['close'],
-                'signal': latest.get('signal', 0),  # 1=BUY, -1=SELL, 0=HOLD
+                'signal': latest.get('signal', 0),
                 'indicators': {}
             }
             

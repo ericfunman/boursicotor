@@ -225,12 +225,12 @@ class IBKRConnector:
         self.client.reqHistoricalData(
             reqId=req_id,
             contract=contract,
-            endDateTime='',  # Vide = maintenant
+            endDateTime='',
             durationStr=duration,
             barSizeSetting=bar_size,
             whatToShow=what_to_show,
-            useRTH=1,  # 1 = Regular Trading Hours only
-            formatDate=1,  # 1 = format yyyyMMdd HH:mm:ss
+            useRTH=1,
+            formatDate=1,
             keepUpToDate=False,
             chartOptions=[]
         )
