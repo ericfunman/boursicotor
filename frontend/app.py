@@ -5,7 +5,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from numpy.random import default_rng
-_rng_frontend = default_rng()
+_rng_frontend = default_rng(seed=42)
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta

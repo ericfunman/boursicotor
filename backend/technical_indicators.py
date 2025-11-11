@@ -250,9 +250,8 @@ def calculate_and_update_indicators(df: pd.DataFrame, save_to_db: bool = False) 
     # Calculate all indicators
     df = TechnicalIndicators.add_all_indicators(df)
     
-    # TODO: Implement database update if save_to_db is True
     if save_to_db:
-        logger.info("Database update not yet implemented")
+        logger.warning("Database update for indicators not yet implemented. Set save_to_db=False to suppress this warning.")
     
     return df
 
