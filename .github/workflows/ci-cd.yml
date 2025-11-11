@@ -44,7 +44,7 @@ jobs:
     - name: Run tests with coverage
       shell: bash
       run: |
-        python -m pytest tests/test_security.py tests/test_coverage_boost.py tests/test_comprehensive_coverage.py tests/test_high_impact_coverage.py tests/test_additional_coverage.py tests/test_business_logic.py -v --tb=short --cov=backend --cov-report=xml --cov-report=term-missing 2>&1
+        python -m pytest tests/ --ignore=tests/debug_* -v --tb=short --cov=backend --cov-report=xml --cov-report=term-missing 2>&1
     
     - name: Upload coverage to Codecov
       continue-on-error: true
