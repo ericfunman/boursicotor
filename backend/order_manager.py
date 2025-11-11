@@ -264,6 +264,94 @@ class OrderManager:
                 pass
             return False
     
+    def _get_position_fill_info(self, symbol: str, order_quantity: int, ibkr_order_id: int) -> tuple:
+        """
+        Check if order filled by verifying portfolio position
+        
+        Returns:
+            Tuple (filled_quantity, avg_price)
+        """
+        positions = self.ibkr_collector.ib.positions()
+        
+        # Find our position
+        our_position = None
+        for position in positions:
+            if position.contract.symbol == symbol:
+                our_position = position
+                break
+        
+        filled = 0
+        avg_price = 0
+        
+        if our_position and int(our_position.position) >= order_quantity:
+            # Position confirms the fill!
+            filled = order_quantity
+            logger.info(f"[Monitor] ✅ Position confirmed: {our_position.position} shares of {symbol}")
+            
+            # Try to get average fill price from fills() API
+            try:
+                all_fills = self.ibkr_collector.ib.fills()
+                matching_fills = [
+                    f for f in all_fills 
+                    if f.contract.symbol == symbol and 
+                       f.execution.orderId == ibkr_order_id
+                ]
+                
+                if matching_fills:
+                    total_cost = sum(f.execution.price * f.execution.shares for f in matching_fills)
+                    avg_price = total_cost / filled
+                    logger.info(f"[Monitor] ✅ Found fill: {filled} shares @ {avg_price:.2f}")
+            except Exception as e:
+                logger.warning(f"[Monitor] Could not get fill price details: {e}")
+                avg_price = 0
+        
+        return filled, avg_price
+    
+    def _get_fills_from_api(self, symbol: str, ibkr_order_id: int) -> tuple:
+        """
+        Get fill information from IBKR fills() API
+        
+        Returns:
+            Tuple (filled_quantity, avg_price)
+        """
+        all_fills = self.ibkr_collector.ib.fills()
+        
+        matching_fills = [
+            f for f in all_fills 
+            if f.contract.symbol == symbol and 
+               f.execution.orderId == ibkr_order_id
+        ]
+        
+        if matching_fills:
+            filled = int(sum(f.execution.shares for f in matching_fills))
+            total_cost = sum(f.execution.price * f.execution.shares for f in matching_fills)
+            avg_price = total_cost / filled if filled > 0 else 0
+            
+            logger.info(f"[Monitor] ✅ Found {len(matching_fills)} fills: {filled} shares @ {avg_price:.2f}")
+            return filled, avg_price
+        
+        return 0, 0
+    
+    def _update_order_from_fill(self, db, order, filled: int, avg_price: float):
+        """Update order status based on fill information"""
+        if filled > 0:
+            order.filled_quantity = filled
+            order.remaining_quantity = max(0, int(order.quantity) - filled)
+            if avg_price > 0:
+                order.avg_fill_price = avg_price
+            
+            if filled >= int(order.quantity):
+                order.status = OrderStatus.FILLED
+                order.status_message = f"Filled at {avg_price:.2f} ({filled} shares)"
+                logger.info(f"[Monitor] ✅ Order {order.id} marked as FILLED in DB")
+            else:
+                order.status = OrderStatus.SUBMITTED
+                order.status_message = f"Partially filled ({filled}/{int(order.quantity)} shares)"
+            
+            db.commit()
+        else:
+            logger.warning(f"[Monitor] No fills found for {order.ticker.symbol if order.ticker else 'UNKNOWN'}")
+    
     def _monitor_order_async(self, order_id: int, ibkr_order_id: int):
         """
         Monitor order execution asynchronously in background thread
@@ -296,75 +384,15 @@ class OrderManager:
                 # Check if filled in IBKR by verifying portfolio position
                 try:
                     logger.info("[Monitor] Verifying fill by checking portfolio position...")
-                    positions = self.ibkr_collector.ib.positions()
+                    filled, avg_price = self._get_position_fill_info(symbol, int(order.quantity), ibkr_order_id)
                     
-                    # Find our position
-                    our_position = None
-                    for position in positions:
-                        if position.contract.symbol == symbol:
-                            our_position = position
-                            break
-                    
-                    filled = 0
-                    avg_price = 0
-                    
-                    if our_position and int(our_position.position) >= int(order.quantity):
-                        # Position confirms the fill!
-                        filled = int(order.quantity)
-                        logger.info(f"[Monitor] ✅ Position confirmed: {our_position.position} shares of {symbol}")
-                        
-                        # Try to get average fill price from fills() API
-                        try:
-                            all_fills = self.ibkr_collector.ib.fills()
-                            matching_fills = [
-                                f for f in all_fills 
-                                if f.contract.symbol == symbol and 
-                                   f.execution.orderId == ibkr_order_id
-                            ]
-                            
-                            if matching_fills:
-                                total_cost = sum(f.execution.price * f.execution.shares for f in matching_fills)
-                                avg_price = total_cost / filled
-                                logger.info(f"[Monitor] ✅ Found fill: {filled} shares @ {avg_price:.2f}")
-                        except Exception as e:
-                            logger.warning(f"[Monitor] Could not get fill price details: {e}")
-                            avg_price = 0
-                    else:
+                    if filled == 0:
                         # Fallback to fills() API
                         logger.info("[Monitor] Position too small, trying fills() API")
-                        all_fills = self.ibkr_collector.ib.fills()
-                    
-                        matching_fills = [
-                            f for f in all_fills 
-                            if f.contract.symbol == symbol and 
-                               f.execution.orderId == ibkr_order_id
-                        ]
-                    
-                        if matching_fills:
-                            filled = int(sum(f.execution.shares for f in matching_fills))
-                            total_cost = sum(f.execution.price * f.execution.shares for f in matching_fills)
-                            avg_price = total_cost / filled if filled > 0 else 0
-                            
-                            logger.info(f"[Monitor] ✅ Found {len(matching_fills)} fills: {filled} shares @ {avg_price:.2f}")
+                        filled, avg_price = self._get_fills_from_api(symbol, ibkr_order_id)
                     
                     # Update DB
-                    if filled > 0:
-                        order.filled_quantity = filled
-                        order.remaining_quantity = max(0, int(order.quantity) - filled)
-                        if avg_price > 0:
-                            order.avg_fill_price = avg_price
-                        
-                        if filled >= int(order.quantity):
-                            order.status = OrderStatus.FILLED
-                            order.status_message = f"Filled at {avg_price:.2f} ({filled} shares)"
-                            logger.info(f"[Monitor] ✅ Order {order_id} marked as FILLED in DB")
-                        else:
-                            order.status = OrderStatus.SUBMITTED
-                            order.status_message = f"Partially filled ({filled}/{int(order.quantity)} shares)"
-                        
-                        db.commit()
-                    else:
-                        logger.warning(f"[Monitor] No fills found for {symbol}")
+                    self._update_order_from_fill(db, order, filled, avg_price)
                 
                 except Exception as e:
                     logger.error(f"[Monitor] Error checking fills: {e}")

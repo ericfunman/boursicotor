@@ -211,6 +211,42 @@ class AutoTrader:
         finally:
             db.close()
     
+    def _get_contract_info(self) -> tuple:
+        """Get ticker exchange and currency information"""
+        exchange = self.ticker.exchange if hasattr(self.ticker, 'exchange') else 'SMART'
+        currency = self.ticker.currency if hasattr(self.ticker, 'currency') else 'EUR'
+        return exchange, currency
+    
+    def _fetch_ibkr_price(self, contract) -> Optional[Dict]:
+        """
+        Fetch price data from IBKR
+        
+        Returns:
+            Price dictionary or None if failed
+        """
+        ticker_data = self.ibkr_collector.ib.reqMktData(contract, '', False, False)
+        time.sleep(2)  # Wait for data
+        
+        if ticker_data.last and ticker_data.last > 0:
+            exchange, currency = self._get_contract_info()
+            price_data = {
+                'timestamp': datetime.now(),
+                'open': ticker_data.open if ticker_data.open > 0 else ticker_data.last,
+                'high': ticker_data.high if ticker_data.high > 0 else ticker_data.last,
+                'low': ticker_data.low if ticker_data.low > 0 else ticker_data.last,
+                'close': ticker_data.last,
+                'volume': ticker_data.volume if ticker_data.volume else 0
+            }
+            logger.info(f"✅ Got IBKR price: {price_data['close']:.2f} {currency}")
+            
+            # Cancel market data to avoid accumulation
+            self.ibkr_collector.ib.cancelMktData(contract)
+            return price_data
+        else:
+            logger.warning(f"IBKR returned no valid price for {self.ticker.symbol}")
+            self.ibkr_collector.ib.cancelMktData(contract)
+            return None
+    
     def _fetch_live_price(self) -> Optional[Dict]:
         """
         Fetch current live price
@@ -226,36 +262,16 @@ class AutoTrader:
             if self.ibkr_collector and self.ibkr_collector.ib.isConnected():
                 logger.debug("Using IBKR for live data...")
                 
-                # Use the ticker's exchange information
-                exchange = self.ticker.exchange if hasattr(self.ticker, 'exchange') else 'SMART'
-                currency = self.ticker.currency if hasattr(self.ticker, 'currency') else 'EUR'
-                
+                exchange, currency = self._get_contract_info()
                 logger.debug(f"Fetching IBKR contract for {self.ticker.symbol} on {exchange} ({currency})")
                 
                 # Use get_contract method which qualifies the contract properly
                 contract = self.ibkr_collector.get_contract(self.ticker.symbol, exchange, currency)
                 
                 if contract:
-                    ticker_data = self.ibkr_collector.ib.reqMktData(contract, '', False, False)
-                    time.sleep(2)  # Wait for data
-                    
-                    if ticker_data.last and ticker_data.last > 0:
-                        price_data = {
-                            'timestamp': datetime.now(),
-                            'open': ticker_data.open if ticker_data.open > 0 else ticker_data.last,
-                            'high': ticker_data.high if ticker_data.high > 0 else ticker_data.last,
-                            'low': ticker_data.low if ticker_data.low > 0 else ticker_data.last,
-                            'close': ticker_data.last,
-                            'volume': ticker_data.volume if ticker_data.volume else 0
-                        }
-                        logger.info(f"✅ Got IBKR price: {price_data['close']:.2f} {currency}")
-                        
-                        # Cancel market data to avoid accumulation
-                        self.ibkr_collector.ib.cancelMktData(contract)
+                    price_data = self._fetch_ibkr_price(contract)
+                    if price_data:
                         return price_data
-                    else:
-                        logger.warning(f"IBKR returned no valid price for {self.ticker.symbol}")
-                        self.ibkr_collector.ib.cancelMktData(contract)
                 else:
                     logger.warning(f"Could not get IBKR contract for {self.ticker.symbol}")
             
