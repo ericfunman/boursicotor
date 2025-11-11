@@ -47,15 +47,17 @@ jobs:
     
     - name: Run tests with coverage
       run: |
+        mkdir -p junit
         pytest \
+          tests/ \
           --cov=backend \
           --cov=frontend \
-          --cov-report=xml \
-          --cov-report=html \
-          --cov-report=term-missing \
-          --junitxml=junit/test-results.xml \
-          -v || true
-      continue-on-error: true
+          --cov-report=xml:coverage.xml \
+          --cov-report=html:htmlcov \
+          --cov-report=term-missing:skip-covered \
+          --junitxml=junit/test-results-${{ matrix.python-version }}.xml \
+          -v
+      continue-on-error: false
     
     - name: Upload coverage to Codecov
       continue-on-error: true
@@ -68,14 +70,25 @@ jobs:
     
     - name: Archive test results
       if: always()
-      continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
         name: test-results-${{ matrix.python-version }}
         path: |
-          junit/test-results.xml
-          htmlcov/
+          junit/test-results-${{ matrix.python-version }}.xml
           coverage.xml
+          htmlcov/
+        retention-days: 30
+    
+    - name: Display coverage report
+      if: always()
+      run: |
+        if [ -f coverage.xml ]; then
+          echo "=== Coverage Report Summary ==="
+          grep -o 'line-rate="[^"]*"' coverage.xml | head -1 || echo "Coverage XML generated"
+        fi
+        if [ -f .coverage ]; then
+          python -m coverage report || true
+        fi
     
     - name: Comment PR with coverage
       if: github.event_name == 'pull_request'
@@ -118,12 +131,28 @@ jobs:
     
     - name: Generate coverage report
       run: |
+        mkdir -p junit
         pytest \
+          tests/ \
           --cov=backend \
           --cov=frontend \
           --cov-report=xml \
-          --cov-report=term-missing \
-          -v || true
+          --cov-report=term-missing:skip-covered \
+          -v
+    
+    - name: Display Final Coverage
+      if: always()
+      run: |
+        echo "=== Coverage Report ==="
+        if [ -f coverage.xml ]; then
+          python -c "
+import xml.etree.ElementTree as ET
+root = ET.parse('coverage.xml').getroot()
+line_rate = root.get('line-rate', 'N/A')
+coverage_percent = float(line_rate) * 100 if line_rate != 'N/A' else 0
+print(f'Overall Coverage: {coverage_percent:.1f}%')
+"
+        fi
     
     - name: SonarCloud Scan
       continue-on-error: true
