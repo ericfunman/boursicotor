@@ -60,8 +60,6 @@ class TestLogger:
         logger.info("Test message")
         logger.debug("Test debug")
         logger.warning("Test warning")
-        
-        assert True
 
 
 class TestDatabaseModels:

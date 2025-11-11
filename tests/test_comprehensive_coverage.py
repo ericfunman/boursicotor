@@ -216,7 +216,6 @@ def test_no_syntax_errors():
         import backend.auto_trader
         import backend.order_manager
         import backend.data_collector
-        assert True
     except (ImportError, ModuleNotFoundError):
         pass
 
@@ -249,7 +248,5 @@ def test_rate_limiter_acquire():
         
         for _ in range(3):
             rl.acquire()
-        
-        assert True
     except:
         pass
