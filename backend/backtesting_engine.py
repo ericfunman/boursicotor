@@ -6,6 +6,7 @@ from typing import Dict, List, Tuple, Optional
 from datetime import datetime
 from dataclasses import dataclass, asdict
 import logging
+from backend.constants import CONST_CLOSE
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +64,8 @@ class SimpleMovingAverageStrategy(Strategy):
     
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
         """Generate signals"""
-        fast_ma = df["close"].rolling(window=self.fast_period).mean()
-        slow_ma = df["close"].rolling(window=self.slow_period).mean()
+        fast_ma = df[CONST_CLOSE].rolling(window=self.fast_period).mean()
+        slow_ma = df[CONST_CLOSE].rolling(window=self.slow_period).mean()
         
         signals = pd.Series(0, index=df.index)
         signals[fast_ma > slow_ma] = 1
@@ -89,7 +90,7 @@ class RSIStrategy(Strategy):
     
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
         """Generate signals"""
-        delta = df["close"].diff()
+        delta = df[CONST_CLOSE].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=self.period).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=self.period).mean()
         rs = gain / loss
@@ -118,8 +119,8 @@ class EnhancedMovingAverageStrategy(Strategy):
     
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
         """Generate signals"""
-        fast_ma = df["close"].rolling(window=self.fast_period).mean()
-        slow_ma = df["close"].rolling(window=self.slow_period).mean()
+        fast_ma = df[CONST_CLOSE].rolling(window=self.fast_period).mean()
+        slow_ma = df[CONST_CLOSE].rolling(window=self.slow_period).mean()
         
         signals = pd.Series(0, index=df.index)
         signals[fast_ma > slow_ma] = 1
