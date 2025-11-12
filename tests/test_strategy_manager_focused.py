@@ -1,464 +1,395 @@
 """
 Focused tests for strategy_manager.py (35 tests)
 Coverage target: 25% -> 60%+
-Tests: StrategyManager init, strategies, validation, management
+Tests: StrategyManager static methods, utility functions, numpy conversion
 """
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 import json
-from datetime import datetime
+import numpy as np
 
 from backend.strategy_manager import StrategyManager
-from backend.models import Strategy
 
 
 class TestStrategyManagerImport:
-    """Test 1-3: Import and basic instantiation"""
+    """Test 1-3: Import and basic utilities"""
     
     def test_import_strategy_manager(self):
         """Test 1: StrategyManager can be imported"""
         assert StrategyManager is not None
     
-    def test_instantiate_strategy_manager(self):
-        """Test 2: StrategyManager can be instantiated"""
-        manager = StrategyManager()
-        assert manager is not None
+    def test_convert_numpy_types_dict(self):
+        """Test 2: Convert numpy types in dict"""
+        data = {
+            'int_val': np.int64(42),
+            'float_val': np.float32(3.14),
+            'nested': {'bool_val': np.bool_(True)}
+        }
+        result = StrategyManager._convert_numpy_types(data)
+        assert isinstance(result['int_val'], int)
+        assert isinstance(result['float_val'], float)
+        assert isinstance(result['nested']['bool_val'], bool)
+        assert result['int_val'] == 42
     
-    def test_strategy_manager_has_db(self):
-        """Test 3: StrategyManager has database property"""
-        manager = StrategyManager()
-        # DB is a lazy property, test it exists as property
-        assert hasattr(manager.__class__, 'db') or hasattr(manager, '_db')
+    def test_convert_numpy_types_list(self):
+        """Test 3: Convert numpy types in list"""
+        data = [np.int64(1), np.float32(2.5), [np.int32(3)]]
+        result = StrategyManager._convert_numpy_types(data)
+        assert isinstance(result[0], int)
+        assert isinstance(result[1], float)
+        assert isinstance(result[2][0], int)
 
 
 class TestStrategyManagerInit:
-    """Test 4-8: Initialization and attributes"""
+    """Test 4-10: Static method testing"""
     
-    def test_init_creates_db_session(self):
-        """Test 4: __init__ creates database session"""
-        with patch('backend.strategy_manager.SessionLocal') as mock_session_local:
-            mock_session = Mock()
-            mock_session_local.return_value = mock_session
-            
-            manager = StrategyManager()
-            assert mock_session_local.called
+    def test_convert_numpy_array(self):
+        """Test 4: Convert numpy array to list"""
+        arr = np.array([1, 2, 3])
+        result = StrategyManager._convert_numpy_types(arr)
+        assert isinstance(result, list)
+        assert result == [1, 2, 3]
     
-    def test_init_has_strategies_list(self):
-        """Test 5: StrategyManager initializes with empty strategies"""
-        manager = StrategyManager()
-        strategies = manager.get_all_strategies()
-        assert isinstance(strategies, list)
+    def test_convert_numpy_types_scalar_int(self):
+        """Test 5: Convert numpy scalar int"""
+        val = np.int32(100)
+        result = StrategyManager._convert_numpy_types(val)
+        assert isinstance(result, int)
+        assert result == 100
     
-    def test_close_db_method_exists(self):
-        """Test 6: StrategyManager has _close_db method"""
-        manager = StrategyManager()
-        assert hasattr(manager, '_close_db')
-        assert callable(getattr(manager, '_close_db'))
+    def test_convert_numpy_types_scalar_float(self):
+        """Test 6: Convert numpy scalar float"""
+        val = np.float64(2.718)
+        result = StrategyManager._convert_numpy_types(val)
+        assert isinstance(result, float)
+        assert abs(result - 2.718) < 0.001
     
-    def test_destructor_closes_db(self):
-        """Test 7: __del__ closes database"""
-        manager = StrategyManager()
-        mock_db = Mock()
-        manager.db = mock_db
-        manager.__del__()
-        mock_db.close.assert_called_once()
+    def test_convert_numpy_types_scalar_bool(self):
+        """Test 7: Convert numpy scalar bool"""
+        val = np.bool_(False)
+        result = StrategyManager._convert_numpy_types(val)
+        assert isinstance(result, bool)
+        assert result == False
     
-    def test_create_strategy_method_exists(self):
-        """Test 8: StrategyManager has create_strategy method"""
-        manager = StrategyManager()
-        assert hasattr(manager, 'create_strategy')
+    def test_convert_numpy_types_nested_complex(self):
+        """Test 8: Convert complex nested structure"""
+        data = {
+            'arrays': [np.array([1, 2]), np.array([3.5, 4.5])],
+            'mixed': (np.int16(5), np.float32(6.0))
+        }
+        result = StrategyManager._convert_numpy_types(data)
+        assert result['arrays'][0] == [1, 2]
+        assert abs(result['arrays'][1][0] - 3.5) < 0.01
 
 
-class TestStrategyLoading:
-    """Test 9-15: Load and retrieve strategies"""
+class TestStrategyTypeDetection:
+    """Test 9-15: Strategy type detection"""
     
-    def test_get_all_strategies(self):
-        """Test 9: Get all strategies returns list"""
-        manager = StrategyManager()
-        with patch.object(manager.db, 'query') as mock_query:
-            mock_query.return_value.all.return_value = []
-            result = manager.get_all_strategies()
-            assert isinstance(result, list)
+    def test_get_strategy_type_moving_average_crossover(self):
+        """Test 9: Detect MovingAverageCrossover strategy"""
+        mock_strategy = Mock()
+        mock_strategy.__class__.__name__ = 'MovingAverageCrossover'
+        result = StrategyManager._get_strategy_type(mock_strategy)
+        assert result == 'MA'
     
-    def test_get_strategy_by_id(self):
-        """Test 10: Get strategy by ID"""
-        manager = StrategyManager()
-        mock_strategy = Mock(spec=Strategy)
-        mock_strategy.id = 1
-        
-        with patch.object(manager.db, 'query') as mock_query:
-            mock_query.return_value.filter.return_value.first.return_value = mock_strategy
-            result = manager.get_strategy(1)
-            assert result.id == 1
+    def test_get_strategy_type_rsi(self):
+        """Test 10: Detect RSI strategy"""
+        mock_strategy = Mock()
+        mock_strategy.__class__.__name__ = 'RSIStrategy'
+        result = StrategyManager._get_strategy_type(mock_strategy)
+        assert result == 'RSI'
     
-    def test_get_strategy_by_id_not_found(self):
-        """Test 11: Get non-existent strategy returns None"""
-        manager = StrategyManager()
-        
-        with patch.object(manager.db, 'query') as mock_query:
-            mock_query.return_value.filter.return_value.first.return_value = None
-            result = manager.get_strategy(999)
-            assert result is None
+    def test_get_strategy_type_multi_indicator(self):
+        """Test 11: Detect MultiIndicatorStrategy"""
+        mock_strategy = Mock()
+        mock_strategy.__class__.__name__ = 'MultiIndicatorStrategy'
+        result = StrategyManager._get_strategy_type(mock_strategy)
+        assert result == 'Multi'
     
-    def test_get_strategy_by_name(self):
-        """Test 12: Get strategy by name"""
-        manager = StrategyManager()
-        mock_strategy = Mock(spec=Strategy)
-        mock_strategy.name = "TestStrategy"
-        
-        with patch.object(manager.db, 'query') as mock_query:
-            mock_query.return_value.filter.return_value.first.return_value = mock_strategy
-            result = manager.get_strategy_by_name("TestStrategy")
-            assert result.name == "TestStrategy"
+    def test_get_strategy_type_enhanced_ma(self):
+        """Test 12: Detect EnhancedMovingAverageStrategy"""
+        mock_strategy = Mock()
+        mock_strategy.__class__.__name__ = 'EnhancedMovingAverageStrategy'
+        result = StrategyManager._get_strategy_type(mock_strategy)
+        assert result == 'EnhancedMA'
     
-    def test_get_active_strategies(self):
-        """Test 13: Get active strategies only"""
-        manager = StrategyManager()
-        mock_strategy = Mock(spec=Strategy)
-        mock_strategy.is_active = True
-        
-        with patch.object(manager.db, 'query') as mock_query:
-            mock_query.return_value.filter.return_value.all.return_value = [mock_strategy]
-            result = manager.get_active_strategies()
-            assert len(result) == 1
-            assert result[0].is_active == True
-    
-    def test_get_disabled_strategies(self):
-        """Test 14: Get disabled strategies"""
-        manager = StrategyManager()
-        mock_strategy = Mock(spec=Strategy)
-        mock_strategy.is_active = False
-        
-        with patch.object(manager.db, 'query') as mock_query:
-            mock_query.return_value.filter.return_value.all.return_value = [mock_strategy]
-            result = manager.get_disabled_strategies()
-            assert len(result) == 1
-            assert result[0].is_active == False
-    
-    def test_count_strategies(self):
-        """Test 15: Count total strategies"""
-        manager = StrategyManager()
-        
-        with patch.object(manager.db, 'query') as mock_query:
-            mock_query.return_value.count.return_value = 5
-            result = manager.count_strategies()
-            assert result == 5
+    def test_get_strategy_type_unknown(self):
+        """Test 13: Unknown strategy returns class name"""
+        mock_strategy = Mock()
+        mock_strategy.__class__.__name__ = 'UnknownStrategy'
+        result = StrategyManager._get_strategy_type(mock_strategy)
+        assert result == 'UnknownStrategy'
 
 
-class TestStrategyCreation:
-    """Test 16-22: Create and save strategies"""
+class TestCreateStrategyModel:
+    """Test 14-20: Strategy model creation"""
     
-    def test_create_simple_strategy(self):
-        """Test 16: Create simple strategy"""
-        manager = StrategyManager()
+    def test_create_strategy_model_with_description(self):
+        """Test 14: Create strategy model with custom description"""
+        mock_strategy = Mock()
+        mock_strategy.name = 'TestStrat'
+        mock_strategy.__class__.__name__ = 'RSIStrategy'
+        mock_strategy.parameters = {'period': 14}
+        mock_strategy.description = 'Custom description'
         
-        strategy_data = {
-            'name': 'MA_Crossover',
-            'description': 'Moving Average Crossover',
-            'strategy_type': 'simple',
-            'parameters': {'period1': 10, 'period2': 20}
-        }
+        mock_backtest = Mock()
+        mock_backtest.total_return = 15.5
+        mock_backtest.symbol = 'AAPL'
         
-        with patch.object(manager.db, 'add'):
-            with patch.object(manager.db, 'commit'):
-                result = manager.create_strategy(strategy_data)
-                # Method should not raise exception
-                assert result is not None or result is None  # Depends on implementation
+        result = StrategyManager._create_strategy_model(mock_strategy, mock_backtest)
+        assert result is not None
+        assert result.name == 'TestStrat'
+        assert 'Custom description' in result.description
     
-    def test_create_strategy_with_invalid_name(self):
-        """Test 17: Create strategy with empty name raises error"""
-        manager = StrategyManager()
+    def test_create_strategy_model_default_description(self):
+        """Test 15: Create strategy model with default description"""
+        mock_strategy = Mock()
+        mock_strategy.name = 'TestStrat2'
+        mock_strategy.__class__.__name__ = 'MovingAverageCrossover'
+        mock_strategy.parameters = {'fast': 10, 'slow': 20}
+        mock_strategy.description = None
         
-        strategy_data = {
-            'name': '',
-            'description': 'Test',
-            'parameters': {}
-        }
+        mock_backtest = Mock()
+        mock_backtest.total_return = -5.2
+        mock_backtest.symbol = 'MSFT'
         
-        try:
-            manager.create_strategy(strategy_data)
-            # Should either return None or raise error
-        except (ValueError, AttributeError):
-            pass  # Expected
+        result = StrategyManager._create_strategy_model(mock_strategy, mock_backtest)
+        assert result is not None
+        assert 'return' in result.description.lower()
+        assert 'MSFT' in result.description
     
-    def test_create_strategy_saves_to_db(self):
-        """Test 18: Create strategy commits to database"""
-        manager = StrategyManager()
+    def test_create_strategy_model_strategy_type(self):
+        """Test 16: Strategy model gets correct type"""
+        mock_strategy = Mock()
+        mock_strategy.name = 'TestStrat3'
+        mock_strategy.__class__.__name__ = 'MultiIndicatorStrategy'
+        mock_strategy.parameters = {}
+        mock_strategy.description = 'Test'
         
-        strategy_data = {
-            'name': 'Test_Strategy',
-            'description': 'A test strategy',
-            'parameters': {}
-        }
+        mock_backtest = Mock()
+        mock_backtest.total_return = 0
+        mock_backtest.symbol = 'TEST'
         
-        with patch.object(manager.db, 'add') as mock_add:
-            with patch.object(manager.db, 'commit') as mock_commit:
-                try:
-                    manager.create_strategy(strategy_data)
-                except:
-                    pass  # Ignore if method not fully implemented
-                
-                # Verify db interactions were attempted
-                assert mock_add.called or not mock_add.called  # Implementation dependent
+        result = StrategyManager._create_strategy_model(mock_strategy, mock_backtest)
+        assert result.strategy_type == 'Multi'
     
-    def test_duplicate_strategy_name_handling(self):
-        """Test 19: Handle duplicate strategy names"""
-        manager = StrategyManager()
+    def test_create_strategy_model_is_active_default(self):
+        """Test 17: Strategy model is active by default"""
+        mock_strategy = Mock()
+        mock_strategy.name = 'TestStrat4'
+        mock_strategy.__class__.__name__ = 'RSIStrategy'
+        mock_strategy.parameters = {}
+        mock_strategy.description = 'Test'
         
-        # Try to create strategy with existing name
-        with patch.object(manager.db, 'query') as mock_query:
-            # Simulate existing strategy
-            mock_query.return_value.filter.return_value.first.return_value = Mock()
-            
-            strategy_data = {
-                'name': 'ExistingStrategy',
-                'description': 'Test',
-                'parameters': {}
-            }
-            
-            try:
-                result = manager.create_strategy(strategy_data)
-                # Should handle gracefully
-            except Exception:
-                pass  # Acceptable if validation is strict
-    
-    def test_save_strategy_to_file(self):
-        """Test 20: Save strategy to JSON file"""
-        manager = StrategyManager()
-        mock_strategy = Mock(spec=Strategy)
-        mock_strategy.to_dict.return_value = {
-            'name': 'Test',
-            'parameters': {}
-        }
+        mock_backtest = Mock()
+        mock_backtest.total_return = 10
+        mock_backtest.symbol = 'XYZ'
         
-        try:
-            with patch('builtins.open', create=True):
-                manager.save_strategy_to_file(mock_strategy, '/tmp/test.json')
-        except:
-            pass  # Method may not be implemented
-    
-    def test_load_strategy_from_file(self):
-        """Test 21: Load strategy from JSON file"""
-        manager = StrategyManager()
-        
-        strategy_json = json.dumps({
-            'name': 'FileStrategy',
-            'parameters': {'key': 'value'}
-        })
-        
-        try:
-            with patch('builtins.open', create=True):
-                result = manager.load_strategy_from_file('/tmp/test.json')
-        except:
-            pass  # Method may not be implemented
+        result = StrategyManager._create_strategy_model(mock_strategy, mock_backtest)
+        assert result.is_active == True
 
 
-class TestStrategyValidation:
-    """Test 22-28: Validate strategy configuration"""
+class TestStrategyManagerAdvanced:
+    """Test 18-35: Advanced utility scenarios"""
     
-    def test_validate_strategy_config_valid(self):
-        """Test 22: Validate valid strategy configuration"""
-        manager = StrategyManager()
-        
-        config = {
-            'name': 'Valid_Strategy',
-            'strategy_type': 'simple',
-            'buy_conditions': ['price > sma'],
-            'sell_conditions': ['price < sma']
-        }
-        
-        result = manager.validate_strategy_config(config)
-        assert isinstance(result, dict) or isinstance(result, bool)
+    def test_convert_numpy_with_none(self):
+        """Test 18: None values pass through unchanged"""
+        result = StrategyManager._convert_numpy_types(None)
+        assert result is None
     
-    def test_validate_strategy_missing_name(self):
-        """Test 23: Validate strategy without name fails"""
-        manager = StrategyManager()
-        
-        config = {
-            'strategy_type': 'simple',
-            'parameters': {}
-        }
-        
-        result = manager.validate_strategy_config(config)
-        assert not result or isinstance(result, dict)
+    def test_convert_numpy_with_string(self):
+        """Test 19: String values pass through unchanged"""
+        result = StrategyManager._convert_numpy_types('test string')
+        assert result == 'test string'
     
-    def test_validate_strategy_parameters(self):
-        """Test 24: Validate strategy parameters"""
-        manager = StrategyManager()
-        
-        config = {
-            'name': 'Test',
-            'parameters': {
-                'period': 20,
-                'threshold': 0.5
+    def test_convert_numpy_deeply_nested(self):
+        """Test 20: Deeply nested structures"""
+        data = {
+            'level1': {
+                'level2': {
+                    'level3': [np.int64(42), {'val': np.float32(3.14)}]
+                }
             }
         }
-        
-        result = manager.validate_strategy_config(config)
-        assert result is not None
+        result = StrategyManager._convert_numpy_types(data)
+        assert isinstance(result['level1']['level2']['level3'][0], int)
+        assert isinstance(result['level1']['level2']['level3'][1]['val'], float)
     
-    def test_validate_strategy_indicators(self):
-        """Test 25: Validate required indicators"""
-        manager = StrategyManager()
-        
-        config = {
-            'name': 'Test',
-            'indicators': ['SMA', 'RSI', 'MACD']
+    def test_convert_numpy_empty_containers(self):
+        """Test 21: Empty containers"""
+        assert StrategyManager._convert_numpy_types({}) == {}
+        assert StrategyManager._convert_numpy_types([]) == []
+        assert StrategyManager._convert_numpy_types(()) == []
+    
+    def test_convert_numpy_mixed_types(self):
+        """Test 22: Mixed native and numpy types"""
+        data = {
+            'native_int': 5,
+            'numpy_int': np.int64(10),
+            'native_float': 3.14,
+            'numpy_float': np.float32(2.71),
+            'string': 'value'
         }
-        
-        try:
-            result = manager.validate_strategy_indicators(config)
-        except:
-            pass  # Method may not be implemented
+        result = StrategyManager._convert_numpy_types(data)
+        assert result['native_int'] == 5
+        assert result['numpy_int'] == 10
+        assert isinstance(result['native_float'], float)
+        assert isinstance(result['numpy_float'], float)
+        assert result['string'] == 'value'
     
-    def test_validate_strategy_buy_conditions(self):
-        """Test 26: Validate buy conditions format"""
-        manager = StrategyManager()
+    def test_strategy_type_detection_case_sensitive(self):
+        """Test 23: Strategy type detection is case-sensitive for class names"""
+        mock_strategy = Mock()
+        mock_strategy.__class__.__name__ = 'movingaveragecrossover'
+        result = StrategyManager._get_strategy_type(mock_strategy)
+        assert result == 'movingaveragecrossover'
+    
+    def test_create_strategy_with_numpy_parameters(self):
+        """Test 24: Strategy model creation with numpy parameters"""
+        mock_strategy = Mock()
+        mock_strategy.name = 'NumpyStrat'
+        mock_strategy.__class__.__name__ = 'RSIStrategy'
+        mock_strategy.parameters = {
+            'period': np.int64(14),
+            'threshold': np.float32(70.0)
+        }
+        mock_strategy.description = 'Numpy params'
         
-        conditions = [
-            'close > sma_20',
-            'rsi < 70',
-            'macd > signal'
+        mock_backtest = Mock()
+        mock_backtest.total_return = 5.0
+        mock_backtest.symbol = 'TEST'
+        
+        result = StrategyManager._create_strategy_model(mock_strategy, mock_backtest)
+        assert result is not None
+        params = json.loads(result.parameters)
+        assert params['period'] == 14
+        assert params['threshold'] == 70.0
+    
+    def test_multiple_strategy_detection(self):
+        """Test 25: Multiple strategy types"""
+        strategies = [
+            ('MovingAverageCrossover', 'MA'),
+            ('RSIStrategy', 'RSI'),
+            ('MultiIndicatorStrategy', 'Multi'),
+            ('EnhancedMovingAverageStrategy', 'EnhancedMA'),
+            ('OtherStrategy', 'OtherStrategy')
         ]
         
-        try:
-            result = manager.validate_conditions(conditions)
-            assert result is not None or result is None
-        except:
-            pass
+        for class_name, expected_type in strategies:
+            mock_strategy = Mock()
+            mock_strategy.__class__.__name__ = class_name
+            result = StrategyManager._get_strategy_type(mock_strategy)
+            assert result == expected_type
     
-    def test_validate_strategy_sell_conditions(self):
-        """Test 27: Validate sell conditions format"""
-        manager = StrategyManager()
-        
-        conditions = [
-            'close < sma_20',
-            'rsi > 30'
-        ]
-        
-        try:
-            result = manager.validate_conditions(conditions)
-            assert result is not None or result is None
-        except:
-            pass
+    def test_convert_numpy_int8(self):
+        """Test 26: Convert numpy int8"""
+        val = np.int8(127)
+        result = StrategyManager._convert_numpy_types(val)
+        assert isinstance(result, int)
+        assert result == 127
     
-    def test_validate_strategy_complete_workflow(self):
-        """Test 28: Complete strategy validation workflow"""
-        manager = StrategyManager()
+    def test_convert_numpy_int16(self):
+        """Test 27: Convert numpy int16"""
+        val = np.int16(32000)
+        result = StrategyManager._convert_numpy_types(val)
+        assert isinstance(result, int)
+        assert result == 32000
+    
+    def test_convert_numpy_float16(self):
+        """Test 28: Convert numpy float16"""
+        val = np.float16(1.5)
+        result = StrategyManager._convert_numpy_types(val)
+        assert isinstance(result, float)
+    
+    def test_create_strategy_model_parameters_json(self):
+        """Test 29: Strategy parameters are JSON-serializable"""
+        mock_strategy = Mock()
+        mock_strategy.name = 'JsonStrat'
+        mock_strategy.__class__.__name__ = 'RSIStrategy'
+        mock_strategy.parameters = {
+            'period': 14,
+            'list_param': [1, 2, 3],
+            'nested': {'key': 'value'}
+        }
+        mock_strategy.description = 'JSON test'
         
-        config = {
-            'name': 'Complete_Strategy',
-            'description': 'Full test',
-            'strategy_type': 'enhanced',
-            'parameters': {
-                'sma_period': 20,
-                'rsi_period': 14
-            },
-            'buy_conditions': ['rsi < 70'],
-            'sell_conditions': ['rsi > 30']
+        mock_backtest = Mock()
+        mock_backtest.total_return = 0
+        mock_backtest.symbol = 'JSON'
+        
+        result = StrategyManager._create_strategy_model(mock_strategy, mock_backtest)
+        json.loads(result.parameters)
+    
+    def test_convert_numpy_tuple_conversion(self):
+        """Test 30: Tuples are converted to lists"""
+        data = (np.int64(1), np.int64(2), np.int64(3))
+        result = StrategyManager._convert_numpy_types(data)
+        assert isinstance(result, list)
+        assert all(isinstance(x, int) for x in result)
+    
+    def test_convert_numpy_large_array(self):
+        """Test 31: Handle large numpy arrays"""
+        arr = np.arange(1000)
+        result = StrategyManager._convert_numpy_types(arr)
+        assert isinstance(result, list)
+        assert len(result) == 1000
+        assert result[0] == 0
+        assert result[999] == 999
+    
+    def test_get_strategy_type_all_mapped_types(self):
+        """Test 32: All mapped strategy types work correctly"""
+        type_map = {
+            'MovingAverageCrossover': 'MA',
+            'RSIStrategy': 'RSI',
+            'MultiIndicatorStrategy': 'Multi',
+            'EnhancedMovingAverageStrategy': 'EnhancedMA'
         }
         
-        result = manager.validate_strategy_config(config)
-        assert result is not None
-
-
-class TestStrategyManagement:
-    """Test 29-35: Update and delete strategies"""
+        for class_name, expected in type_map.items():
+            mock = Mock()
+            mock.__class__.__name__ = class_name
+            assert StrategyManager._get_strategy_type(mock) == expected
     
-    def test_update_strategy(self):
-        """Test 29: Update strategy"""
-        manager = StrategyManager()
-        mock_strategy = Mock(spec=Strategy)
-        mock_strategy.id = 1
-        
-        updates = {
-            'description': 'Updated description',
-            'parameters': {'param1': 'value1'}
+    def test_convert_numpy_edge_numpy_types(self):
+        """Test 33: Edge case numpy dtypes"""
+        data = {
+            'uint8': np.uint8(255),
+            'uint16': np.uint16(65535),
+            'uint32': np.uint32(4000000000),
+            'uint64': np.uint64(18000000000000000000)
         }
-        
-        with patch.object(manager.db, 'query') as mock_query:
-            mock_query.return_value.filter.return_value.first.return_value = mock_strategy
-            with patch.object(manager.db, 'commit'):
-                result = manager.update_strategy(1, updates)
-                # Verify update attempted
+        result = StrategyManager._convert_numpy_types(data)
+        assert all(isinstance(v, int) for v in result.values())
     
-    def test_activate_strategy(self):
-        """Test 30: Activate strategy"""
-        manager = StrategyManager()
-        mock_strategy = Mock(spec=Strategy)
-        mock_strategy.id = 1
-        mock_strategy.is_active = False
+    def test_create_strategy_model_all_fields_populated(self):
+        """Test 34: All strategy model fields are populated"""
+        mock_strategy = Mock()
+        mock_strategy.name = 'CompleteStrat'
+        mock_strategy.__class__.__name__ = 'MultiIndicatorStrategy'
+        mock_strategy.parameters = {'p1': 1, 'p2': 2}
+        mock_strategy.description = 'Complete test'
         
-        with patch.object(manager.db, 'query') as mock_query:
-            mock_query.return_value.filter.return_value.first.return_value = mock_strategy
-            with patch.object(manager.db, 'commit'):
-                result = manager.activate_strategy(1)
-                # Verify activation attempted
-    
-    def test_deactivate_strategy(self):
-        """Test 31: Deactivate strategy"""
-        manager = StrategyManager()
-        mock_strategy = Mock(spec=Strategy)
-        mock_strategy.id = 1
-        mock_strategy.is_active = True
+        mock_backtest = Mock()
+        mock_backtest.total_return = 25.5
+        mock_backtest.symbol = 'COMPLETE'
         
-        with patch.object(manager.db, 'query') as mock_query:
-            mock_query.return_value.filter.return_value.first.return_value = mock_strategy
-            with patch.object(manager.db, 'commit'):
-                result = manager.deactivate_strategy(1)
+        result = StrategyManager._create_strategy_model(mock_strategy, mock_backtest)
+        assert result.name == 'CompleteStrat'
+        assert result.strategy_type == 'Multi'
+        assert result.is_active == True
+        assert 'Complete test' in result.description
     
-    def test_delete_strategy(self):
-        """Test 32: Delete strategy"""
-        manager = StrategyManager()
-        mock_strategy = Mock(spec=Strategy)
-        mock_strategy.id = 1
-        
-        with patch.object(manager.db, 'query') as mock_query:
-            mock_query.return_value.filter.return_value.first.return_value = mock_strategy
-            with patch.object(manager.db, 'delete'):
-                with patch.object(manager.db, 'commit'):
-                    result = manager.delete_strategy(1)
-    
-    def test_clone_strategy(self):
-        """Test 33: Clone existing strategy"""
-        manager = StrategyManager()
-        mock_strategy = Mock(spec=Strategy)
-        mock_strategy.id = 1
-        mock_strategy.name = 'Original'
-        mock_strategy.to_dict.return_value = {
-            'name': 'Original',
-            'parameters': {}
+    def test_convert_numpy_mixed_nested_structures(self):
+        """Test 35: Complex nested structure with mixed types"""
+        data = {
+            'simple': np.int64(42),
+            'list': [1, np.float32(2.5), 'string'],
+            'dict': {'nested': np.int16(100), 'other': None},
+            'tuple': (np.int32(5), np.float64(3.14), [np.int8(1)])
         }
-        
-        with patch.object(manager.db, 'query') as mock_query:
-            mock_query.return_value.filter.return_value.first.return_value = mock_strategy
-            with patch.object(manager.db, 'add'):
-                with patch.object(manager.db, 'commit'):
-                    try:
-                        result = manager.clone_strategy(1)
-                    except:
-                        pass
-    
-    def test_export_strategies(self):
-        """Test 34: Export all strategies"""
-        manager = StrategyManager()
-        mock_strategies = [Mock(spec=Strategy), Mock(spec=Strategy)]
-        
-        with patch.object(manager.db, 'query') as mock_query:
-            mock_query.return_value.all.return_value = mock_strategies
-            result = manager.get_all_strategies()
-            assert len(result) == 2
-    
-    def test_strategy_statistics(self):
-        """Test 35: Get strategy statistics"""
-        manager = StrategyManager()
-        
-        with patch.object(manager.db, 'query') as mock_query:
-            # Setup count returns
-            mock_query.return_value.count.return_value = 10
-            mock_query.return_value.filter.return_value.count.return_value = 7
-            
-            total = manager.count_strategies()
-            active = manager.count_active_strategies() if hasattr(manager, 'count_active_strategies') else 7
-            
-            assert total >= 0
+        result = StrategyManager._convert_numpy_types(data)
+        assert result['simple'] == 42
+        assert isinstance(result['list'][1], float)
+        assert result['dict']['nested'] == 100
+        assert result['dict']['other'] is None
+        assert isinstance(result['tuple'], list)
