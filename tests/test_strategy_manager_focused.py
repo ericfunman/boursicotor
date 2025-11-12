@@ -25,9 +25,10 @@ class TestStrategyManagerImport:
         assert manager is not None
     
     def test_strategy_manager_has_db(self):
-        """Test 3: StrategyManager has database session"""
+        """Test 3: StrategyManager has database property"""
         manager = StrategyManager()
-        assert hasattr(manager, 'db')
+        # DB is a lazy property, test it exists as property
+        assert hasattr(manager.__class__, 'db') or hasattr(manager, '_db')
 
 
 class TestStrategyManagerInit:

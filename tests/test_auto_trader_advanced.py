@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 from backend.auto_trader import AutoTrader
-from backend.models import Job, Position, Order, OrderStatus
+from backend.models import Order, OrderStatus
 
 
 class TestAutoTraderImport:
@@ -25,9 +25,10 @@ class TestAutoTraderImport:
         assert trader is not None
     
     def test_auto_trader_has_db(self):
-        """Test 3: AutoTrader has database session"""
+        """Test 3: AutoTrader has database property"""
         trader = AutoTrader()
-        assert hasattr(trader, 'db')
+        # DB is a lazy property, test it exists as property or attribute
+        assert hasattr(trader.__class__, 'db') or hasattr(trader, '_db')
 
 
 class TestAutoTraderInit:
@@ -291,7 +292,7 @@ class TestPortfolioManagement:
         trader = AutoTrader()
         trader.db = Mock()
         
-        mock_positions = [Mock(spec=Position), Mock(spec=Position)]
+        mock_positions = [Mock(), Mock()]
         
         with patch.object(trader.db, 'query') as mock_query:
             mock_query.return_value.filter.return_value.all.return_value = mock_positions
@@ -304,8 +305,8 @@ class TestPortfolioManagement:
         trader.db = Mock()
         
         mock_positions = [
-            Mock(spec=Position, symbol='AAPL', quantity=100, current_price=150),
-            Mock(spec=Position, symbol='GOOGL', quantity=50, current_price=2800)
+            Mock(symbol='AAPL', quantity=100, current_price=150),
+            Mock(symbol='GOOGL', quantity=50, current_price=2800)
         ]
         
         try:
@@ -356,7 +357,7 @@ class TestPortfolioManagement:
         trader = AutoTrader()
         trader.order_manager = Mock()
         
-        mock_position = Mock(spec=Position)
+        mock_position = Mock()
         mock_position.symbol = 'AAPL'
         mock_position.quantity = 100
         
