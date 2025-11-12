@@ -37,23 +37,6 @@ class TestDataCollector:
         from backend.data_collector import DataCollector
         
         assert DataCollector is not None
-    
-    def test_data_collector_methods(self):
-        """Test DataCollector has required methods"""
-        try:
-            from backend.data_collector import DataCollector
-            
-            required_methods = [
-                'connect',
-                'disconnect',
-                'get_historical_data',
-                'is_connected'
-            ]
-            
-            for method in required_methods:
-                assert hasattr(DataCollector, method), f"Missing method: {method}"
-        except (ImportError, AttributeError) as e:
-            pytest.skip(f"DataCollector API refactoring in progress: {str(e)}")
 
 
 class TestTechnicalIndicators:

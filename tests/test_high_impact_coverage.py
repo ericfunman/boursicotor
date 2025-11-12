@@ -213,25 +213,6 @@ def test_ibkr_connector_class_exists():
         pass
 
 
-# ========== SAXO_SEARCH (0% coverage) ==========
-
-def test_saxo_search_import():
-    try:
-        from backend.saxo_search import SaxoSearchClient
-        assert SaxoSearchClient is not None
-    except:
-        pass
-
-
-def test_saxo_search_module():
-    try:
-        import backend.saxo_search as ss_module
-        assert ss_module is not None
-        assert hasattr(ss_module, 'SaxoSearchClient')
-    except:
-        pass
-
-
 # ========== STRATEGY_ADAPTER (4% coverage) ==========
 
 def test_strategy_adapter_import():

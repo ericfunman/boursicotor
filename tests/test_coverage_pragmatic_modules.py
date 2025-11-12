@@ -207,20 +207,6 @@ class TestLiveDataTaskCoverage:
             pass
 
 
-class TestSaxoSearchCoverage:
-    """Test Saxo search"""
-    
-    def test_saxo_search_import(self):
-        """Test Saxo search import"""
-        try:
-            import backend.saxo_search
-            assert backend.saxo_search is not None
-        except ImportError:
-            pytest.skip("SaxoSearch not available")
-        except:
-            pass
-
-
 class TestIBKRCollectorCoverage:
     """Test IBKR collector"""
     

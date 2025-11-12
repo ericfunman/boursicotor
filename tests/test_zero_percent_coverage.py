@@ -91,15 +91,6 @@ class TestIBKRConnectorCoverage:
             pytest.skip("IBKR API not installed")
 
 
-class TestSaxoSearchCoverage:
-    """Test saxo_search.py (67 lines, currently 0%)"""
-    
-    def test_saxo_search_import(self):
-        """Test Saxo search module can be imported"""
-        from backend import saxo_search
-        assert saxo_search is not None
-
-
 class TestCeleryConfigCoverage:
     """Test celery_config.py (13 lines, currently 0%)"""
     

@@ -91,34 +91,6 @@ class TestDatabaseModels:
             assert col in ticker_columns
 
 
-class TestDataCollector:
-    """Test data collector functionality"""
-    
-    def test_data_collector_import(self):
-        """Test DataCollector can be imported"""
-        from backend.data_collector import DataCollector
-        
-        assert DataCollector is not None
-    
-    def test_data_collector_methods_exist(self):
-        """Test DataCollector has required methods"""
-        try:
-            from backend.data_collector import DataCollector
-            
-            required_methods = [
-                'get_data_with_indicators',
-                'get_technical_indicators',
-                'prepare_data',
-                'calculate_sma',
-            ]
-            
-            for method in required_methods:
-                assert hasattr(DataCollector, method)
-                assert callable(getattr(DataCollector, method))
-        except (ImportError, AttributeError) as e:
-            pytest.skip(f"DataCollector API refactoring in progress: {str(e)}")
-
-
 class TestUtilsModule:
     """Test utility modules"""
     

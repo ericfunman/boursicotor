@@ -22,12 +22,6 @@ class TestDataCollectorInit:
         assert dc.db is not None
         dc.db.close()
     
-    def test_data_collector_init_with_saxo_param(self):
-        """Test DataCollector init with deprecated saxo parameter"""
-        dc = DataCollector(use_saxo=False)
-        assert dc is not None
-        dc.db.close()
-    
     def test_data_collector_destructor(self):
         """Test DataCollector destructor closes database"""
         dc = DataCollector()

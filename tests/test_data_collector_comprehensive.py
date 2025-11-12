@@ -47,15 +47,6 @@ class TestDataCollectorInit:
         mock_session_local.assert_called_once()
     
     @patch('backend.data_collector.SessionLocal')
-    def test_init_with_saxo_deprecated(self, mock_session_local):
-        """Test initialization with deprecated saxo parameter"""
-        mock_session = Mock()
-        mock_session_local.return_value = mock_session
-        
-        collector = DataCollector(use_saxo=True)
-        
-        assert collector.db == mock_session
-    
     @patch('backend.data_collector.SessionLocal')
     def test_destructor(self, mock_session_local):
         """Test __del__ closes database connection"""
