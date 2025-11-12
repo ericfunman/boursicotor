@@ -10,12 +10,14 @@ from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
 from ibapi.contract import Contract
 import pandas as pd
+from backend.constants import MSG_IBKR_NOT_CONNECTED
 
 
 class IBKRWrapper(EWrapper):
     """Classe pour recevoir les callbacks de l'API IBKR"""
     
     def __init__(self):
+        """TODO: Add docstring."""
         EWrapper.__init__(self)
         self.next_order_id = None
         self.market_data = {}
@@ -90,6 +92,7 @@ class IBKRClient(EClient):
     """Classe client pour envoyer des requêtes à IBKR"""
     
     def __init__(self, wrapper):
+        """TODO: Add docstring."""
         EClient.__init__(self, wrapper)
 
 
@@ -182,7 +185,7 @@ class IBKRConnector:
             dict avec les données de marché ou None
         """
         if not self.connected:
-            print("❌ Pas connecté à IBKR")
+            print(MSG_IBKR_NOT_CONNECTED)
             return None
         
         # Demander les données de marché
@@ -212,7 +215,7 @@ class IBKRConnector:
             DataFrame avec les données historiques
         """
         if not self.connected:
-            print("❌ Pas connecté à IBKR")
+            print(MSG_IBKR_NOT_CONNECTED)
             return None
         
         # Réinitialiser l'événement
@@ -223,12 +226,12 @@ class IBKRConnector:
         self.client.reqHistoricalData(
             reqId=req_id,
             contract=contract,
-            endDateTime='',  # Vide = maintenant
+            endDateTime='',
             durationStr=duration,
             barSizeSetting=bar_size,
             whatToShow=what_to_show,
-            useRTH=1,  # 1 = Regular Trading Hours only
-            formatDate=1,  # 1 = format yyyyMMdd HH:mm:ss
+            useRTH=1,
+            formatDate=1,
             keepUpToDate=False,
             chartOptions=[]
         )
@@ -259,7 +262,7 @@ class IBKRConnector:
             Liste des ContractDetails trouvés
         """
         if not self.connected:
-            print("❌ Pas connecté à IBKR")
+            print(MSG_IBKR_NOT_CONNECTED)
             return None
         
         # Réinitialiser

@@ -2,11 +2,14 @@
 Data Interpolator - Generate high-frequency data from lower-frequency historical data
 """
 import pandas as pd
-import numpy as np
+from numpy.random import default_rng
 from datetime import timedelta
 from backend.config import logger
 from backend.models import SessionLocal, HistoricalData, Ticker as TickerModel
 from sqlalchemy import and_
+
+# Initialize random number generator
+_rng = default_rng(seed=42)
 
 
 class DataInterpolator:
@@ -138,9 +141,9 @@ class DataInterpolator:
                     t2 = t * t
                     t3 = t2 * t
                     h00 = 2*t3 - 3*t2 + 1
-                    h10 = t3 - 2*t2 + t
+                    _ = t3 - 2*t2 + t
                     h01 = -2*t3 + 3*t2
-                    h11 = t3 - t2
+                    _ = t3 - t2
                     
                     new_row = {
                         'timestamp': new_time,
@@ -158,11 +161,11 @@ class DataInterpolator:
                     
                     new_row = {
                         'timestamp': new_time,
-                        'open': current_row['open'] + (next_row['open'] - current_row['open']) * ratio * (1 + np.random.uniform(-variance, variance)),
-                        'high': max(current_row['high'], next_row['high']) * (1 + np.random.uniform(0, variance)),
-                        'low': min(current_row['low'], next_row['low']) * (1 - np.random.uniform(0, variance)),
-                        'close': current_row['close'] + (next_row['close'] - current_row['close']) * ratio * (1 + np.random.uniform(-variance, variance)),
-                        'volume': int(current_row['volume'] / multiplier * (1 + np.random.uniform(-0.2, 0.2))),
+                        'open': current_row['open'] + (next_row['open'] - current_row['open']) * ratio * (1 + _rng.uniform(-variance, variance)),
+                        'high': max(current_row['high'], next_row['high']) * (1 + _rng.uniform(0, variance)),
+                        'low': min(current_row['low'], next_row['low']) * (1 - _rng.uniform(0, variance)),
+                        'close': current_row['close'] + (next_row['close'] - current_row['close']) * ratio * (1 + _rng.uniform(-variance, variance)),
+                        'volume': int(current_row['volume'] / multiplier * (1 + _rng.uniform(-0.2, 0.2))),
                     }
                 
                 elif method == 'ohlc':
@@ -175,13 +178,13 @@ class DataInterpolator:
                     
                     new_row = {
                         'timestamp': new_time,
-                        'open': base_price + np.random.uniform(-price_range/2, price_range/2),
-                        'close': base_price + np.random.uniform(-price_range/2, price_range/2),
+                        'open': base_price + _rng.uniform(-price_range/2, price_range/2),
+                        'close': base_price + _rng.uniform(-price_range/2, price_range/2),
                         'volume': int(current_row['volume'] / multiplier),
                     }
                     # High/Low must encompass Open/Close
-                    new_row['high'] = max(new_row['open'], new_row['close']) + np.random.uniform(0, price_range/2)
-                    new_row['low'] = min(new_row['open'], new_row['close']) - np.random.uniform(0, price_range/2)
+                    new_row['high'] = max(new_row['open'], new_row['close']) + _rng.uniform(0, price_range/2)
+                    new_row['low'] = min(new_row['open'], new_row['close']) - _rng.uniform(0, price_range/2)
                 
                 interpolated_data.append(new_row)
         

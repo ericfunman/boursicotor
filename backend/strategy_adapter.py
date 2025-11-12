@@ -20,13 +20,35 @@ class StrategyAdapter:
         try:
             params = json.loads(strategy.parameters) if strategy.parameters else {}
             return 'buy_conditions' in params and 'sell_conditions' in params
-        except:
+        except (ValueError, TypeError):
             return False
     
     @staticmethod
     def is_enhanced_strategy(strategy: StrategyModel) -> bool:
         """Vérifie si une stratégie est de type EnhancedMA"""
         return strategy.strategy_type == 'EnhancedMA'
+    
+    @staticmethod
+    def _get_enhanced_ma_indicators(params: dict) -> List[str]:
+        """Get indicators for EnhancedMA strategy"""
+        indicators = ['MA_Fast', 'MA_Slow', 'ROC', 'ADX', 'Volume_Ratio', 
+                     'Momentum', 'Bollinger_Bands']
+        
+        optional_indicators = {
+            'use_supertrend': 'Supertrend',
+            'use_parabolic_sar': 'Parabolic_SAR',
+            'use_donchian': 'Donchian_Channels',
+            'use_vwap': 'VWAP',
+            'use_obv': 'OBV',
+            'use_cmf': 'CMF',
+            'use_elder_ray': 'Elder_Ray'
+        }
+        
+        for param_key, indicator_name in optional_indicators.items():
+            if params.get(param_key, False):
+                indicators.append(indicator_name)
+        
+        return indicators
     
     @staticmethod
     def get_strategy_indicators(strategy: StrategyModel) -> List[str]:
@@ -40,30 +62,36 @@ class StrategyAdapter:
             
             # Pour les stratégies EnhancedMA
             if strategy.strategy_type == 'EnhancedMA':
-                indicators = ['MA_Fast', 'MA_Slow', 'ROC', 'ADX', 'Volume_Ratio', 
-                             'Momentum', 'Bollinger_Bands']
-                
-                if params.get('use_supertrend', False):
-                    indicators.append('Supertrend')
-                if params.get('use_parabolic_sar', False):
-                    indicators.append('Parabolic_SAR')
-                if params.get('use_donchian', False):
-                    indicators.append('Donchian_Channels')
-                if params.get('use_vwap', False):
-                    indicators.append('VWAP')
-                if params.get('use_obv', False):
-                    indicators.append('OBV')
-                if params.get('use_cmf', False):
-                    indicators.append('CMF')
-                if params.get('use_elder_ray', False):
-                    indicators.append('Elder_Ray')
-                
-                return indicators
+                return StrategyAdapter._get_enhanced_ma_indicators(params)
             
             return []
         except Exception as e:
             print(f"Erreur get_strategy_indicators: {e}")
             return []
+    
+    @staticmethod
+    def _prepare_signal_variables(df: pd.DataFrame, i: int) -> dict:
+        """Prepare variables for signal evaluation"""
+        return {
+            'rsi': df['rsi_14'].iloc[i] if 'rsi_14' in df.columns else None,
+            'macd': df['macd'].iloc[i] if 'macd' in df.columns else None,
+            'macd_signal': df['macd_signal'].iloc[i] if 'macd_signal' in df.columns else None,
+            'price': df['close'].iloc[i],
+        }
+    
+    @staticmethod
+    def _evaluate_conditions(params: dict, variables: dict) -> Tuple[bool, bool]:
+        """Evaluate buy and sell conditions"""
+        buy_condition = False
+        sell_condition = False
+        
+        if 'buy_conditions' in params:
+            buy_condition = eval(params['buy_conditions'], variables)
+        
+        if 'sell_conditions' in params:
+            sell_condition = eval(params['sell_conditions'], variables)
+        
+        return buy_condition, sell_condition
     
     @staticmethod
     def generate_signals_simple(df: pd.DataFrame, strategy: StrategyModel) -> Tuple[List, List, List]:
@@ -74,7 +102,7 @@ class StrategyAdapter:
             Tuple (signal_times, signal_prices, signal_types)
         """
         signal_times = []
-        signal_prices = []
+        _ = []
         signal_types = []
         
         try:
@@ -84,22 +112,10 @@ class StrategyAdapter:
             for i in range(1, len(df)):
                 try:
                     # Préparer les variables pour eval
-                    variables = {
-                        'rsi': df['rsi_14'].iloc[i] if 'rsi_14' in df.columns else None,
-                        'macd': df['macd'].iloc[i] if 'macd' in df.columns else None,
-                        'macd_signal': df['macd_signal'].iloc[i] if 'macd_signal' in df.columns else None,
-                        'price': df['close'].iloc[i],
-                    }
+                    variables = StrategyAdapter._prepare_signal_variables(df, i)
                     
                     # Évaluer les conditions
-                    buy_condition = False
-                    sell_condition = False
-                    
-                    if 'buy_conditions' in params:
-                        buy_condition = eval(params['buy_conditions'], variables)
-                    
-                    if 'sell_conditions' in params:
-                        sell_condition = eval(params['sell_conditions'], variables)
+                    buy_condition, sell_condition = StrategyAdapter._evaluate_conditions(params, variables)
                     
                     # Ajouter les signaux
                     if buy_condition:
@@ -111,13 +127,13 @@ class StrategyAdapter:
                         signal_prices.append(df['close'].iloc[i])
                         signal_types.append('sell')
                 
-                except Exception as e:
+                except Exception:
                     continue
         
         except Exception as e:
             print(f"Erreur generate_signals_simple: {e}")
         
-        return signal_times, signal_prices, signal_types
+        return signal_times, _, signal_types
     
     @staticmethod
     def generate_signals_enhanced(df: pd.DataFrame, strategy: StrategyModel) -> Tuple[List, List, List]:
@@ -128,7 +144,7 @@ class StrategyAdapter:
             Tuple (signal_times, signal_prices, signal_types)
         """
         signal_times = []
-        signal_prices = []
+        _ = []
         signal_types = []
         
         try:
@@ -198,7 +214,7 @@ class StrategyAdapter:
         """
         try:
             # Générer tous les signaux
-            signal_times, signal_prices, signal_types = StrategyAdapter.generate_signals(df, strategy)
+            signal_times, _, signal_types = StrategyAdapter.generate_signals(df, strategy)
             
             # Vérifier le dernier signal
             if signal_times and len(signal_times) > 0:
@@ -219,6 +235,26 @@ class StrategyAdapter:
         except Exception as e:
             print(f"Erreur get_current_signal: {e}")
             return "ERREUR", "orange"
+    
+    @staticmethod
+    def _get_active_indicators(params: dict) -> List[str]:
+        """Get list of active advanced indicators for EnhancedMA"""
+        active_indicators = []
+        indicator_map = {
+            'use_supertrend': 'Supertrend',
+            'use_parabolic_sar': 'Parabolic SAR',
+            'use_donchian': 'Donchian',
+            'use_vwap': 'VWAP',
+            'use_obv': 'OBV',
+            'use_cmf': 'CMF',
+            'use_elder_ray': 'Elder Ray'
+        }
+        
+        for param_key, indicator_name in indicator_map.items():
+            if params.get(param_key, False):
+                active_indicators.append(indicator_name)
+        
+        return active_indicators
     
     @staticmethod
     def format_strategy_info(strategy: StrategyModel) -> Dict:
@@ -246,25 +282,7 @@ class StrategyAdapter:
                 info['fast_period'] = params.get('fast_period', 'N/A')
                 info['slow_period'] = params.get('slow_period', 'N/A')
                 info['min_signals'] = params.get('min_signals', 'N/A')
-                
-                # Liste des indicateurs actifs
-                active_indicators = []
-                if params.get('use_supertrend', False):
-                    active_indicators.append('Supertrend')
-                if params.get('use_parabolic_sar', False):
-                    active_indicators.append('Parabolic SAR')
-                if params.get('use_donchian', False):
-                    active_indicators.append('Donchian')
-                if params.get('use_vwap', False):
-                    active_indicators.append('VWAP')
-                if params.get('use_obv', False):
-                    active_indicators.append('OBV')
-                if params.get('use_cmf', False):
-                    active_indicators.append('CMF')
-                if params.get('use_elder_ray', False):
-                    active_indicators.append('Elder Ray')
-                
-                info['active_advanced_indicators'] = active_indicators
+                info['active_advanced_indicators'] = StrategyAdapter._get_active_indicators(params)
             
             # Ajouter les conditions pour stratégies simples
             elif StrategyAdapter.is_simple_strategy(strategy):

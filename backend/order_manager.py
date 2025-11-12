@@ -42,6 +42,18 @@ class OrderManager:
             self._db.close()
             self._db = None
     
+    def _validate_order_params(self, order_type: str, limit_price: Optional[float], stop_price: Optional[float]) -> bool:
+        """Validate order parameters based on order type"""
+        if order_type in ["LIMIT", "STOP_LIMIT"] and limit_price is None:
+            logger.error("Limit price required for LIMIT/STOP_LIMIT orders")
+            return False
+        
+        if order_type in ["STOP", "STOP_LIMIT"] and stop_price is None:
+            logger.error("Stop price required for STOP/STOP_LIMIT orders")
+            return False
+        
+        return True
+    
     def create_order(
         self,
         symbol: str,
@@ -85,13 +97,7 @@ class OrderManager:
             logger.info(f"Step 1 OK: Ticker {symbol} found: ID={ticker.id}, Name={ticker.name}")
             
             # Validate order parameters
-            if order_type in ["LIMIT", "STOP_LIMIT"] and limit_price is None:
-                logger.error("Limit price required for LIMIT/STOP_LIMIT orders")
-                self._close_db()
-                return None
-            
-            if order_type in ["STOP", "STOP_LIMIT"] and stop_price is None:
-                logger.error("Stop price required for STOP/STOP_LIMIT orders")
+            if not self._validate_order_params(order_type, limit_price, stop_price):
                 self._close_db()
                 return None
             
@@ -151,7 +157,7 @@ class OrderManager:
             order_id = order.id
             order_status = order.status.value
             
-            logger.info(f"Step 5: Closing database session...")
+            logger.info("Step 5: Closing database session...")
             self._close_db()
             
             logger.info(f"=== CREATE ORDER COMPLETE: Order {order_id}, Status={order_status} ===")
@@ -165,7 +171,7 @@ class OrderManager:
             try:
                 self.db.rollback()
                 self._close_db()
-            except:
+            except Exception:
                 pass
             return None
     
@@ -183,23 +189,23 @@ class OrderManager:
         try:
             logger.info(f"Step 4a: Creating contract for {ticker.symbol}...")
             
-            # Create contract with correct exchange for EUR stocks
-            from ib_insync import Stock
+            # Use get_contract() from collector which has proper currency/exchange detection
+            # instead of relying on potentially incorrect DB values
+            contract = self.ibkr_collector.get_contract(
+                symbol=ticker.symbol,
+                exchange='SMART',  # Let IBKR auto-route
+                currency=None  # Auto-detect: USD first, then EUR
+            )
             
-            # Determine exchange based on currency
-            if ticker.currency == 'EUR':
-                exchange = 'SBF'  # Use SBF directly for European stocks
-                primary_exchange = 'SBF'
-            else:
-                exchange = 'SMART'
-                primary_exchange = ''
+            if not contract:
+                logger.error(f"Step 4a FAILED: Could not qualify contract for {ticker.symbol}")
+                order.status = OrderStatus.ERROR
+                order.status_message = f"Could not qualify contract for {ticker.symbol}"
+                self.db.commit()
+                return False
             
-            contract = Stock(ticker.symbol, exchange, ticker.currency)
-            if primary_exchange:
-                contract.primaryExchange = primary_exchange
-            
-            logger.info(f"Step 4a OK: Contract created: {contract.symbol} on {contract.exchange} (currency: {ticker.currency})")
-            logger.info(f"Step 4b: Creating IBKR order object...")
+            logger.info(f"Step 4a OK: Contract created: {contract.symbol} on {contract.exchange} (currency: {contract.currency})")
+            logger.info("Step 4b: Creating IBKR order object...")
             
             # Create IBKR order object
             ib_order = self._create_ib_order(order)
@@ -212,25 +218,37 @@ class OrderManager:
                 return False
             
             logger.info(f"Step 4b OK: IBKR order object created (type={order.order_type})")
-            logger.info(f"Step 4c: Placing order with IBKR...")
+            logger.info("Step 4c: Placing order with IBKR...")
             
             # Place order (IBKR will qualify the contract automatically)
             trade = self.ibkr_collector.ib.placeOrder(contract, ib_order)
             
             logger.info(f"Step 4c OK: placeOrder() returned, trade: {trade}")
-            logger.info(f"Step 4e: Updating order with IBKR IDs...")
+            logger.info("Step 4e: Updating order with IBKR IDs...")
+            
+            # Get the actual IBKR orderId from trade object
+            # IMPORTANT: trade.order.orderId is assigned by IBKR during placeOrder()
+            import time
+            time.sleep(0.1)  # Brief wait to ensure orderId is stable
+            actual_order_id = trade.order.orderId
             
             # Update order with IBKR IDs
-            order.ibkr_order_id = ib_order.orderId
-            order.perm_id = ib_order.permId if hasattr(ib_order, 'permId') else None
+            order.ibkr_order_id = actual_order_id
+            order.perm_id = trade.order.permId if hasattr(trade.order, 'permId') else None
             order.status = OrderStatus.SUBMITTED
             order.submitted_at = datetime.now()
-            order.status_message = f"Submitted to IBKR (ID: {ib_order.orderId})"
+            order.status_message = f"Submitted to IBKR (ID: {actual_order_id})"
             
-            logger.info(f"Step 4e: Committing order update to DB...")
+            logger.info(f"Step 4e: IBKR assigned orderId = {actual_order_id}")
+            
+            logger.info("Step 4e: Committing order update to DB...")
             self.db.commit()
             
-            logger.info(f"Step 4 COMPLETE: Order {order.id} submitted to IBKR with ID {ib_order.orderId}")
+            logger.info(f"Step 4 COMPLETE: Order {order.id} submitted to IBKR with ID {actual_order_id}")
+            
+            # Monitor order execution (non-blocking - in thread)
+            logger.info(f"Step 4f: Starting order monitoring in background with orderId={actual_order_id}")
+            self._monitor_order_async(order.id, actual_order_id)
             
             return True
             
@@ -242,9 +260,156 @@ class OrderManager:
             order.status_message = str(e)
             try:
                 self.db.commit()
-            except:
+            except Exception:
                 pass
             return False
+    
+    def _get_position_fill_info(self, symbol: str, order_quantity: int, ibkr_order_id: int) -> tuple:
+        """
+        Check if order filled by verifying portfolio position
+        
+        Returns:
+            Tuple (filled_quantity, avg_price)
+        """
+        positions = self.ibkr_collector.ib.positions()
+        
+        # Find our position
+        our_position = None
+        for position in positions:
+            if position.contract.symbol == symbol:
+                our_position = position
+                break
+        
+        filled = 0
+        avg_price = 0
+        
+        if our_position and int(our_position.position) >= order_quantity:
+            # Position confirms the fill!
+            filled = order_quantity
+            logger.info(f"[Monitor] ✅ Position confirmed: {our_position.position} shares of {symbol}")
+            
+            # Try to get average fill price from fills() API
+            try:
+                all_fills = self.ibkr_collector.ib.fills()
+                matching_fills = [
+                    f for f in all_fills 
+                    if f.contract.symbol == symbol and 
+                       f.execution.orderId == ibkr_order_id
+                ]
+                
+                if matching_fills:
+                    total_cost = sum(f.execution.price * f.execution.shares for f in matching_fills)
+                    avg_price = total_cost / filled
+                    logger.info(f"[Monitor] ✅ Found fill: {filled} shares @ {avg_price:.2f}")
+            except Exception as e:
+                logger.warning(f"[Monitor] Could not get fill price details: {e}")
+                avg_price = 0
+        
+        return filled, avg_price
+    
+    def _get_fills_from_api(self, symbol: str, ibkr_order_id: int) -> tuple:
+        """
+        Get fill information from IBKR fills() API
+        
+        Returns:
+            Tuple (filled_quantity, avg_price)
+        """
+        all_fills = self.ibkr_collector.ib.fills()
+        
+        matching_fills = [
+            f for f in all_fills 
+            if f.contract.symbol == symbol and 
+               f.execution.orderId == ibkr_order_id
+        ]
+        
+        if matching_fills:
+            filled = int(sum(f.execution.shares for f in matching_fills))
+            total_cost = sum(f.execution.price * f.execution.shares for f in matching_fills)
+            avg_price = total_cost / filled if filled > 0 else 0
+            
+            logger.info(f"[Monitor] ✅ Found {len(matching_fills)} fills: {filled} shares @ {avg_price:.2f}")
+            return filled, avg_price
+        
+        return 0, 0
+    
+    def _update_order_from_fill(self, db, order, filled: int, avg_price: float):
+        """Update order status based on fill information"""
+        if filled > 0:
+            order.filled_quantity = filled
+            order.remaining_quantity = max(0, int(order.quantity) - filled)
+            if avg_price > 0:
+                order.avg_fill_price = avg_price
+            
+            if filled >= int(order.quantity):
+                order.status = OrderStatus.FILLED
+                order.status_message = f"Filled at {avg_price:.2f} ({filled} shares)"
+                logger.info(f"[Monitor] ✅ Order {order.id} marked as FILLED in DB")
+            else:
+                order.status = OrderStatus.SUBMITTED
+                order.status_message = f"Partially filled ({filled}/{int(order.quantity)} shares)"
+            
+            db.commit()
+        else:
+            logger.warning(f"[Monitor] No fills found for {order.ticker.symbol if order.ticker else 'UNKNOWN'}")
+    
+    def _monitor_order_async(self, order_id: int, ibkr_order_id: int):
+        """
+        Monitor order execution asynchronously in background thread
+        Waits for IBKR events and updates DB when order fills
+        
+        Args:
+            order_id: Our DB Order ID to monitor
+            ibkr_order_id: The IBKR order ID (for matching fills)
+        """
+        def monitor():
+            """TODO: Add docstring."""
+            try:
+                logger.info(f"[Monitor] Starting async monitoring for order {order_id} (IBKR ID: {ibkr_order_id})")
+                
+                db = SessionLocal()
+                
+                # Get order from DB
+                order = db.query(Order).filter(Order.id == order_id).first()
+                if not order:
+                    logger.warning(f"[Monitor] Order {order_id} not found in DB")
+                    db.close()
+                    return
+                
+                symbol = order.ticker.symbol if order.ticker else "UNKNOWN"
+                
+                # Wait for order to fill (market orders may take 2-5 seconds for fills to appear in API)
+                import time
+                time.sleep(5)  # Wait 5 seconds for order to be executed and fills to propagate
+                
+                # Check if filled in IBKR by verifying portfolio position
+                try:
+                    logger.info("[Monitor] Verifying fill by checking portfolio position...")
+                    filled, avg_price = self._get_position_fill_info(symbol, int(order.quantity), ibkr_order_id)
+                    
+                    if filled == 0:
+                        # Fallback to fills() API
+                        logger.info("[Monitor] Position too small, trying fills() API")
+                        filled, avg_price = self._get_fills_from_api(symbol, ibkr_order_id)
+                    
+                    # Update DB
+                    self._update_order_from_fill(db, order, filled, avg_price)
+                
+                except Exception as e:
+                    logger.error(f"[Monitor] Error checking fills: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                
+                db.close()
+                logger.info(f"[Monitor] Finished monitoring order {order_id}")
+                
+            except Exception as e:
+                logger.error(f"[Monitor] Exception in monitor thread: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+        
+        # Start monitoring in background thread
+        thread = threading.Thread(target=monitor, daemon=True)
+        thread.start()
     
     def _place_order_with_ibkr_async(self, order_id: int, ticker_id: int) -> bool:
         """
@@ -275,7 +440,7 @@ class OrderManager:
             
             # Check if IBKR is still connected
             if not self.ibkr_collector.ib.isConnected():
-                logger.error(f"[Thread] IBKR not connected!")
+                logger.error("[Thread] IBKR not connected!")
                 order.status = OrderStatus.ERROR
                 order.status_message = "IBKR connection lost"
                 db.commit()
@@ -283,32 +448,24 @@ class OrderManager:
             
             logger.info(f"[Thread] Creating Stock contract for {ticker.symbol}...")
             
-            # Create contract directly instead of using get_contract (which might block)
-            from ib_insync import Stock
-            contract = Stock(ticker.symbol, 'SMART', ticker.currency)
+            # Use get_contract() which has proper timeout protection (15s)
+            # instead of direct qualifyContracts() call that could block indefinitely
+            contract = self.ibkr_collector.get_contract(
+                symbol=ticker.symbol,
+                exchange='SMART',
+                currency=None  # Auto-detect: USD first, then EUR
+            )
             
-            logger.info(f"[Thread] Contract created: {contract}")
-            logger.info(f"[Thread] Qualifying contract with IBKR...")
-            
-            # Qualify the contract (this requests details from IBKR)
-            try:
-                qualified = self.ibkr_collector.ib.qualifyContracts(contract)
-                if not qualified:
-                    logger.error(f"[Thread] Could not qualify contract for {ticker.symbol}")
-                    order.status = OrderStatus.ERROR
-                    order.status_message = f"Invalid symbol or market closed: {ticker.symbol}"
-                    db.commit()
-                    return False
-                contract = qualified[0]
-                logger.info(f"[Thread] Contract qualified: {contract}")
-            except Exception as e:
-                logger.error(f"[Thread] Error qualifying contract: {e}")
+            if not contract:
+                logger.error(f"[Thread] Could not qualify contract for {ticker.symbol}")
                 order.status = OrderStatus.ERROR
-                order.status_message = f"Contract error: {str(e)}"
+                order.status_message = f"Invalid symbol or market closed: {ticker.symbol}"
                 db.commit()
                 return False
             
-            logger.info(f"[Thread] Creating IBKR order object...")
+            logger.info(f"[Thread] Contract qualified: {contract}")
+            
+            logger.info("[Thread] Creating IBKR order object...")
             
             # Create IBKR order
             ib_order = self._create_ib_order(order)
@@ -316,7 +473,7 @@ class OrderManager:
             logger.info(f"[Thread] IBKR order object creation completed, result: {ib_order is not None}")
             
             if not ib_order:
-                logger.error(f"[Thread] Could not create IBKR order object")
+                logger.error("[Thread] Could not create IBKR order object")
                 order.status = OrderStatus.ERROR
                 order.status_message = "Could not create IBKR order"
                 db.commit()
@@ -339,7 +496,7 @@ class OrderManager:
             db.commit()
             
             logger.info(f"[Thread] Order {order_id} successfully submitted to IBKR with ID {ib_order.orderId}")
-            logger.info(f"[Thread] Database updated successfully")
+            logger.info("[Thread] Database updated successfully")
             return True
             
         except Exception as e:

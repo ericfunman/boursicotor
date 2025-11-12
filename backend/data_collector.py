@@ -1,13 +1,17 @@
 """
 Data collection service for fetching and storing market data
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 import pandas as pd
 from sqlalchemy.orm import Session
+from numpy.random import default_rng
 
 from backend.models import Ticker, HistoricalData, SessionLocal
 from backend.config import logger, DATA_CONFIG
+
+# Initialize random number generator
+_rng = default_rng(seed=42)
 
 # IBKR client is optional - will use mock data if not available
 IBKR_AVAILABLE = False
@@ -26,10 +30,11 @@ class DataCollector:
         """
         self.db: Session = SessionLocal()
         
-        # Note: Saxo Bank, Alpha Vantage, and Polygon have been removed
-        # Only Yahoo Finance and IBKR are supported now
+        # Note: Saxo Bank, Alpha Vantage, Polygon, and Yahoo Finance have been removed
+        # Only IBKR is supported as data source
         
     def __del__(self):
+        """TODO: Add docstring."""
         self.db.close()
     
     def ensure_ticker_exists(self, symbol: str, name: str = "", exchange: str = "EURONEXT") -> Ticker:
@@ -275,7 +280,7 @@ class DataCollector:
             days = DATA_CONFIG["retention_days"]
         
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
             deleted = self.db.query(HistoricalData).filter(
                 HistoricalData.timestamp < cutoff_date
             ).delete()
@@ -292,25 +297,36 @@ class DataCollector:
     def _generate_mock_data(self, symbol: str, duration: str, bar_size: str, ticker: Ticker) -> int:
         """Generate mock historical data for testing when IBKR is not available"""
         import numpy as np
+        import re
         
         logger.info(f"Generating mock data for {symbol}")
         
-        # Parse duration (simplified)
+        # Parse duration (simplified) - extract number and unit
         days = 1
-        if 'D' in duration:
-            days = int(duration.split()[0])
-        elif 'W' in duration:
-            days = int(duration.split()[0]) * 7
-        elif 'M' in duration:
-            days = int(duration.split()[0]) * 30
+        match = re.match(r'(\d+)([DMW])', duration)
+        if match:
+            num, unit = int(match.group(1)), match.group(2)
+            if unit == 'D':
+                days = num
+            elif unit == 'W':
+                days = num * 7
+            elif unit == 'M':
+                days = num * 30
         
-        # Parse bar size
-        if 'min' in bar_size:
-            minutes = int(bar_size.split()[0])
-            periods = (days * 24 * 60) // minutes
-        else:
-            # Default to hourly data
-            periods = days * 24
+        # Parse bar size - extract number and unit
+        minutes = 1
+        match_bar = re.match(r'(\d+)(min|h|d)', bar_size)
+        if match_bar:
+            num, unit = int(match_bar.group(1)), match_bar.group(2)
+            if unit == 'min':
+                minutes = num
+            elif unit == 'h':
+                minutes = num * 60
+            elif unit == 'd':
+                minutes = num * 24 * 60
+        
+        # Calculate periods
+        periods = (days * 24 * 60) // minutes
         
         # Generate timestamps
         end_time = datetime.now()
@@ -323,17 +339,17 @@ class DataCollector:
         
         for i, timestamp in enumerate(timestamps):
             # Generate realistic price movements
-            change = np.random.normal(0, 0.02)  # Random walk with volatility
+            change = _rng.normal(0, 0.02)  # Random walk with volatility
             if i > 0:
                 base_price *= (1 + change)
             
             # Generate OHLC with some spread
             spread = base_price * 0.01  # 1% spread
-            open_price = base_price + np.random.uniform(-spread/2, spread/2)
-            high_price = open_price + abs(np.random.normal(0, spread/2))
-            low_price = open_price - abs(np.random.normal(0, spread/2))
-            close_price = np.random.uniform(low_price, high_price)
-            volume = np.random.randint(1000, 10000)
+            open_price = base_price + _rng.uniform(-spread/2, spread/2)
+            high_price = open_price + abs(_rng.normal(0, spread/2))
+            low_price = open_price - abs(_rng.normal(0, spread/2))
+            close_price = _rng.uniform(low_price, high_price)
+            volume = _rng.integers(1000, 10000)
             
             # Create historical data record
             hist_data = HistoricalData(
@@ -381,18 +397,18 @@ class DataCollector:
             ]
             
             data = None
-            meta_data = None
+            _ = None
             
             for av_symbol in av_symbols:
                 try:
                     if function == "TIME_SERIES_INTRADAY":
-                        data, meta_data = self.alpha_vantage_client.get_intraday(
+                        data, _ = self.alpha_vantage_client.get_intraday(
                             symbol=av_symbol, 
                             interval=interval, 
                             outputsize='full'
                         )
                     else:
-                        data, meta_data = self.alpha_vantage_client.get_daily(
+                        data, _ = self.alpha_vantage_client.get_daily(
                             symbol=av_symbol, 
                             outputsize='full'
                         )

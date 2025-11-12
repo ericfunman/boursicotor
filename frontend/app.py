@@ -4,6 +4,8 @@ Main Streamlit application for Boursicotor
 import streamlit as st
 import pandas as pd
 import numpy as np
+from numpy.random import default_rng
+_rng_frontend = default_rng(seed=42)
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
@@ -11,6 +13,19 @@ import time as time_module  # Alias to avoid conflict with 'time' column name
 import sys
 import os
 from pathlib import Path
+
+# Import UI constants
+from frontend.constants import (
+    MENU_DASHBOARD, MENU_DATA_COLLECTION, MENU_TECHNICAL_ANALYSIS,
+    MENU_AUTO_TRADING, MENU_ORDER_PLACEMENT, MENU_SETTINGS,
+    BTN_REFRESH, ERROR_DETAILS, LABEL_QUANTITY, LABEL_PRICE_EUR,
+    HOVERMODE_X_UNIFIED
+)
+
+# Set timezone to Europe/Paris at startup
+os.environ['TZ'] = 'Europe/Paris'
+import time
+time.tzset() if hasattr(time, 'tzset') else None  # tzset only works on Unix-like systems
 
 # Auto-refresh for progress bars
 try:
@@ -109,6 +124,18 @@ def connect_global_ibkr():
             # Use client_id=1 for Streamlit main connection
             st.session_state.global_ibkr = IBKRCollector(client_id=1)
         
+        # Check if already connected before calling connect()
+        if st.session_state.global_ibkr_connected:
+            # Already connected - just verify it's still alive
+            try:
+                # Quick check: if ib is available, we're probably connected
+                if hasattr(st.session_state.global_ibkr, 'ib') and st.session_state.global_ibkr.ib is not None:
+                    if hasattr(st.session_state.global_ibkr.ib, 'isConnected') and st.session_state.global_ibkr.ib.isConnected():
+                        return True, "✅ Déjà connecté à IBKR"
+            except Exception:
+                pass  # Fall through to reconnect if check fails
+        
+        # Not connected yet, or verification failed - connect now
         if st.session_state.global_ibkr.connect():
             st.session_state.global_ibkr_connected = True
             return True, "✅ Connecté à IBKR"
@@ -126,7 +153,7 @@ def disconnect_global_ibkr():
     if st.session_state.global_ibkr is not None:
         try:
             st.session_state.global_ibkr.disconnect()
-        except:
+        except Exception:
             pass
         st.session_state.global_ibkr = None
         st.session_state.global_ibkr_connected = False
@@ -139,7 +166,7 @@ def get_cached_active_jobs():
         from backend.job_manager import JobManager
         job_manager = JobManager()
         return job_manager.get_active_jobs()
-    except:
+    except Exception:
         return []
 
 
@@ -178,7 +205,7 @@ def main():
                     st.caption(f"... et {len(active_jobs) - 3} autre(s) job(s)")
                 
                 st.markdown("---")
-    except:
+    except Exception:
         pass  # Silently fail if Celery not configured
     
     st.markdown("---")
@@ -207,9 +234,9 @@ def main():
         # Page selection
         page = st.radio(
             "Navigation",
-            ["📊 Dashboard", "💾 Collecte de Données", "📜 Historique des collectes",
-             "📈 Analyse Technique", "💹 Cours Live", "🔙 Backtesting",
-             "📚 Indicateurs", "📝 Passage d'Ordres", "🤖 Trading Automatique", "⚙️ Paramètres"]
+            [MENU_DASHBOARD, MENU_DATA_COLLECTION, "📜 Historique des collectes",
+             MENU_TECHNICAL_ANALYSIS, "💹 Cours Live", "🔙 Backtesting",
+             "📚 Indicateurs", MENU_ORDER_PLACEMENT, MENU_AUTO_TRADING, MENU_SETTINGS]
         )
         
         st.markdown("---")
@@ -257,13 +284,13 @@ def main():
         st.info("💡 **Connexion partagée**\n\nLa connexion IBKR est partagée entre toutes les pages. Connectez-vous une seule fois ici.")
     
     # Route to selected page
-    if page == "📊 Dashboard":
+    if page == MENU_DASHBOARD:
         dashboard_page()
-    elif page == "💾 Collecte de Données":
+    elif page == MENU_DATA_COLLECTION:
         data_collection_page()
     elif page == "📜 Historique des collectes":
         jobs_monitoring_page()
-    elif page == "📈 Analyse Technique":
+    elif page == MENU_TECHNICAL_ANALYSIS:
         technical_analysis_page()
     elif page == "💹 Cours Live":
         live_prices_page()
@@ -271,17 +298,17 @@ def main():
         backtesting_page()
     elif page == "📚 Indicateurs":
         indicators_page()
-    elif page == "📝 Passage d'Ordres":
+    elif page == MENU_ORDER_PLACEMENT:
         order_placement_page()
-    elif page == "🤖 Trading Automatique":
+    elif page == MENU_AUTO_TRADING:
         auto_trading_page()
-    elif page == "⚙️ Paramètres":
+    elif page == MENU_SETTINGS:
         settings_page()
 
 
 def dashboard_page():
     """Dashboard page - Uses global IBKR connection"""
-    st.header("📊 Dashboard")
+    st.header(MENU_DASHBOARD)
     
     # Initialize session state
     init_global_ibkr_connection()
@@ -353,7 +380,12 @@ def dashboard_page():
             
             # Format: account_summary[currency][tag]
             # Try to get EUR first, fallback to USD
-            currency = 'EUR' if 'EUR' in account_summary else ('USD' if 'USD' in account_summary else list(account_summary.keys())[0])
+            if 'EUR' in account_summary:
+                currency = 'EUR'
+            elif 'USD' in account_summary:
+                currency = 'USD'
+            else:
+                currency = list(account_summary.keys())[0]
             
             account_data = account_summary.get(currency, {})
             
@@ -470,7 +502,7 @@ def dashboard_page():
                         "Date": fill.time.strftime("%Y-%m-%d %H:%M:%S") if fill.time else "N/A",
                         "Symbole": trade.contract.symbol,
                         "Type": "ACHAT" if fill.side == "BOT" else "VENTE",
-                        "Quantité": fill.shares,
+                        LABEL_QUANTITY: fill.shares,
                         "Prix": f"{fill.price:.2f}",
                         "Commission": f"{fill.commission:.2f}",
                         "Compte": fill.acctNumber
@@ -487,37 +519,40 @@ def dashboard_page():
     except Exception as e:
         st.error(f"❌ Erreur: {e}")
         import traceback
-        with st.expander("Détails de l'erreur"):
+        with st.expander(ERROR_DETAILS):
             st.code(traceback.format_exc())
 
 
 
 def data_collection_page():
     """Data collection page"""
-    st.header("💾 Collecte de Données")
+    st.header(MENU_DATA_COLLECTION)
     
-    # Data source selection
-    st.subheader("📡 Source de Données")
+    # Auto-refresh when jobs are active (like in jobs_monitoring_page)
+    active_jobs = get_cached_active_jobs()
+    if active_jobs and st_autorefresh:
+        st_autorefresh(interval=3000, key="collection_page_refresh")  # 3 seconds - faster for immediate visibility
+        st.info("🔄 Rafraîchissement automatique activé (3 secondes) - collectes en cours")
     
-    st.info("**Source de données : IBKR / Lynx**\n- ✅ Données réelles temps réel\n- ✅ Via IB Gateway\n- 📊 Aucune limite API\n- ⚡ Latence minimale")
+    # Create tabs for Collection, Data Overview, and Interpolation
+    tab_collect, tab_overview, tab_interp = st.tabs(["📥 Collecte IBKR", "📊 Données Collectées", "🔬 Interpolation"])
     
-    st.markdown("---")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("📥 Récupération de données historiques")
+    with tab_collect:
+        col1, col2 = st.columns(2)
         
-        # Ticker search and selection
-        st.markdown("### 🔍 Recherche de Ticker")
-        
-        # Search mode selection
-        search_mode = st.radio(
-            "Mode de recherche",
-            ["📋 Liste existante", "🔎 Recherche IBKR"],
-            horizontal=True,
-            help="Choisissez parmi les tickers existants ou recherchez de nouvelles actions via IBKR"
-        )
+        with col1:
+            st.subheader("📥 Récupération de données historiques")
+            
+            # Ticker search and selection
+            st.markdown("### 🔍 Recherche de Ticker")
+            
+            # Search mode selection
+            search_mode = st.radio(
+                "Mode de recherche",
+                ["📋 Liste existante", "🔎 Recherche IBKR"],
+                horizontal=True,
+                help="Choisissez parmi les tickers existants ou recherchez de nouvelles actions via IBKR"
+            )
         
         if search_mode == "📋 Liste existante":
             # Get tickers from database
@@ -561,131 +596,25 @@ def data_collection_page():
                     selected_name = None
         
         else:
-            # IBKR Search mode
-            st.info("🔎 Recherchez une action sur IBKR pour l'ajouter à votre liste")
+            # Manual ticker input mode (IBKR search is too slow/unreliable)
+            st.info("📝 Entrez directement le symbole du ticker (ex: AAPL, TSLA, TTE...)")
             
-            # Initialize session state for search results
-            if 'ibkr_search_results' not in st.session_state:
-                st.session_state.ibkr_search_results = []
-            if 'ibkr_selected_ticker' not in st.session_state:
-                st.session_state.ibkr_selected_ticker = None
-            if 'ibkr_selected_name' not in st.session_state:
-                st.session_state.ibkr_selected_name = None
-            
-            search_query = st.text_input(
-                "Rechercher une action",
-                placeholder="Ex: Air Liquide, Apple, Tesla...",
-                help="Entrez le nom de l'entreprise pour rechercher sur IBKR"
-            )
-            
-            if search_query and len(search_query) >= 2:
-                if st.button("🔍 Rechercher sur IBKR", type="primary"):
-                    with st.spinner(f"Recherche de '{search_query}' sur IBKR..."):
-                        try:
-                            # Use global IBKR connection
-                            collector = get_global_ibkr()
-                            
-                            if collector is None:
-                                st.error("❌ Connectez-vous à IBKR depuis la sidebar pour utiliser la recherche")
-                            else:
-                                # Verify connection is active
-                                if not hasattr(collector, 'ib') or not collector.ib:
-                                    st.error("❌ La connexion IBKR n'est pas active. Reconnectez-vous depuis la sidebar.")
-                                else:
-                                    # Search using a simple dedicated method
-                                    try:
-                                        from ib_insync import IB
-                                        
-                                        # Create a temporary connection for search
-                                        search_ib = IB()
-                                        
-                                        # Connect using same settings as collector
-                                        search_ib.connect('127.0.0.1', 4002, clientId=99)
-                                        
-                                        # Perform search
-                                        contracts = search_ib.reqMatchingSymbols(search_query)
-                                        
-                                        # Wait for response
-                                        search_ib.sleep(2)
-                                        
-                                        # Disconnect temporary connection
-                                        search_ib.disconnect()
-                                        
-                                    except Exception as search_error:
-                                        st.error(f"❌ Erreur lors de la recherche IBKR : {str(search_error)}")
-                                        st.info("💡 Essayez de saisir le symbole manuellement ci-dessous")
-                                        contracts = []
-                                    
-                                    if contracts:
-                                        # Filter for stocks only
-                                        options = []
-                                        
-                                        for contract_desc in contracts:
-                                            cd = contract_desc.contract
-                                            
-                                            # Filter: only stocks (STK)
-                                            if hasattr(cd, 'secType') and cd.secType == 'STK' and hasattr(cd, 'symbol'):
-                                                # Get company description if available
-                                                desc = contract_desc.contract.longName if hasattr(contract_desc.contract, 'longName') else search_query.title()
-                                                
-                                                # Get exchange info
-                                                exchange = getattr(cd, 'primaryExchange', 'N/A')
-                                                currency = getattr(cd, 'currency', 'N/A')
-                                                
-                                                label = f"{cd.symbol} - {desc} ({exchange}, {currency})"
-                                                options.append((label, cd.symbol, exchange, desc))
-                                        
-                                        if options:
-                                            st.session_state.ibkr_search_results = options
-                                            st.success(f"✅ {len(options)} action(s) trouvée(s)")
-                                        else:
-                                            st.session_state.ibkr_search_results = []
-                                            st.warning(f"❌ Aucune action trouvée pour '{search_query}'. Essayez un autre terme ou utilisez la saisie manuelle ci-dessous.")
-                                    else:
-                                        st.session_state.ibkr_search_results = []
-                                        st.info("ℹ️ Aucun résultat trouvé. Utilisez la saisie manuelle ci-dessous.")
-                        
-                        except Exception as e:
-                            st.error(f"❌ Erreur lors de la recherche : {str(e)}")
-                            st.info("💡 Vous pouvez saisir le symbole manuellement ci-dessous")            # Display search results if available
-            selected_ticker = None
-            selected_name = None
-            
-            if st.session_state.ibkr_search_results:
-                options = st.session_state.ibkr_search_results
-                choice = st.selectbox(
-                    "Sélectionner une action",
-                    range(len(options)),
-                    format_func=lambda i: options[i][0],
-                    key="ibkr_ticker_choice"
-                )
-                
-                selected_ticker = options[choice][1]
-                selected_name = options[choice][3]
-                
-                st.success(f"✅ Ticker sélectionné : **{selected_ticker}** - {selected_name}")
-            
-            # Manual input fallback
-            if not selected_ticker:
-                st.markdown("---")
-                st.markdown("**Ou saisissez directement le ticker :**")
-                col_t1, col_t2 = st.columns([1, 2])
-                with col_t1:
-                    selected_ticker = st.text_input(
-                        "Ticker",
-                        placeholder="Ex: AI, AAPL, TSLA",
-                        help="Symbole du ticker"
-                    ).upper()
-                with col_t2:
-                    selected_name = st.text_input(
-                        "Nom",
-                        placeholder="Ex: Air Liquide S.A.",
-                        help="Nom de l'entreprise"
-                    )
+            col_t1, col_t2 = st.columns([1, 2])
+            with col_t1:
+                selected_ticker = st.text_input(
+                    "Ticker",
+                    placeholder="Ex: AAPL",
+                    help="Symbole du ticker (ex: AAPL, TSLA, MSFT, TTE, WLN...)"
+                ).upper().strip()
+            with col_t2:
+                selected_name = st.text_input(
+                    "Nom (optionnel)",
+                    placeholder="Ex: Apple Inc.",
+                    help="Nom de l'entreprise (optionnel)"
+                ).strip()
         
         # IBKR options
         st.markdown("**IBKR / Lynx** - Périodes et intervalles")
-        st.info("💼 IBKR fournit des données temps réel sans limitation d'API")
         
         duration_options = {
             "1 jour": "1 D",
@@ -705,12 +634,6 @@ def data_collection_page():
             help="IBKR: Données temps réel et historiques"
         )
         period = duration_options[selected_duration]
-        
-        # Warning about sub-5-second intervals
-        st.warning("⚠️ **Important** : Les intervalles < 5 secondes ne sont disponibles que pour certaines actions très liquides (principalement US). Pour les actions européennes (TTE, AI, etc.), utilisez 5 secondes minimum.")
-        
-        # Info about streaming optimization
-        st.success("✨ **Mode optimisé** : Les données sont sauvegardées progressivement pendant la collecte. Vous pouvez demander de grandes périodes sans problème de mémoire !")
         
         # Interval options for IBKR
         interval_options = {
@@ -809,110 +732,143 @@ def data_collection_page():
                     st.success(f"✅ Job de collecte créé pour {selected_ticker} depuis IBKR!")
                     st.info(f"📊 Source: IBKR | Période: {selected_duration} | Intervalle: {selected_interval}")
                     st.info("🔄 La collecte s'exécute en arrière-plan. Consultez la page **Historique des collectes** pour suivre la progression.")
-                    # Note: Pas de st.rerun() ici - laisse l'utilisateur naviguer librement
+                    
+                    # Mark in session state to show updated data on next auto-refresh
+                    st.session_state.collection_started = True
             
             except ImportError as e:
                 st.error("❌ Celery n'est pas installé ou configuré correctement")
                 st.info("� Consultez le fichier CELERY_SETUP.md pour installer et configurer Celery + Redis")
-                with st.expander("Détails de l'erreur"):
+                with st.expander(ERROR_DETAILS):
                     st.code(str(e))
             
             except Exception as e:
                 st.error(f"❌ Erreur lors de la création du job: {e}")
                 import traceback
-                with st.expander("Détails de l'erreur"):
+                with st.expander(ERROR_DETAILS):
                     st.code(traceback.format_exc())
-    
-    with col2:
-        st.subheader("📊 Données en base")
         
-        from backend.models import SessionLocal, Ticker, HistoricalData
+        
+    
+    # Data Overview tab - Show all collected tickers in a table
+    with tab_overview:
+        st.subheader("📊 Vue d'ensemble des données collectées")
+        st.info("ℹ️ Tableau récapitulatif de tous les tickers collectés avec statistiques sur les données")
+        
         db = SessionLocal()
-        
-        try:
-            # Statistics
-            ticker_count = db.query(Ticker).count()
-            data_count = db.query(HistoricalData).count()
-            
-            st.metric("Tickers", ticker_count)
-            st.metric("Points de données", f"{data_count:,}")
-            
-            # Detail by ticker
-            st.markdown("---")
-            st.markdown("**Détail par ticker:**")
-            
-            for ticker in db.query(Ticker).all():
-                count = db.query(HistoricalData).filter(
-                    HistoricalData.ticker_id == ticker.id
-                ).count()
-                
-                col_ticker, col_delete = st.columns([3, 1])
-                with col_ticker:
-                    st.text(f"{ticker.symbol}: {count:,} points")
-                with col_delete:
-                    if st.button("🗑️", key=f"delete_{ticker.symbol}", help=f"Supprimer {ticker.symbol}"):
-                        # Confirmation dialog
-                        if f"confirm_delete_{ticker.symbol}" not in st.session_state:
-                            st.session_state[f"confirm_delete_{ticker.symbol}"] = True
-                            st.rerun()
-            
-            # Handle deletion confirmations
-            for ticker in db.query(Ticker).all():
-                if st.session_state.get(f"confirm_delete_{ticker.symbol}", False):
-                    st.warning(f"⚠️ Confirmer la suppression de **{ticker.symbol}** ?")
-                    col_yes, col_no = st.columns(2)
-                    
-                    with col_yes:
-                        if st.button("✅ Oui", key=f"yes_{ticker.symbol}", type="primary"):
-                            from backend.yahoo_finance_collector import YahooFinanceCollector
-                            result = YahooFinanceCollector.delete_ticker_data(ticker.symbol)
-                            
-                            if result['success']:
-                                st.success(result['message'])
-                                del st.session_state[f"confirm_delete_{ticker.symbol}"]
-                                st.rerun()
-                            else:
-                                st.error(result['message'])
-                    
-                    with col_no:
-                        if st.button("❌ Non", key=f"no_{ticker.symbol}"):
-                            del st.session_state[f"confirm_delete_{ticker.symbol}"]
-                            st.rerun()
-        
-        finally:
-            db.close()
-    
-    st.markdown("---")
-    
-    # Data Interpolation Section
-    st.subheader("🔬 Interpolation de Données")
-    st.info("📊 Générez des données haute fréquence à partir de données basse fréquence existantes (ex: créer des points à la seconde à partir de données minute)")
-    
-    col_interp1, col_interp2 = st.columns(2)
-    
-    with col_interp1:
-        # Get available tickers
-        db_interp = SessionLocal()
         try:
             from backend.models import Ticker as TickerModel, HistoricalData
-            from sqlalchemy import func, distinct
+            from sqlalchemy import func
             
-            # Get tickers with data
-            tickers_with_data = db_interp.query(
+            # Get all tickers with data
+            tickers_with_stats = db.query(
                 TickerModel.symbol,
-                TickerModel.name
+                TickerModel.name,
+                func.count(HistoricalData.id).label('total_points'),
+                func.min(HistoricalData.timestamp).label('first_date'),
+                func.max(HistoricalData.timestamp).label('last_date')
             ).join(
                 HistoricalData,
                 TickerModel.id == HistoricalData.ticker_id
-            ).distinct().all()
+            ).group_by(
+                TickerModel.id,
+                TickerModel.symbol,
+                TickerModel.name
+            ).order_by(TickerModel.symbol).all()
             
-            if tickers_with_data:
-                ticker_options_interp = {t.symbol: f"{t.symbol} - {t.name}" for t in tickers_with_data}
-                selected_ticker_interp = st.selectbox(
-                    "Sélectionner le ticker",
-                    list(ticker_options_interp.keys()),
-                    format_func=lambda x: ticker_options_interp[x],
-                    key="interp_ticker"
+            if tickers_with_stats:
+                # Prepare data for display
+                overview_data = []
+                for ticker in tickers_with_stats:
+                    days_covered = (ticker.last_date - ticker.first_date).days + 1 if ticker.first_date and ticker.last_date else 0
+                    
+                    overview_data.append({
+                        '📈 Ticker': ticker.symbol,
+                        '🏢 Nom': ticker.name,
+                        '📊 Points': f"{ticker.total_points:,}",
+                        '📅 Début': ticker.first_date.strftime('%Y-%m-%d') if ticker.first_date else 'N/A',
+                        '📅 Fin': ticker.last_date.strftime('%Y-%m-%d') if ticker.last_date else 'N/A',
+                        '⏱️ Durée (jours)': days_covered
+                    })
+                
+                df_overview = pd.DataFrame(overview_data)
+                
+                # Display as table
+                st.dataframe(
+                    df_overview,
+                    use_container_width=True,
+                    height=400,
+                    hide_index=True
+                )
+                
+                # Summary statistics
+                st.markdown("---")
+                col_summary1, col_summary2, col_summary3 = st.columns(3)
+                
+                total_tickers = len(tickers_with_stats)
+                total_points = sum(t.total_points for t in tickers_with_stats)
+                avg_points = int(total_points / total_tickers) if total_tickers > 0 else 0
+                
+                with col_summary1:
+                    st.metric("🎯 Total Tickers", total_tickers)
+                with col_summary2:
+                    st.metric("📊 Total Points", f"{total_points:,}")
+                with col_summary3:
+                    st.metric("📈 Points Moyens", f"{avg_points:,}")
+                
+                # Export option
+                st.markdown("---")
+                if st.button("💾 Exporter le tableau (CSV)", use_container_width=True):
+                    csv = df_overview.to_csv(index=False)
+                    st.download_button(
+                        label="Télécharger CSV",
+                        data=csv,
+                        file_name=f"boursicotor_data_overview_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )
+            else:
+                st.warning("⚠️ Aucune donnée collectée pour le moment.")
+                st.info("💡 Utilisez l'onglet **Collecte IBKR** pour commencer à collecter des données sur TTE, WLN, TSL ou d'autres actions.")
+        
+        except Exception as e:
+            st.error(f"❌ Erreur lors du chargement des données : {e}")
+            import traceback
+            with st.expander(ERROR_DETAILS):
+                st.code(traceback.format_exc())
+        finally:
+            db.close()
+    
+    # Interpolation tab
+    with tab_interp:
+        st.subheader("🔬 Interpolation de Données")
+        st.info("📊 Générez des données haute fréquence à partir de données basse fréquence existantes (ex: créer des points à la seconde à partir de données minute)")
+        
+        col_interp1, col_interp2 = st.columns(2)
+        
+        with col_interp1:
+            # Get available tickers
+            db_interp = SessionLocal()
+            try:
+                from backend.models import Ticker as TickerModel, HistoricalData
+                from sqlalchemy import func, distinct
+                
+                # Get tickers with data
+                tickers_with_data = db_interp.query(
+                    TickerModel.symbol,
+                    TickerModel.name
+                ).join(
+                    HistoricalData,
+                    TickerModel.id == HistoricalData.ticker_id
+                ).distinct().all()
+                
+                if tickers_with_data:
+                    ticker_options_interp = {t.symbol: f"{t.symbol} - {t.name}" for t in tickers_with_data}
+                    selected_ticker_interp = st.selectbox(
+                        "Sélectionner le ticker",
+                        list(ticker_options_interp.keys()),
+                        format_func=lambda x: ticker_options_interp[x],
+                        key="interp_ticker"
                 )
                 
                 # Get available intervals for this ticker
@@ -991,71 +947,66 @@ def data_collection_page():
                     else:
                         st.warning("⚠️ Aucune donnée disponible pour ce ticker")
                         target_interval_interp = None
-            else:
-                st.warning("⚠️ Aucun ticker avec données historiques")
-                target_interval_interp = None
+                else:
+                    st.warning("⚠️ Aucun ticker avec données historiques")
+                    target_interval_interp = None
+            
+            finally:
+                db_interp.close()
         
-        finally:
-            db_interp.close()
-    
-    with col_interp2:
-        st.markdown("### 📋 Comment ça marche ?")
-        st.markdown("""
-        **Méthodes d'interpolation** :
+        with col_interp2:
+            st.markdown("### 📋 Comment ça marche ?")
+            st.markdown("""
+            **Méthodes d'interpolation** :
+            
+            - **Linéaire** : Interpolation simple entre deux points
+            - **Cubique** : Interpolation lisse avec spline cubique
+            - **Temporel** : Ajoute une variance aléatoire réaliste
+            - **OHLC** : Préserve les patterns Open-High-Low-Close
+            
+            **Exemple** :
+            - Source: 1,000 points à 1min
+            - Cible: 1s (×60)
+            - Résultat: ~60,000 points
+            
+            ⚠️ **Attention** : Les données interpolées sont des approximations, pas des données réelles.
+            """)
         
-        - **Linéaire** : Interpolation simple entre deux points
-        - **Cubique** : Interpolation lisse avec spline cubique
-        - **Temporel** : Ajoute une variance aléatoire réaliste
-        - **OHLC** : Préserve les patterns Open-High-Low-Close
-        
-        **Exemple** :
-        - Source: 1,000 points à 1min
-        - Cible: 1s (×60)
-        - Résultat: ~60,000 points
-        
-        ⚠️ **Attention** : Les données interpolées sont des approximations, pas des données réelles.
-        """)
-    
-    # Interpolation button
-    if target_interval_interp:
-        if st.button("🚀 Démarrer l'interpolation", type="primary", width='stretch'):
-            with st.spinner(f"Interpolation de {selected_ticker_interp} de {source_interval_interp} vers {target_interval_interp}..."):
-                try:
-                    from backend.data_interpolator import DataInterpolator
-                    
-                    result = DataInterpolator.interpolate_and_save(
-                        ticker_symbol=selected_ticker_interp,
-                        source_interval=source_interval_interp,
-                        target_interval=target_interval_interp,
-                        method=selected_method,
-                        limit=limit_records
-                    )
-                    
-                    if result['success']:
-                        st.success(f"✅ {result['message']}")
+        # Interpolation button
+        if target_interval_interp:
+            if st.button("🚀 Démarrer l'interpolation", type="primary", width='stretch'):
+                with st.spinner(f"Interpolation de {selected_ticker_interp} de {source_interval_interp} vers {target_interval_interp}..."):
+                    try:
+                        from backend.data_interpolator import DataInterpolator
                         
-                        # Display stats
-                        col_stat1, col_stat2, col_stat3 = st.columns(3)
-                        with col_stat1:
-                            st.metric("Records source", f"{result['source_records']:,}")
-                        with col_stat2:
-                            st.metric("Records générés", f"{result['generated_records']:,}")
-                        with col_stat3:
-                            st.metric("Nouveaux", f"{result['new_records']:,}")
+                        result = DataInterpolator.interpolate_and_save(
+                            ticker_symbol=selected_ticker_interp,
+                            source_interval=source_interval_interp,
+                            target_interval=target_interval_interp,
+                            method=selected_method,
+                            limit=limit_records
+                        )
                         
-                        if result['duplicates'] > 0:
-                            st.info(f"ℹ️ {result['duplicates']:,} enregistrements déjà existants ignorés")
-                    else:
-                        st.error(f"❌ {result['message']}")
+                        if result['success']:
+                            st.success(f"✅ {result['message']}")
+                            
+                            # Display stats
+                            col_stat1, col_stat2, col_stat3 = st.columns(3)
+                            with col_stat1:
+                                st.metric("Records source", f"{result['source_records']:,}")
+                            with col_stat2:
+                                st.metric("Records générés", f"{result['generated_records']:,}")
+                            with col_stat3:
+                                st.metric("Nouveaux", f"{result['new_records']:,}")
+                            
+                            if result['duplicates'] > 0:
+                                st.info(f"ℹ️ {result['duplicates']:,} enregistrements déjà existants ignorés")
+                        else:
+                            st.error(f"❌ {result['message']}")
                         
-                except Exception as e:
-                    st.error(f"❌ Erreur lors de l'interpolation: {e}")
-                    logger.error(f"Interpolation error: {e}")
-    
-    st.markdown("---")
-    
-    # Visualisation des données collectées
-    st.subheader("📈 Visualisation des données")
+                    except Exception as e:
+                        st.error(f"❌ Erreur lors de l'interpolation: {e}")
+                        logger.error(f"Interpolation error: {e}")
     
     # Get tickers with collected data
     available_tickers = get_available_tickers()
@@ -1173,7 +1124,7 @@ def data_collection_page():
                 data = query.order_by(HistoricalData.timestamp.asc()).all()
                 
                 if not data:
-                    st.warning(f"⚠️ Aucune donnée disponible pour la période sélectionnée")
+                    st.warning("⚠️ Aucune donnée disponible pour la période sélectionnée")
                 else:
                     # Convert to DataFrame
                     df = pd.DataFrame([{
@@ -1208,7 +1159,7 @@ def data_collection_page():
                         hovermode='x'
                     )
                     
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, key="live_price_chart")
                     
                     # Volume chart
                     fig_volume = go.Figure(data=[go.Bar(
@@ -1225,7 +1176,7 @@ def data_collection_page():
                         height=200
                     )
                     
-                    st.plotly_chart(fig_volume, width='stretch')
+                    st.plotly_chart(fig_volume, width='stretch', key="live_volume_chart")
                     
                     # Statistics
                     col1, col2, col3, col4 = st.columns(4)
@@ -1245,6 +1196,9 @@ def data_collection_page():
 def jobs_monitoring_page():
     """Job monitoring page - Shows async data collection progress"""
     st.header("📋 Historique des collectes de données")
+    
+    # Import timezone conversion function
+    from backend.models import format_datetime_paris
 
     # Auto-refresh for progress bars (every 5 seconds when jobs are active)
     active_jobs = get_cached_active_jobs()
@@ -1289,7 +1243,7 @@ def jobs_monitoring_page():
             if st.button("🧹 Nettoyer jobs bloqués", help="Annule tous les jobs en cours depuis plus de 2h"):
                 try:
                     from datetime import timedelta
-                    cutoff_time = datetime.utcnow() - timedelta(hours=2)
+                    cutoff_time = datetime.now(timezone.utc) - timedelta(hours=2)
                     stuck_jobs = db.query(DataCollectionJob).filter(
                         DataCollectionJob.status.in_([JobStatus.PENDING, JobStatus.RUNNING]),
                         DataCollectionJob.started_at < cutoff_time
@@ -1298,7 +1252,7 @@ def jobs_monitoring_page():
                     count = 0
                     for job in stuck_jobs:
                         job.status = JobStatus.CANCELLED
-                        job.completed_at = datetime.utcnow()
+                        job.completed_at = datetime.now(timezone.utc)
                         job.error_message = "Job bloqué - annulé automatiquement"
                         count += 1
                     
@@ -1329,7 +1283,7 @@ def jobs_monitoring_page():
                         
                         with col1:
                             st.markdown(f"**{job.ticker_symbol}** - {job.source}")
-                            st.caption(f"Démarré: {job.started_at.strftime('%d/%m/%Y %H:%M:%S') if job.started_at else 'N/A'}")
+                            st.caption(f"Démarré: {format_datetime_paris(job.started_at) if job.started_at else 'N/A'}")
                             st.caption(f"Durée: {job.duration} | Intervalle: {job.interval}")
                             
                             # Progress bar
@@ -1373,7 +1327,7 @@ def jobs_monitoring_page():
                 st.info("Aucun job complété récemment")
             else:
                 for job in completed_jobs[:20]:  # Limit to 20 most recent
-                    with st.expander(f"✅ {job.ticker_symbol} - {job.source} ({job.completed_at.strftime('%d/%m/%Y %H:%M')})"):
+                    with st.expander(f"✅ {job.ticker_symbol} - {job.source} ({format_datetime_paris(job.completed_at, '%d/%m/%Y %H:%M') if job.completed_at else 'N/A'})"):
                         col1, col2 = st.columns(2)
                         
                         with col1:
@@ -1383,14 +1337,14 @@ def jobs_monitoring_page():
                             st.markdown(f"**Intervalle:** {job.interval}")
                         
                         with col2:
-                            st.markdown(f"**Démarré:** {job.started_at.strftime('%d/%m/%Y %H:%M:%S') if job.started_at else 'N/A'}")
-                            st.markdown(f"**Complété:** {job.completed_at.strftime('%d/%m/%Y %H:%M:%S') if job.completed_at else 'N/A'}")
+                            st.markdown(f"**Démarré:** {format_datetime_paris(job.started_at) if job.started_at else 'N/A'}")
+                            st.markdown(f"**Complété:** {format_datetime_paris(job.completed_at) if job.completed_at else 'N/A'}")
                             
                             if job.started_at and job.completed_at:
                                 duration = (job.completed_at - job.started_at).total_seconds()
                                 st.markdown(f"**Temps écoulé:** {duration:.1f}s")
                         
-                        st.markdown(f"**Résultats:**")
+                        st.markdown("**Résultats:**")
                         col3, col4, col5 = st.columns(3)
                         with col3:
                             st.metric("Nouveaux", job.records_new or 0)
@@ -1407,7 +1361,7 @@ def jobs_monitoring_page():
                 st.info("Aucun job échoué récemment")
             else:
                 for job in failed_jobs[:20]:  # Limit to 20 most recent
-                    with st.expander(f"❌ {job.ticker_symbol} - {job.source} ({job.completed_at.strftime('%d/%m/%Y %H:%M') if job.completed_at else 'N/A'})"):
+                    with st.expander(f"❌ {job.ticker_symbol} - {job.source} ({format_datetime_paris(job.completed_at, '%d/%m/%Y %H:%M') if job.completed_at else 'N/A'})"):
                         col1, col2 = st.columns(2)
                         
                         with col1:
@@ -1417,8 +1371,8 @@ def jobs_monitoring_page():
                             st.markdown(f"**Intervalle:** {job.interval}")
                         
                         with col2:
-                            st.markdown(f"**Démarré:** {job.started_at.strftime('%d/%m/%Y %H:%M:%S') if job.started_at else 'N/A'}")
-                            st.markdown(f"**Échoué:** {job.completed_at.strftime('%d/%m/%Y %H:%M:%S') if job.completed_at else 'N/A'}")
+                            st.markdown(f"**Démarré:** {format_datetime_paris(job.started_at) if job.started_at else 'N/A'}")
+                            st.markdown(f"**Échoué:** {format_datetime_paris(job.completed_at) if job.completed_at else 'N/A'}")
                         
                         if job.error_message:
                             st.error(f"**Erreur:** {job.error_message}")
@@ -1448,8 +1402,8 @@ def jobs_monitoring_page():
                         "Durée": job.duration,
                         "Intervalle": job.interval,
                         "Progression": f"{job.progress or 0}%",
-                        "Créé": job.created_at.strftime('%d/%m %H:%M'),
-                        "Complété": job.completed_at.strftime('%d/%m %H:%M') if job.completed_at else "-"
+                        "Créé": format_datetime_paris(job.created_at, '%d/%m %H:%M') if job.created_at else "N/A",
+                        "Complété": format_datetime_paris(job.completed_at, '%d/%m %H:%M') if job.completed_at else "-"
                     })
                 
                 import pandas as pd
@@ -1477,13 +1431,13 @@ def jobs_monitoring_page():
     except ImportError as e:
         st.error("❌ Celery n'est pas installé ou configuré correctement")
         st.info("💡 Consultez le fichier CELERY_SETUP.md pour installer et configurer Celery + Redis")
-        with st.expander("Détails de l'erreur"):
+        with st.expander(ERROR_DETAILS):
             st.code(str(e))
     
     except Exception as e:
         st.error(f"❌ Erreur lors de la récupération des jobs: {e}")
         import traceback
-        with st.expander("Détails de l'erreur"):
+        with st.expander(ERROR_DETAILS):
             st.code(traceback.format_exc())
     
     finally:
@@ -1494,7 +1448,7 @@ def jobs_monitoring_page():
 
 def technical_analysis_page():
     """Technical analysis page"""
-    st.header("📈 Analyse Technique")
+    st.header(MENU_TECHNICAL_ANALYSIS)
     
     col1, col2 = st.columns(2)
     
@@ -1611,12 +1565,12 @@ def technical_analysis_page():
             
             fig.update_layout(
                 title=f"{selected_ticker} - {available_tickers[selected_ticker]}",
-                yaxis_title="Prix (€)",
+                yaxis_title=LABEL_PRICE_EUR,
                 xaxis_title="Date",
                 height=500
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="historical_price_chart")
             
             # Data table
             st.dataframe(df.tail(20), use_container_width=True)
@@ -1626,7 +1580,7 @@ def technical_analysis_page():
 
 def technical_analysis_page():
     """Technical analysis page"""
-    st.header("📈 Analyse Technique")
+    st.header(MENU_TECHNICAL_ANALYSIS)
     
     # Get tickers with collected data
     available_tickers = get_available_tickers()
@@ -1716,7 +1670,7 @@ def technical_analysis_page():
     fig.add_trace(go.Bar(x=df.index, y=df['volume'], name='Volume'), row=4, col=1)
     
     fig.update_layout(height=1000, showlegend=True, xaxis=dict(rangeslider=dict(visible=False)))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key="technical_analysis_chart")
     
     # Indicator values
     st.subheader("📊 Valeurs actuelles des indicateurs")
@@ -1726,8 +1680,13 @@ def technical_analysis_page():
     with col1:
         if 'rsi_14' in df.columns:
             rsi_value = df['rsi_14'].iloc[-1]
-            st.metric("RSI (14)", f"{rsi_value:.2f}", 
-                     "Suracheté" if rsi_value > 70 else "Survendu" if rsi_value < 30 else "Neutre")
+            if rsi_value > 70:
+                rsi_status = "Suracheté"
+            elif rsi_value < 30:
+                rsi_status = "Survendu"
+            else:
+                rsi_status = "Neutre"
+            st.metric("RSI (14)", f"{rsi_value:.2f}", rsi_status)
     
     with col2:
         if 'macd' in df.columns:
@@ -1808,10 +1767,15 @@ def backtesting_page():
                     min_date = min_date_query[0].date()
                     max_date = max_date_query[0].date()
                     
+                    # Calculate default start date: 30 days before max, but not before min
+                    default_start = max_date - pd.Timedelta(days=30)
+                    if default_start < min_date:
+                        default_start = min_date
+                    
                     with col_date1:
                         start_date = st.date_input(
                             "Date de début",
-                            value=max_date - pd.Timedelta(days=30),  # Default: last 30 days
+                            value=default_start,
                             min_value=min_date,
                             max_value=max_date,
                             help="Début de la période d'analyse"
@@ -1892,7 +1856,7 @@ def backtesting_page():
                 max_value=5.0,
                 value=0.09,
                 step=0.01,
-                format="%.2f",
+                format="%.2",
                 help="Commission par trade (achat + vente)"
             )
         
@@ -1906,7 +1870,7 @@ def backtesting_page():
                 help="Temps minimum à attendre entre deux trades pour éviter le sur-trading"
             )
         
-        col5, col6 = st.columns(2)
+        col5, _ = st.columns(2)
         
         with col5:
             max_iterations = st.number_input(
@@ -2027,7 +1991,7 @@ def backtesting_page():
                         results_container = st.empty()
                         
                         # Search for strategy
-                        generator = StrategyGenerator(target_return=target_return)
+                        _ = StrategyGenerator(target_return=target_return)
                         
                         best_return = -np.inf
                         best_strategy = None
@@ -2040,69 +2004,69 @@ def backtesting_page():
                             progress_bar.progress(progress)
                             
                             # Generate random strategy - Include EnhancedMA
-                            strategy_type = np.random.choice(['ma', 'rsi', 'multi', 'enhanced'])
+                            strategy_type = _rng_frontend.choice(['ma', 'rsi', 'multi', 'enhanced'])
                             
                             if strategy_type == 'ma':
                                 from backend.backtesting_engine import MovingAverageCrossover
-                                fast = np.random.randint(5, 20)
-                                slow = np.random.randint(fast + 5, 50)
+                                fast = _rng_frontend.integers(5, 20)
+                                slow = _rng_frontend.integers(fast + 5, 50)
                                 strategy = MovingAverageCrossover(fast_period=fast, slow_period=slow)
                             elif strategy_type == 'rsi':
                                 from backend.backtesting_engine import RSIStrategy
-                                period = np.random.randint(10, 20)
-                                oversold = np.random.randint(20, 35)
-                                overbought = np.random.randint(65, 80)
+                                period = _rng_frontend.integers(10, 20)
+                                oversold = _rng_frontend.integers(20, 35)
+                                overbought = _rng_frontend.integers(65, 80)
                                 strategy = RSIStrategy(rsi_period=period, oversold=oversold, overbought=overbought)
                             elif strategy_type == 'multi':
                                 from backend.backtesting_engine import MultiIndicatorStrategy
                                 strategy = MultiIndicatorStrategy(
-                                    ma_fast=np.random.randint(5, 15),
-                                    ma_slow=np.random.randint(20, 40),
-                                    rsi_period=np.random.randint(10, 20),
-                                    rsi_oversold=np.random.randint(20, 35),
-                                    rsi_overbought=np.random.randint(65, 80)
+                                    ma_fast=_rng_frontend.integers(5, 15),
+                                    ma_slow=_rng_frontend.integers(20, 40),
+                                    rsi_period=_rng_frontend.integers(10, 20),
+                                    rsi_oversold=_rng_frontend.integers(20, 35),
+                                    rsi_overbought=_rng_frontend.integers(65, 80)
                                 )
                             else:  # enhanced
                                 from backend.backtesting_engine import EnhancedMovingAverageStrategy
                                 
                                     # Randomly decide which ultra-complex indicators to use
-                                use_supertrend = np.random.choice([True, False])
-                                use_parabolic_sar = np.random.choice([True, False])
-                                use_donchian = np.random.choice([True, False])
-                                use_vwap = np.random.choice([True, False])
-                                use_obv = np.random.choice([True, False])
-                                use_cmf = np.random.choice([True, False])
-                                use_elder_ray = np.random.choice([True, False])
+                                use_supertrend = _rng_frontend.choice([True, False])
+                                use_parabolic_sar = _rng_frontend.choice([True, False])
+                                use_donchian = _rng_frontend.choice([True, False])
+                                use_vwap = _rng_frontend.choice([True, False])
+                                use_obv = _rng_frontend.choice([True, False])
+                                use_cmf = _rng_frontend.choice([True, False])
+                                use_elder_ray = _rng_frontend.choice([True, False])
                                 
                                 strategy = EnhancedMovingAverageStrategy(
-                                    fast_period=np.random.randint(15, 25),
-                                    slow_period=np.random.randint(35, 50),
-                                    roc_period=np.random.choice([10, 14]),
-                                    roc_threshold=np.random.uniform(1.0, 4.0),
-                                    adx_period=np.random.choice([14, 20]),
-                                    adx_threshold=np.random.randint(20, 35),
-                                    volume_ratio_short=np.random.choice([3, 5, 10]),
-                                    volume_ratio_long=np.random.choice([15, 20, 30]),
-                                    volume_threshold=np.random.uniform(1.1, 1.5),
-                                    momentum_period=np.random.choice([10, 14]),
-                                    momentum_threshold=np.random.uniform(0.5, 2.0),
-                                    bb_period=np.random.choice([20, 25]),
-                                    bb_width_threshold=np.random.uniform(0.03, 0.08),
+                                    fast_period=_rng_frontend.integers(15, 25),
+                                    slow_period=_rng_frontend.integers(35, 50),
+                                    roc_period=_rng_frontend.choice([10, 14]),
+                                    roc_threshold=_rng_frontend.uniform(1.0, 4.0),
+                                    adx_period=_rng_frontend.choice([14, 20]),
+                                    adx_threshold=_rng_frontend.integers(20, 35),
+                                    volume_ratio_short=_rng_frontend.choice([3, 5, 10]),
+                                    volume_ratio_long=_rng_frontend.choice([15, 20, 30]),
+                                    volume_threshold=_rng_frontend.uniform(1.1, 1.5),
+                                    momentum_period=_rng_frontend.choice([10, 14]),
+                                    momentum_threshold=_rng_frontend.uniform(0.5, 2.0),
+                                    bb_period=_rng_frontend.choice([20, 25]),
+                                    bb_width_threshold=_rng_frontend.uniform(0.03, 0.08),
                                     use_supertrend=use_supertrend,
-                                    supertrend_period=np.random.choice([10, 14, 20]) if use_supertrend else 10,
-                                    supertrend_multiplier=np.random.uniform(2.0, 4.0) if use_supertrend else 3.0,
+                                    supertrend_period=_rng_frontend.choice([10, 14, 20]) if use_supertrend else 10,
+                                    supertrend_multiplier=_rng_frontend.uniform(2.0, 4.0) if use_supertrend else 3.0,
                                     use_parabolic_sar=use_parabolic_sar,
                                     use_donchian=use_donchian,
-                                    donchian_period=np.random.choice([20, 30, 40]) if use_donchian else 20,
-                                    donchian_threshold=np.random.uniform(0.02, 0.06) if use_donchian else 0.04,
+                                    donchian_period=_rng_frontend.choice([20, 30, 40]) if use_donchian else 20,
+                                    donchian_threshold=_rng_frontend.uniform(0.02, 0.06) if use_donchian else 0.04,
                                     use_vwap=use_vwap,
                                     use_obv=use_obv,
                                     use_cmf=use_cmf,
-                                    cmf_period=np.random.choice([14, 20, 21]) if use_cmf else 20,
-                                    cmf_threshold=np.random.uniform(0.0, 0.15) if use_cmf else 0.05,
+                                    cmf_period=_rng_frontend.choice([14, 20, 21]) if use_cmf else 20,
+                                    cmf_threshold=_rng_frontend.uniform(0.0, 0.15) if use_cmf else 0.05,
                                     use_elder_ray=use_elder_ray,
-                                    elder_ray_period=np.random.choice([13, 21, 34]) if use_elder_ray else 13,
-                                    min_signals=np.random.randint(2, 6)
+                                    elder_ray_period=_rng_frontend.choice([13, 21, 34]) if use_elder_ray else 13,
+                                    min_signals=_rng_frontend.integers(2, 6)
                                 )
                             
                             # Run backtest with custom commission
@@ -2219,7 +2183,7 @@ def backtesting_page():
                 best_strategy.name = strategy_name
                 try:
                     with st.spinner(f"Sauvegarde de '{strategy_name}'..."):
-                        logger.info(f"Calling StrategyManager.save_strategy...")
+                        logger.info("Calling StrategyManager.save_strategy...")
                         strategy_id = StrategyManager.save_strategy(best_strategy, best_result)
                         logger.info(f"Save returned ID: {strategy_id}")
                     
@@ -2261,15 +2225,15 @@ def backtesting_page():
                 trades_df = pd.DataFrame(best_result.trades)
                 trades_df['entry_date'] = pd.to_datetime(trades_df['entry_date'])
                 trades_df['exit_date'] = pd.to_datetime(trades_df['exit_date'])
-                st.dataframe(trades_df, width='stretch')
+                st.dataframe(trades_df, use_container_width=True)
     
     with tab2:
         st.subheader("💾 Stratégies Sauvegardées")
         
         # Add refresh button
-        col_refresh1, col_refresh2 = st.columns([1, 5])
+        col_refresh1, _ = st.columns([1, 5])
         with col_refresh1:
-            if st.button("🔄 Rafraîchir", key="refresh_strategies"):
+            if st.button(BTN_REFRESH, key="refresh_strategies"):
                 st.rerun()
         
         from backend.strategy_manager import StrategyManager
@@ -2308,13 +2272,13 @@ def backtesting_page():
                     # Actions
                     col_a, col_b = st.columns(2)
                     with col_a:
-                        if st.button(f"📊 Voir backtests", key=f"view_{strat['id']}"):
+                        if st.button("📊 Voir backtests", key=f"view_{strat['id']}"):
                             backtests = StrategyManager.get_strategy_backtests(strat['id'])
                             if backtests:
                                 st.dataframe(pd.DataFrame(backtests), width='stretch')
                     
                     with col_b:
-                        if st.button(f"🗑️ Supprimer", key=f"delete_{strat['id']}", type="secondary"):
+                        if st.button("🗑️ Supprimer", key=f"delete_{strat['id']}", type="secondary"):
                             try:
                                 if StrategyManager.delete_strategy(strat['id']):
                                     st.success(f"✅ Stratégie '{strat['name']}' supprimée avec succès")
@@ -2469,7 +2433,7 @@ def backtesting_page():
                                     
                                     if original_strategy:
                                         # Create new strategy with updated description
-                                        new_description = f"""Stratégie dérivée de '{selected_strategy_name}'
+                                        new_description = """Stratégie dérivée de '{selected_strategy_name}'
                                         
 📊 Résultats originaux ({original_strategy.description.split('(')[1].split(')')[0] if '(' in original_strategy.description else 'N/A'}):
 {original_strategy.description}
@@ -2520,23 +2484,6 @@ def backtesting_page():
                         
                     else:
                         st.error("Erreur lors de l'exécution du backtest")
-
-
-def auto_trading_page():
-    """Auto trading page"""
-    st.header("🤖 Trading Automatique")
-    st.warning("⚠️ Mode Paper Trading activé")
-    
-    st.info("🚧 Module de trading automatique en cours de développement")
-    
-    st.markdown("""
-    ### Fonctionnalités à venir:
-    - Configuration des stratégies actives
-    - Gestion des risques (stop-loss, take-profit)
-    - Monitoring en temps réel
-    - Alertes et notifications
-    - Historique des trades automatiques
-    """)
 
 
 def live_prices_page():
@@ -2770,9 +2717,6 @@ def live_prices_page():
                     logger.warning(f"[UI] Could not start Celery task: {e}")
                     st.session_state.live_task_id = None
             
-            # Non-blocking approach: Read latest data from Redis or IBKR
-            max_points = 200  # Keep last 200 points for better visualization
-            
             # Collect one data point from Redis or IBKR (non-blocking approach)
             current_price = None
             current_volume = None
@@ -2791,7 +2735,7 @@ def live_prices_page():
                         current_price = data_point.get('price')
                         current_volume = data_point.get('volume', 0)
                         current_time = datetime.fromisoformat(data_point.get('timestamp', datetime.now().isoformat()))
-                except Exception as redis_err:
+                except Exception:
                     redis_client = None
                 
                 # Fallback: Get from IBKR directly if Redis unavailable
@@ -2822,7 +2766,7 @@ def live_prices_page():
                             # Always cancel market data subscription
                             try:
                                 collector.ib.cancelMktData(contract)
-                            except:
+                            except Exception:
                                 pass
                     else:
                         st.error(f"❌ Impossible de trouver le contrat pour {selected_symbol}")
@@ -2870,7 +2814,7 @@ def live_prices_page():
                 
                 volume_placeholder.metric(
                     "Volume",
-                    f"{current_volume:,}"
+                    f"{int(current_volume):,}" if current_volume else "N/A"
                 )
                 
                 time_placeholder.metric(
@@ -2880,10 +2824,8 @@ def live_prices_page():
             
             # Calculate indicators for live data if enough points
             # (Always do this, even if no new price yet - keeps graph fresh)
-            buy_signals = []
-            sell_signals = []
             signal_times = []
-            signal_prices = []
+            _ = []
             signal_types = []
             latest_rsi = None
             latest_macd = None
@@ -2961,7 +2903,7 @@ def live_prices_page():
                     signal = f"Calcul... ({len(st.session_state.live_data['price'])}/50 points)"
                     signal_color = "orange"
             else:
-                signal = f"En attente de données..."
+                signal = "En attente de données..."
                 signal_color = "orange"
             
             # Create line chart - ALWAYS, even if no data yet
@@ -3038,14 +2980,14 @@ def live_prices_page():
             fig.update_layout(
                 title=f"{selected_symbol} - Cours en temps réel ({time_scale}) - Signal: {signal}",
                 xaxis_title="Heure",
-                yaxis_title="Prix (€)",
+                yaxis_title=LABEL_PRICE_EUR,
                 xaxis=dict(
                     tickformat='%H:%M:%S',  # Format avec les secondes
                     tickmode='auto',
                     nticks=10
                 ),
                 height=500,
-                hovermode='x unified',
+                hovermode=HOVERMODE_X_UNIFIED,
                 showlegend=True,
                 margin=dict(l=50, r=50, t=50, b=50)
             )
@@ -3062,7 +3004,12 @@ def live_prices_page():
                 
                 with ind_col1:
                     if latest_rsi:
-                        rsi_delta = "Suracheté" if latest_rsi > 70 else "Survendu" if latest_rsi < 30 else "Normal"
+                        if latest_rsi > 70:
+                            rsi_delta = "Suracheté"
+                        elif latest_rsi < 30:
+                            rsi_delta = "Survendu"
+                        else:
+                            rsi_delta = "Normal"
                         st.metric("RSI (14)", f"{latest_rsi:.2f}", rsi_delta)
                     else:
                         st.metric("RSI (14)", "---", "En attente...")
@@ -3176,22 +3123,19 @@ def trading_page():
         from backend.ibkr_collector import IBKRCollector
         from ib_insync import Stock, MarketOrder, LimitOrder
         
-        # Initialize IBKR collector in session state
-        if 'ibkr_collector' not in st.session_state:
-            st.session_state.ibkr_collector = None
-            st.session_state.ibkr_connected = False
+        # Connection state managed globally (initialized in main())
         
         # Connection section
         col_connect1, col_connect2 = st.columns([2, 1])
         
         with col_connect1:
-            if not st.session_state.ibkr_connected:
-                if st.button("🔌 Connecter à IBKR", type="primary", width='stretch'):
+            if not st.session_state.get('global_ibkr_connected', False):
+                if st.button("🔌 Connecter à IBKR", type="primary", use_container_width=True):
                     try:
                         with st.spinner("Connexion à IB Gateway..."):
-                            st.session_state.ibkr_collector = IBKRCollector()
-                            if st.session_state.ibkr_collector.connect():
-                                st.session_state.ibkr_connected = True
+                            # Use global IBKR connection from main()
+                            success, _ = connect_global_ibkr()
+                            if success:
                                 st.success("✅ Connecté à IBKR!")
                                 st.rerun()
                             else:
@@ -3200,19 +3144,17 @@ def trading_page():
                         st.error(f"❌ Erreur: {e}")
             else:
                 if st.button("🔌 Déconnecter", width='stretch'):
-                    if st.session_state.ibkr_collector:
-                        st.session_state.ibkr_collector.disconnect()
-                    st.session_state.ibkr_collector = None
-                    st.session_state.ibkr_connected = False
+                    disconnect_global_ibkr()
+                    st.success("Déconnecté")
                     st.rerun()
         
         with col_connect2:
-            if st.session_state.ibkr_connected:
+            if st.session_state.get('global_ibkr_connected', False):
                 st.success("🟢 Connecté")
             else:
                 st.error("🔴 Déconnecté")
         
-        if not st.session_state.ibkr_connected:
+        if not st.session_state.get('global_ibkr_connected', False):
             st.info("👆 Connectez-vous à IB Gateway pour commencer le trading")
             st.markdown("---")
             st.markdown("""
@@ -3225,7 +3167,8 @@ def trading_page():
             """)
             return
         
-        collector = st.session_state.ibkr_collector
+        # Use global IBKR connection (client_id=1)
+        collector = st.session_state.global_ibkr
         
         st.markdown("---")
         
@@ -3307,7 +3250,7 @@ def trading_page():
             col_qty, col_action = st.columns(2)
             
             with col_qty:
-                quantity = st.number_input("Quantité", min_value=1, value=10, step=1)
+                quantity = st.number_input(LABEL_QUANTITY, min_value=1, value=10, step=1)
             
             with col_action:
                 action = st.selectbox("Action", ["BUY", "SELL"])
@@ -3317,7 +3260,7 @@ def trading_page():
             
             limit_price = None
             if order_type == "Limit":
-                limit_price = st.number_input("Prix limite", min_value=0.01, value=10.00, step=0.01, format="%.2f")
+                limit_price = st.number_input("Prix limite", min_value=0.01, value=10.00, step=0.01, format="%.2")
             
             # Submit order button
             if st.button("📤 Envoyer l'ordre", type="primary", width='stretch'):
@@ -3373,8 +3316,13 @@ def trading_page():
         
         st.markdown("---")
         
-        # Open Orders
-        st.subheader("📋 Ordres en Cours")
+        # Manual refresh button
+        col_refresh1, col_refresh2 = st.columns([3, 1])
+        with col_refresh1:
+            st.markdown("### 📋 Ordres en Cours")
+        with col_refresh2:
+            if st.button(BTN_REFRESH, key="refresh_orders_btn"):
+                st.rerun()
         
         try:
             open_orders = collector.ib.openOrders()
@@ -3386,38 +3334,45 @@ def trading_page():
                         'Order ID': trade.order.orderId,
                         'Symbol': trade.contract.symbol,
                         'Action': trade.order.action,
-                        'Quantity': trade.order.totalQuantity,
+                        'Qty': trade.order.totalQuantity,
                         'Type': trade.order.orderType,
                         'Status': trade.orderStatus.status,
                         'Filled': trade.orderStatus.filled,
-                        'Remaining': trade.orderStatus.remaining
+                        'Remaining': trade.orderStatus.remaining,
+                        'Avg Price': f"{trade.orderStatus.avgFillPrice:.2f}" if trade.orderStatus.avgFillPrice > 0 else "N/A"
                     })
                 
                 orders_df = pd.DataFrame(orders_data)
-                st.dataframe(orders_df, width='stretch')
+                st.dataframe(orders_df, width='stretch', use_container_width=True)
                 
-                # Cancel order section
-                if st.checkbox("Annuler un ordre"):
-                    order_id_to_cancel = st.number_input("Order ID à annuler", min_value=1, step=1)
-                    if st.button("❌ Annuler l'ordre", type="secondary"):
-                        try:
-                            # Find the order
-                            order_to_cancel = None
-                            for trade in open_orders:
-                                if trade.order.orderId == order_id_to_cancel:
-                                    order_to_cancel = trade
-                                    break
-                            
-                            if order_to_cancel:
-                                collector.ib.cancelOrder(order_to_cancel.order)
-                                st.success(f"✅ Ordre {order_id_to_cancel} annulé")
-                                collector.ib.sleep(1)
-                                st.rerun()
-                            else:
-                                st.error(f"❌ Ordre {order_id_to_cancel} non trouvé")
+                # Action buttons for each order - Direct cancel buttons
+                st.markdown("#### Actions rapides")
+                
+                # Create columns for buttons
+                button_cols = st.columns(min(3, len(open_orders)))  # Max 3 buttons per row
+                
+                for idx, trade in enumerate(open_orders):
+                    col = button_cols[idx % len(button_cols)]
+                    with col:
+                        order_id = trade.order.orderId
+                        symbol = trade.contract.symbol
+                        qty = trade.order.totalQuantity
                         
-                        except Exception as e:
-                            st.error(f"❌ Erreur: {e}")
+                        button_text = f"❌ Annuler\n{symbol} {qty}\n(#{order_id})"
+                        
+                        if st.button(
+                            button_text,
+                            type="secondary",
+                            use_container_width=True,
+                            key=f"cancel_order_{order_id}"
+                        ):
+                            try:
+                                collector.ib.cancelOrder(trade.order)
+                                st.success(f"✅ Ordre {order_id} annulé!")
+                                collector.ib.sleep(0.5)
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Erreur: {e}")
             else:
                 st.info("ℹ️ Aucun ordre en cours")
         
@@ -3467,7 +3422,7 @@ def order_placement_page():
     Dedicated page for order placement and management
     Integrated with database tracking and IBKR execution
     """
-    st.header("📝 Passage d'Ordres")
+    st.header(MENU_ORDER_PLACEMENT)
     
     # Auto-refresh settings
     if 'auto_refresh_enabled' not in st.session_state:
@@ -3500,7 +3455,7 @@ def order_placement_page():
                 st.warning("🟡 Non connecté à IBKR - Les ordres seront enregistrés mais non exécutés")
         
         with col_status2:
-            if st.button("🔄 Rafraîchir"):
+            if st.button(BTN_REFRESH):
                 st.rerun()
         
         with col_status3:
@@ -3638,7 +3593,7 @@ def order_placement_page():
                     action = st.selectbox("Action", ["BUY", "SELL"], help="BUY = Acheter, SELL = Vendre")
                 
                 with col_qty:
-                    quantity = st.number_input("Quantité", min_value=1, value=10, step=1)
+                    quantity = st.number_input(LABEL_QUANTITY, min_value=1, value=10, step=1)
                 
                 # Order type
                 order_type = st.selectbox(
@@ -3662,7 +3617,7 @@ def order_placement_page():
                         min_value=0.01,
                         value=10.00,
                         step=0.01,
-                        format="%.2f",
+                        format="%.2",
                         help="Prix maximum (achat) ou minimum (vente)"
                     )
                 
@@ -3672,7 +3627,7 @@ def order_placement_page():
                         min_value=0.01,
                         value=9.50,
                         step=0.01,
-                        format="%.2f",
+                        format="%.2",
                         help="Prix de déclenchement de l'ordre"
                     )
                 
@@ -3701,8 +3656,7 @@ def order_placement_page():
                 col_submit1, col_submit2 = st.columns([2, 1])
                 
                 with col_submit1:
-                    if st.button("📤 Envoyer l'Ordre", type="primary", width="stretch"):
-                        error_occurred = False
+                    if st.button("📤 Envoyer l'Ordre", type="primary", use_container_width=True):
                         try:
                             # Debug: Vérifier que order_manager existe
                             order_manager = st.session_state.order_manager
@@ -3713,18 +3667,45 @@ def order_placement_page():
                             # Debug: Afficher les paramètres
                             st.info(f"🔍 Création ordre: {action} {quantity} {selected_symbol} @ {order_type}")
                             
-                            # Créer l'ordre (sans spinner pour voir les erreurs)
-                            order = order_manager.create_order(
-                                symbol=selected_symbol,
-                                action=action,
-                                quantity=quantity,
-                                order_type=order_type,
-                                limit_price=limit_price,
-                                stop_price=stop_price,
-                                strategy_id=strategy_id,
-                                notes=notes,
-                                is_paper_trade=is_paper
-                            )
+                            # Créer l'ordre avec timeout (utilise threading pour éviter bloquer Streamlit)
+                            with st.spinner(f"📝 Placement de l'ordre {action} {quantity} {selected_symbol}..."):
+                                import threading
+                                import time
+                                
+                                order_result = [None]
+                                error_result = [None]
+                                
+                                def place_order():
+                                    """TODO: Add docstring."""
+                                    try:
+                                        order_result[0] = order_manager.create_order(
+                                            symbol=selected_symbol,
+                                            action=action,
+                                            quantity=quantity,
+                                            order_type=order_type,
+                                            limit_price=limit_price,
+                                            stop_price=stop_price,
+                                            strategy_id=strategy_id,
+                                            notes=notes,
+                                            is_paper_trade=is_paper
+                                        )
+                                    except Exception as e:
+                                        error_result[0] = e
+                                
+                                # Run order placement in a thread with timeout
+                                order_thread = threading.Thread(target=place_order, daemon=True)
+                                order_thread.start()
+                                order_thread.join(timeout=20)  # Wait max 20 seconds (increased from 15s)
+                                
+                                if order_thread.is_alive():
+                                    st.error("❌ Timeout: L'ordre a pris trop longtemps à créer (>20s)")
+                                    st.warning("⚠️ Vérifiez votre connexion IBKR et les logs")
+                                    order = None
+                                elif error_result[0]:
+                                    st.error(f"❌ Erreur: {error_result[0]}")
+                                    order = order_result[0]
+                                else:
+                                    order = order_result[0]
                             
                             if order:
                                 st.success(f"✅ Ordre créé avec succès! (ID: {order.id})")
@@ -3746,11 +3727,10 @@ def order_placement_page():
                                 
                                 st.rerun()
                             else:
-                                st.error("❌ Échec de la création de l'ordre - order_manager.create_order() a retourné None")
+                                st.error("❌ Échec de la création de l'ordre")
                                 st.warning("⚠️ Vérifiez les logs dans le terminal Streamlit pour plus de détails")
                         
                         except Exception as e:
-                            error_occurred = True
                             st.error(f"❌ Erreur: {e}")
                             import traceback
                             st.code(traceback.format_exc())
@@ -3901,17 +3881,8 @@ def order_placement_page():
                         
                         with col_info:
                             # Display order info in a nice format
-                            status_emoji = {
-                                'pending': '⏳',
-                                'submitted': '📤',
-                                'filled': '✅',
-                                'cancelled': '❌',
-                                'error': '🚨'
-                            }.get(order.status.value, '❓')
                             
-                            action_color = 'green' if order.action == 'BUY' else 'red'
-                            
-                            st.markdown(f"""
+                            st.markdown("""
                             <div style="padding: 8px; background-color: rgba(0,0,0,0.05); border-radius: 5px; margin-bottom: 5px;">
                                 <strong>#{order.id}</strong> | 
                                 <strong style="color: {action_color};">{order.action}</strong> 
@@ -4000,8 +3971,8 @@ def order_placement_page():
             
             # Clean old stuck orders button
             st.markdown("---")
-            col_clean1, col_clean2 = st.columns([3, 1])
-            with col_clean2:
+            _ = st.columns([3, 1])
+            with _[1]:
                 if st.button("🧹 Nettoyer ordres bloqués", help="Marque les ordres submitted de plus de 1 jour comme 'CANCELLED'"):
                     db = SessionLocal()
                     try:
@@ -4052,12 +4023,6 @@ def order_placement_page():
                     for order in orders:
                         ticker = db.query(Ticker).filter(Ticker.id == order.ticker_id).first()
                         strategy = db.query(Strategy).filter(Strategy.id == order.strategy_id).first() if order.strategy_id else None
-                        
-                        # Calculate P&L for filled orders
-                        pnl_str = '-'
-                        if order.status == OrderStatus.FILLED and order.avg_fill_price:
-                            # This is simplified - real P&L needs matching buy/sell orders
-                            pnl_str = f"{order.avg_fill_price * order.filled_quantity:.2f} €"
                         
                         orders_data.append({
                             'ID': order.id,
@@ -4178,9 +4143,9 @@ def order_placement_page():
                                 margin=dict(l=0, r=0, t=30, b=0),
                                 xaxis_title="Date",
                                 yaxis_title="Nombre d'Ordres",
-                                hovermode='x unified'
+                                hovermode=HOVERMODE_X_UNIFIED
                             )
-                            st.plotly_chart(fig_bar, use_container_width=True)
+                            st.plotly_chart(fig_bar, use_container_width=True, key="daily_orders_chart")
                         
                         # Chart 2: Order volume by day
                         st.markdown("**📅 Volume d'Ordres par Jour**")
@@ -4211,9 +4176,9 @@ def order_placement_page():
                                 margin=dict(l=0, r=0, t=30, b=0),
                                 xaxis_title="Date",
                                 yaxis_title="Volume (€)",
-                                hovermode='x unified'
+                                hovermode=HOVERMODE_X_UNIFIED
                             )
-                            st.plotly_chart(fig_bar, use_container_width=True)
+                            st.plotly_chart(fig_bar, use_container_width=True, key="daily_volume_chart")
                     else:
                         st.info("📊 Aucun ordre rempli pour générer des graphiques")
                 
@@ -4270,7 +4235,7 @@ def order_placement_page():
 
 def auto_trading_page():
     """Automatic trading page with strategy execution"""
-    st.header("🤖 Trading Automatique")
+    st.header(MENU_AUTO_TRADING)
     
     try:
         from backend.auto_trader import AutoTraderManager
@@ -4300,7 +4265,7 @@ def auto_trading_page():
                 st.warning("🟡 Non connecté à IBKR - Connectez-vous pour utiliser le trading automatique")
         
         with col_status2:
-            if st.button("🔄 Rafraîchir", width='stretch'):
+            if st.button(BTN_REFRESH, width='stretch'):
                 st.rerun()
         
         st.markdown("---")
@@ -4519,14 +4484,22 @@ def auto_trading_page():
                                 
                                 # Calculate indicators for visualization
                                 try:
-                                    from backend.strategy_runner import StrategyRunner
+                                    # Try to import strategy runner, but it's optional
+                                    try:
+                                        from backend.strategy_runner import StrategyRunner
+                                        runner = StrategyRunner()
+                                        use_indicators = True
+                                    except ImportError:
+                                        use_indicators = False
                                     
-                                    runner = StrategyRunner()
-                                    buffer_df_copy = buffer_df.copy()
-                                    buffer_df_copy['date'] = buffer_df_copy['timestamp']
-                                    buffer_df_copy = buffer_df_copy.set_index('date')
-                                    
-                                    signals_df = runner.generate_signals(buffer_df_copy, trader.strategy)
+                                    if use_indicators:
+                                        buffer_df_copy = buffer_df.copy()
+                                        buffer_df_copy['date'] = buffer_df_copy['timestamp']
+                                        buffer_df_copy = buffer_df_copy.set_index('date')
+                                        
+                                        signals_df = runner.generate_signals(buffer_df_copy, trader.strategy)
+                                    else:
+                                        signals_df = None
                                     
                                     if signals_df is not None and not signals_df.empty:
                                         # Create chart
@@ -4587,12 +4560,16 @@ def auto_trading_page():
                                             height=400,
                                             margin=dict(l=0, r=0, t=30, b=0),
                                             xaxis_title="Temps",
-                                            yaxis_title="Prix (€)",
-                                            hovermode='x unified',
+                                            yaxis_title=LABEL_PRICE_EUR,
+                                            hovermode=HOVERMODE_X_UNIFIED,
                                             showlegend=True
                                         )
                                         
-                                        st.plotly_chart(fig, use_container_width=True)
+                                        st.plotly_chart(
+                                            fig,
+                                            use_container_width=True,
+                                            key=f"signals_chart_{session['id']}"
+                                        )
                                         
                                         # Show latest indicator values
                                         st.markdown("**📊 Dernières Valeurs des Indicateurs**")
@@ -4628,9 +4605,13 @@ def auto_trading_page():
                                         height=300,
                                         margin=dict(l=0, r=0, t=30, b=0),
                                         xaxis_title="Temps",
-                                        yaxis_title="Prix (€)"
+                                        yaxis_title=LABEL_PRICE_EUR
                                     )
-                                    st.plotly_chart(fig, use_container_width=True)
+                                    st.plotly_chart(
+                                        fig,
+                                        use_container_width=True,
+                                        key=f"fallback_chart_{session['id']}"
+                                    )
                             else:
                                 st.info("⏳ En attente de données... Le système récupère les cours.")
                             
@@ -4646,7 +4627,7 @@ def auto_trading_page():
                                     st.rerun()
                             
                             with col_btn2:
-                                if st.button(f"📊 Voir Ordres", key=f"orders_{session['id']}", width='stretch'):
+                                if st.button("📊 Voir Ordres", key=f"orders_{session['id']}", width='stretch'):
                                     st.info("Consultez l'onglet 'Passage d'Ordres' pour voir tous les ordres")
             
             # Auto-refresh logic
@@ -4672,7 +4653,7 @@ def auto_trading_page():
                         'Action': session['ticker'],
                         'Stratégie': session['strategy'],
                         'Statut': session['status'],
-                        'Actif': '✅' if session['is_active'] else '❌',
+                        'Acti': '✅' if session['is_active'] else '❌',
                         'Position': session['current_position'],
                         'Ordres': session['total_orders'],
                         'P&L (€)': f"{session['total_pnl']:.2f}",
@@ -5176,7 +5157,7 @@ def indicators_page():
 
 def settings_page():
     """Settings page"""
-    st.header("⚙️ Paramètres")
+    st.header(MENU_SETTINGS)
     
     st.subheader("💼 Configuration IBKR / Lynx")
     

@@ -15,7 +15,7 @@ try:
     redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
     redis_client.ping()
     logger.info("[Live Task] Redis connected for live data caching")
-except:
+except Exception:
     redis_client = None
     logger.warning("[Live Task] Redis not available for live data caching")
 
@@ -65,7 +65,7 @@ def stream_live_data_continuous(self, symbol: str, duration: int = 300):
         use_portfolio_fallback = False
         
         # Initial wait to let IBKR send delayed data (longer for delayed data)
-        logger.info(f"[Stream] Waiting for market data to arrive (delayed data may take 2-5 seconds)...")
+        logger.info("[Stream] Waiting for market data to arrive (delayed data may take 2-5 seconds)...")
         wait_count = 0
         for _ in range(15):  # Wait up to 7.5 seconds for delayed data
             if ticker_data.last > 0 or ticker_data.close > 0:
@@ -137,7 +137,7 @@ def stream_live_data_continuous(self, symbol: str, duration: int = 300):
         # Cancel market data subscription
         try:
             collector.ib.cancelMktData(contract)
-        except:
+        except Exception:
             pass
         
         collector.disconnect()

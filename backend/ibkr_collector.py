@@ -28,6 +28,20 @@ except ImportError:
 class IBKRCollector:
     """Collect market data from Interactive Brokers / Lynx"""
     
+    # Known European stocks and their preferred exchange/currency
+    EUROPEAN_STOCKS = {
+        'TTE': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'TotalEnergies'},
+        'WLN': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'Walnur'},  # XETRA but try SBF first
+        'FP': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'L\'Oreal'},
+        'MC': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'LVMH'},
+        'OR': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'L\'Oreal'},
+        'AC': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'AccorHotels'},
+        'ALO': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'Alstom'},
+        'BNP': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'BNP Paribas'},
+        'LR': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'Legrand'},
+        'SAF': {'exchange': 'SBF', 'currency': 'EUR', 'name': 'Safran'},
+    }
+    
     # Interval hierarchy in seconds (for aggregation logic)
     INTERVAL_SECONDS = {
         '1 secs': 1,
@@ -113,7 +127,8 @@ class IBKRCollector:
                 return True
             
             logger.info(f"Connecting to IBKR at {self.host}:{self.port}...")
-            self.ib.connect(self.host, self.port, clientId=self.client_id)
+            # Increased timeout from 15s to 20s for Celery background tasks which are less prioritized
+            self.ib.connect(self.host, self.port, clientId=self.client_id, timeout=20)
             self.connected = True
             logger.info("✅ Connected to IBKR successfully")
             
@@ -134,43 +149,120 @@ class IBKRCollector:
             self.connected = False
             logger.info("Disconnected from IBKR")
     
-    def get_contract(self, symbol: str, exchange: str = 'SMART', currency: str = 'EUR') -> Optional[Stock]:
+    def get_contract(self, symbol: str = None, exchange: str = 'SMART', currency: str = None, isin: str = None) -> Optional[Stock]:
         """
         Get and qualify a stock contract
         
-        For European stocks, tries SBF first (Euronext), then SMART.
+        Tries to qualify with multiple exchanges and currencies to handle both US and European stocks.
+        Supports both symbol and ISIN lookup - ISIN is faster for European stocks.
         
         Args:
-            symbol: Stock symbol (e.g., 'WLN')
+            symbol: Stock symbol (e.g., 'AAPL', 'TTE', 'WLN')
             exchange: Exchange (default: 'SMART' for automatic routing)
-            currency: Currency (default: 'EUR' for European stocks)
+            currency: Currency (default: None to auto-detect - tries USD first, then EUR)
+            isin: ISIN code (e.g., 'FR0000120271' for TTE) - faster for European stocks
         
         Returns:
             Qualified contract or None
         """
         try:
-            # For European tickers, prioritize SBF exchange
+            import time
+            from ib_insync import Contract
+            
+            # Add timeout for the entire operation (default 10 seconds)
+            start_time = time.time()
+            timeout_seconds = 10
+            
+            # If ISIN provided, try that first (much faster for European stocks)
+            # NOTE: Contract doesn't accept isin directly, so we skip this for now
+            # and rely on symbol-based lookup with proper exchange ordering
+            
+            # Fallback to symbol-based lookup
+            if not symbol:
+                logger.error("Symbol must be provided")
+                return None
+            
+            # Check if this is a known European stock
+            european_stock = self.EUROPEAN_STOCKS.get(symbol.upper())
+            if european_stock and exchange == 'SMART':
+                # For known European stocks with SMART routing, use SMART (don't force exchange)
+                # This avoids IBKR API restriction for direct SBF routing
+                currency = european_stock['currency']
+                logger.info(f"Known European stock: {symbol} → using SMART with {currency}")
+                
+                # Create contract with SMART exchange to avoid direct routing restrictions
+                try:
+                    contract = Stock(symbol, 'SMART', currency)
+                    logger.info(f"Contract created (unqualified): {symbol} on SMART/{currency}")
+                    # Return unqualified contract - IBKR validates on placeOrder
+                    return contract
+                except Exception as e:
+                    logger.debug(f"Could not create contract for {symbol} on SMART/{currency}: {e}")
+            
+            # If currency not specified, try currencies based on exchange
+            currencies_to_try = []
+            if currency:
+                currencies_to_try = [currency]
+            else:
+                # Determine currency order based on exchange
+                if exchange in ['SBF', 'EURONEXT', 'XETRA', 'BME']:
+                    # European exchanges - EUR first, then USD
+                    currencies_to_try = ['EUR', 'USD']
+                else:
+                    # Default: USD first (US stocks on SMART/NASDAQ), then EUR
+                    currencies_to_try = ['USD', 'EUR']
+            
+            # Determine exchanges to try
             exchanges_to_try = []
-            if exchange == 'SMART' and currency == 'EUR':
-                exchanges_to_try = ['SBF', 'SMART']  # Try SBF first for European stocks
+            if exchange == 'SMART':
+                # For SMART routing, try exchanges in order:
+                # - SBF first (Euronext - faster for EU stocks like TTE, WLN)
+                # - SMART (auto-routing for US stocks)
+                # - NASDAQ (explicit US if SMART fails)
+                exchanges_to_try = ['SBF', 'SMART', 'NASDAQ']
             else:
                 exchanges_to_try = [exchange]
             
-            # Try each exchange
-            for ex in exchanges_to_try:
-                try:
-                    contract = Stock(symbol, ex, currency)
-                    contracts = self.ib.qualifyContracts(contract)
+            # Try combinations of exchange and currency
+            for curr in currencies_to_try:
+                for ex in exchanges_to_try:
+                    # Check timeout
+                    if time.time() - start_time > timeout_seconds:
+                        logger.warning(f"Timeout ({timeout_seconds}s) reached while qualifying contract for {symbol}")
+                        return None
                     
-                    if contracts:
-                        qualified = contracts[0]
-                        logger.info(f"Contract qualified: {qualified.symbol} on {qualified.primaryExchange} (exchange: {qualified.exchange})")
-                        return qualified
-                except Exception as e:
-                    logger.debug(f"Exchange {ex} failed for {symbol}: {e}")
-                    continue
+                    try:
+                        contract = Stock(symbol, ex, curr)
+                        
+                        # Call qualifyContracts directly (blocking - on main thread)
+                        # This avoids threading issues with ib_insync's asyncio integration
+                        # Retry up to 3 times with progressive backoff if it fails
+                        max_retries = 3
+                        for attempt in range(max_retries):
+                            try:
+                                contracts = self.ib.qualifyContracts(contract)
+                                
+                                if contracts:
+                                    qualified = contracts[0]
+                                    logger.info(f"Contract qualified: {qualified.symbol} on {qualified.primaryExchange} (exchange: {qualified.exchange}, currency: {qualified.currency})")
+                                    return qualified
+                                else:
+                                    logger.debug(f"Exchange {ex}, currency {curr} - no contracts found for {symbol}")
+                                break  # Exit retry loop if qualifyContracts succeeded (even if no contracts found)
+                                
+                            except Exception as e:
+                                if attempt < max_retries - 1:
+                                    wait_time = 0.5 * (2 ** attempt)  # 0.5s, 1s, 2s
+                                    logger.debug(f"Exchange {ex}, currency {curr} - attempt {attempt + 1} failed for {symbol}, retrying in {wait_time}s: {e}")
+                                    time.sleep(wait_time)
+                                else:
+                                    logger.debug(f"Exchange {ex}, currency {curr} - all {max_retries} attempts failed for {symbol}: {e}")
+                                    break
+                    except Exception as e:
+                        logger.debug(f"Exception in get_contract for {ex}/{curr}/{symbol}: {e}")
+                        continue
             
-            logger.warning(f"Could not qualify contract for {symbol} on any exchange")
+            logger.warning(f"Could not qualify contract for {symbol} on any exchange/currency combination")
             return None
                 
         except Exception as e:
@@ -185,7 +277,7 @@ class IBKRCollector:
         what_to_show: str = 'TRADES',
         use_rth: bool = False,
         exchange: str = 'SMART',
-        currency: str = 'EUR'
+        currency: str = None
     ) -> Optional[pd.DataFrame]:
         """
         Get historical data for a symbol
@@ -197,15 +289,14 @@ class IBKRCollector:
             what_to_show: Data type ('TRADES', 'MIDPOINT', 'BID', 'ASK')
             use_rth: Use regular trading hours only
             exchange: Exchange
-            currency: Currency
+            currency: Currency (None to auto-detect - tries USD first, then EUR)
         
         Returns:
             DataFrame with OHLCV data or None
         """
         try:
-            if not self.connected:
-                if not self.connect():
-                    return None
+            if not self.connected and not self.connect():
+                return None
             
             # Get contract
             contract = self.get_contract(symbol, exchange, currency)
@@ -294,7 +385,7 @@ class IBKRCollector:
         what_to_show: str = 'TRADES',
         use_rth: bool = False,
         exchange: str = 'SMART',
-        currency: str = 'EUR',
+        currency: str = None,
         progress_callback=None
     ) -> Optional[pd.DataFrame]:
         """
@@ -1113,10 +1204,10 @@ class IBKRCollector:
                         new_coverage = self.get_data_coverage(symbol, interval, start_date, end_date)
                         
                         if new_coverage['is_complete']:
-                            logger.info(f"✅ Complete coverage achieved through aggregation!")
+                            logger.info("✅ Complete coverage achieved through aggregation!")
                             return result
                         else:
-                            logger.info(f"⚠️ Partial coverage from aggregation, will fill remaining gaps from IBKR")
+                            logger.info("⚠️ Partial coverage from aggregation, will fill remaining gaps from IBKR")
                             coverage = new_coverage  # Update coverage for gap filling
             
             # STEP 3: Identify missing ranges that need IBKR queries
@@ -1399,9 +1490,8 @@ class IBKRCollector:
             Dict with account information or None
         """
         try:
-            if not self.connected:
-                if not self.connect():
-                    return None
+            if not self.connected and not self.connect():
+                return None
             
             # Get account summary
             summary = self.ib.accountSummary()
@@ -1427,9 +1517,8 @@ class IBKRCollector:
             List of positions
         """
         try:
-            if not self.connected:
-                if not self.connect():
-                    return []
+            if not self.connected and not self.connect():
+                return []
             
             positions = self.ib.positions()
             

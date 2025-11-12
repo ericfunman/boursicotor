@@ -4,7 +4,11 @@ Technical indicators calculation using pandas and numpy
 import pandas as pd
 import numpy as np
 from typing import Optional
+from numpy.random import default_rng
 from backend.config import logger
+
+# Initialize random number generator
+_rng = default_rng(seed=42)
 
 
 class TechnicalIndicators:
@@ -246,9 +250,8 @@ def calculate_and_update_indicators(df: pd.DataFrame, save_to_db: bool = False) 
     # Calculate all indicators
     df = TechnicalIndicators.add_all_indicators(df)
     
-    # TODO: Implement database update if save_to_db is True
     if save_to_db:
-        logger.info("Database update not yet implemented")
+        logger.warning("Database update for indicators not yet implemented. Set save_to_db=False to suppress this warning.")
     
     return df
 
@@ -258,11 +261,11 @@ if __name__ == "__main__":
     dates = pd.date_range('2024-01-01', periods=100, freq='1min')
     df = pd.DataFrame({
         'timestamp': dates,
-        'open': np.random.randn(100).cumsum() + 100,
-        'high': np.random.randn(100).cumsum() + 102,
-        'low': np.random.randn(100).cumsum() + 98,
-        'close': np.random.randn(100).cumsum() + 100,
-        'volume': np.random.randint(1000, 10000, 100)
+        'open': _rng.standard_normal(100).cumsum() + 100,
+        'high': _rng.standard_normal(100).cumsum() + 102,
+        'low': _rng.standard_normal(100).cumsum() + 98,
+        'close': _rng.standard_normal(100).cumsum() + 100,
+        'volume': _rng.integers(1000, 10000, 100)
     })
     df.set_index('timestamp', inplace=True)
     

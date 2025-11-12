@@ -148,7 +148,7 @@ class AutoTrader:
                         self._process_signal(signals)
                     
                     # 5. Update session
-                    self._update_session(current_price, signals)
+                    self._update_session()
                 
                 # Wait for next polling interval
                 db = SessionLocal()
@@ -211,10 +211,45 @@ class AutoTrader:
         finally:
             db.close()
     
+    def _get_contract_info(self) -> tuple:
+        """Get ticker exchange and currency information"""
+        exchange = self.ticker.exchange if hasattr(self.ticker, 'exchange') else 'SMART'
+        currency = self.ticker.currency if hasattr(self.ticker, 'currency') else 'EUR'
+        return exchange, currency
+    
+    def _fetch_ibkr_price(self, contract) -> Optional[Dict]:
+        """
+        Fetch price data from IBKR
+        
+        Returns:
+            Price dictionary or None if failed
+        """
+        ticker_data = self.ibkr_collector.ib.reqMktData(contract, '', False, False)
+        time.sleep(2)  # Wait for data
+        
+        if ticker_data.last and ticker_data.last > 0:
+            exchange, currency = self._get_contract_info()
+            price_data = {
+                'timestamp': datetime.now(),
+                'open': ticker_data.open if ticker_data.open > 0 else ticker_data.last,
+                'high': ticker_data.high if ticker_data.high > 0 else ticker_data.last,
+                'low': ticker_data.low if ticker_data.low > 0 else ticker_data.last,
+                'close': ticker_data.last,
+                'volume': ticker_data.volume if ticker_data.volume else 0
+            }
+            logger.info(f"✅ Got IBKR price: {price_data['close']:.2f} {currency}")
+            
+            # Cancel market data to avoid accumulation
+            self.ibkr_collector.ib.cancelMktData(contract)
+            return price_data
+        else:
+            logger.warning(f"IBKR returned no valid price for {self.ticker.symbol}")
+            self.ibkr_collector.ib.cancelMktData(contract)
+            return None
+    
     def _fetch_live_price(self) -> Optional[Dict]:
         """
-        Fetch current live price
-        Uses IBKR if available, otherwise Yahoo Finance
+        Fetch current live price using IBKR
         
         Returns:
             Dictionary with price data or None if failed
@@ -226,36 +261,16 @@ class AutoTrader:
             if self.ibkr_collector and self.ibkr_collector.ib.isConnected():
                 logger.debug("Using IBKR for live data...")
                 
-                # Use the ticker's exchange information
-                exchange = self.ticker.exchange if hasattr(self.ticker, 'exchange') else 'SMART'
-                currency = self.ticker.currency if hasattr(self.ticker, 'currency') else 'EUR'
-                
+                exchange, currency = self._get_contract_info()
                 logger.debug(f"Fetching IBKR contract for {self.ticker.symbol} on {exchange} ({currency})")
                 
                 # Use get_contract method which qualifies the contract properly
                 contract = self.ibkr_collector.get_contract(self.ticker.symbol, exchange, currency)
                 
                 if contract:
-                    ticker_data = self.ibkr_collector.ib.reqMktData(contract, '', False, False)
-                    time.sleep(2)  # Wait for data
-                    
-                    if ticker_data.last and ticker_data.last > 0:
-                        price_data = {
-                            'timestamp': datetime.now(),
-                            'open': ticker_data.open if ticker_data.open > 0 else ticker_data.last,
-                            'high': ticker_data.high if ticker_data.high > 0 else ticker_data.last,
-                            'low': ticker_data.low if ticker_data.low > 0 else ticker_data.last,
-                            'close': ticker_data.last,
-                            'volume': ticker_data.volume if ticker_data.volume else 0
-                        }
-                        logger.info(f"✅ Got IBKR price: {price_data['close']:.2f} {currency}")
-                        
-                        # Cancel market data to avoid accumulation
-                        self.ibkr_collector.ib.cancelMktData(contract)
+                    price_data = self._fetch_ibkr_price(contract)
+                    if price_data:
                         return price_data
-                    else:
-                        logger.warning(f"IBKR returned no valid price for {self.ticker.symbol}")
-                        self.ibkr_collector.ib.cancelMktData(contract)
                 else:
                     logger.warning(f"Could not get IBKR contract for {self.ticker.symbol}")
             
@@ -308,7 +323,7 @@ class AutoTrader:
             signal_dict = {
                 'timestamp': datetime.now(),
                 'price': latest['close'],
-                'signal': latest.get('signal', 0),  # 1=BUY, -1=SELL, 0=HOLD
+                'signal': latest.get('signal', 0),
                 'indicators': {}
             }
             
@@ -324,6 +339,31 @@ class AutoTrader:
         except Exception as e:
             logger.error(f"Error calculating signals: {e}")
             return None
+    
+    def _determine_action_and_quantity(self, signal_value: int, session) -> tuple:
+        """
+        Determine trading action and quantity based on signal
+        
+        Args:
+            signal_value: Trading signal (1=BUY, -1=SELL, 0=HOLD)
+            session: AutoTraderSession object
+            
+        Returns:
+            Tuple (action, quantity) or (None, 0) if no action
+        """
+        if signal_value == 1:  # BUY signal
+            if session.current_position < session.max_position_size:
+                quantity = min(
+                    session.max_position_size - session.current_position,
+                    session.max_position_size // 10  # Buy in chunks of 10%
+                )
+                return "BUY", quantity
+                
+        elif signal_value == -1:  # SELL signal
+            if session.current_position > 0:
+                return "SELL", session.current_position  # Sell all
+        
+        return None, 0
     
     def _process_signal(self, signals: Dict):
         """
@@ -350,23 +390,7 @@ class AutoTrader:
                 return
             
             # Determine action and quantity
-            action = None
-            quantity = 0
-            
-            if signal_value == 1:  # BUY signal
-                # Check if we can buy (not already in position or want to add)
-                if session.current_position < session.max_position_size:
-                    action = "BUY"
-                    quantity = min(
-                        session.max_position_size - session.current_position,
-                        session.max_position_size // 10  # Buy in chunks of 10%
-                    )
-                    
-            elif signal_value == -1:  # SELL signal
-                # Check if we have position to sell
-                if session.current_position > 0:
-                    action = "SELL"
-                    quantity = session.current_position  # Sell all
+            action, quantity = self._determine_action_and_quantity(signal_value, session)
             
             if action and quantity > 0:
                 logger.info(f"🎯 Signal detected: {action} {quantity} {self.ticker.symbol} @ {current_price}")
@@ -398,12 +422,12 @@ class AutoTrader:
                 else:
                     session.failed_orders += 1
                     db.commit()
-                    logger.error(f"❌ Failed to create order")
+                    logger.error("❌ Failed to create order")
             
         finally:
             db.close()
     
-    def _update_session(self, price_data: Optional[Dict], signals: Optional[Dict]):
+    def _update_session(self):
         """Update session with latest state"""
         db = SessionLocal()
         try:
@@ -475,6 +499,7 @@ class AutoTraderManager:
     """Manages multiple AutoTrader instances"""
     
     def __init__(self, ibkr_collector: Optional[IBKRCollector] = None):
+        """TODO: Add docstring."""
         self.ibkr_collector = ibkr_collector
         self.traders: Dict[int, AutoTrader] = {}  # session_id -> AutoTrader
     
@@ -521,7 +546,7 @@ class AutoTraderManager:
             return
         
         # Log IBKR connection status
-        ibkr_connected = self.ibkr_collector and self.ibkr_collector.ib.isConnected() if self.ibkr_collector else False
+        ibkr_connected = self.ibkr_collector and self.ibkr_collector.ib.isConnected()
         logger.info(f"Starting session #{session_id} - IBKR connected: {ibkr_connected}")
         
         trader = AutoTrader(session_id, self.ibkr_collector)
@@ -539,7 +564,7 @@ class AutoTraderManager:
     
     def stop_all(self):
         """Stop all active trading sessions"""
-        for session_id in list(self.traders.keys()):
+        for session_id in self.traders.keys():
             self.stop_session(session_id)
     
     def get_all_sessions(self) -> List[Dict]:

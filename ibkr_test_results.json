@@ -1,0 +1,34 @@
+{
+  "timestamp": "2025-11-10T16:58:28.635779",
+  "connected": true,
+  "account": "DU0118471",
+  "symbols_tested": 5,
+  "symbols_ok": 5,
+  "symbols": {
+    "AAPL": {
+      "status": "OK",
+      "exchange": "SMART",
+      "currency": "USD"
+    },
+    "TSLA": {
+      "status": "OK",
+      "exchange": "SMART",
+      "currency": "USD"
+    },
+    "TTE": {
+      "status": "OK",
+      "exchange": "SMART",
+      "currency": "EUR"
+    },
+    "WLN": {
+      "status": "OK",
+      "exchange": "SMART",
+      "currency": "EUR"
+    },
+    "MSFT": {
+      "status": "OK",
+      "exchange": "SMART",
+      "currency": "USD"
+    }
+  }
+}

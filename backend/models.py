@@ -4,14 +4,71 @@ Database models and connection management
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Text, Index, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
 from backend.config import DATABASE_URL, logger
+from backend.constants import FK_TICKERS_ID, FK_STRATEGIES_ID
+from zoneinfo import ZoneInfo
+
+from typing import Optional
 
 Base = declarative_base()
 
-# Create engine
-engine = create_engine(DATABASE_URL, echo=False, pool_size=10, max_overflow=20)
+# Timezone definitions
+PARIS_TZ = ZoneInfo('Europe/Paris')
+UTC_TZ = ZoneInfo('UTC')
+
+def datetime_paris(dt: datetime) -> Optional[datetime]:
+    """Convert UTC datetime to Europe/Paris timezone"""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC_TZ)
+    return dt.astimezone(PARIS_TZ)
+
+def format_datetime_paris(dt: datetime, fmt: str = '%Y-%m-%d %H:%M:%S') -> str:
+    """Format datetime in Europe/Paris timezone
+    
+    NOTE: This always assumes input is UTC if naive
+    """
+    if dt is None:
+        return "N/A"
+    
+    # Force interpretation as UTC if naive (don't rely on tzinfo)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC_TZ)
+    
+    # Always convert to Paris time
+    paris_dt = dt.astimezone(PARIS_TZ)
+    return paris_dt.strftime(fmt)
+
+# Create engine with database-specific optimizations
+if DATABASE_URL.startswith("sqlite://"):
+    # SQLite-specific configuration to handle concurrent access
+    from sqlalchemy.pool import StaticPool
+    engine = create_engine(
+        DATABASE_URL,
+        echo=False,
+        connect_args={"timeout": 30, "check_same_thread": False},  # 30s timeout for locks, allow cross-thread
+        poolclass=StaticPool,  # Use static pool for SQLite
+        isolation_level="SERIALIZABLE"
+    )
+    
+    # Enable WAL mode for better concurrent access
+    def on_connect(dbapi_conn, connection_record):
+        """TODO: Add docstring."""
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging for better concurrency
+        cursor.execute("PRAGMA synchronous=NORMAL")  # Balance between safety and performance
+        cursor.execute("PRAGMA cache_size=10000")  # Increase cache
+        cursor.close()
+    
+    from sqlalchemy import event
+    event.listen(engine, "connect", on_connect)
+else:
+    # PostgreSQL configuration
+    engine = create_engine(DATABASE_URL, echo=False, pool_size=10, max_overflow=20)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -30,13 +87,14 @@ class Ticker(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     symbol = Column(String(10), unique=True, nullable=False, index=True)
+    isin = Column(String(12), unique=True, nullable=True, index=True)  # ISIN code for faster lookups
     name = Column(String(100), nullable=False)
     exchange = Column(String(50), default="EURONEXT")
     currency = Column(String(3), default="EUR")
     sector = Column(String(100))
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=datetime.utcnow)
     
     # Relationships
     historical_data = relationship("HistoricalData", back_populates="ticker", cascade="all, delete-orphan")
@@ -80,7 +138,7 @@ class DataCollectionJob(Base):
     error_message = Column(Text)
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     started_at = Column(DateTime)
     completed_at = Column(DateTime)
     
@@ -99,7 +157,7 @@ class HistoricalData(Base):
     __tablename__ = "historical_data"
     
     id = Column(Integer, primary_key=True, index=True)
-    ticker_id = Column(Integer, ForeignKey("tickers.id"), nullable=False, index=True)
+    ticker_id = Column(Integer, ForeignKey(FK_TICKERS_ID), nullable=False, index=True)
     timestamp = Column(DateTime, nullable=False, index=True)
     open = Column(Float, nullable=False)
     high = Column(Float, nullable=False)
@@ -121,7 +179,7 @@ class HistoricalData(Base):
     bb_middle = Column(Float)
     bb_lower = Column(Float)
     
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationships
     ticker = relationship("Ticker", back_populates="historical_data")
@@ -143,8 +201,8 @@ class Strategy(Base):
     strategy_type = Column(String(50))  # momentum, mean_reversion, ml_based, etc.
     parameters = Column(Text)  # JSON string of parameters
     is_active = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=datetime.utcnow)
     
     # Relationships
     backtests = relationship("Backtest", back_populates="strategy")
@@ -156,8 +214,8 @@ class Backtest(Base):
     __tablename__ = "backtests"
     
     id = Column(Integer, primary_key=True, index=True)
-    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=False, index=True)
-    ticker_id = Column(Integer, ForeignKey("tickers.id"), nullable=False)
+    strategy_id = Column(Integer, ForeignKey(FK_STRATEGIES_ID), nullable=False, index=True)
+    ticker_id = Column(Integer, ForeignKey(FK_TICKERS_ID), nullable=False)
     start_date = Column(DateTime, nullable=False)
     end_date = Column(DateTime, nullable=False)
     initial_capital = Column(Float, nullable=False)
@@ -173,7 +231,7 @@ class Backtest(Base):
     avg_loss = Column(Float)
     profit_factor = Column(Float)
     results_json = Column(Text)  # Detailed results as JSON
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationships
     strategy = relationship("Strategy", back_populates="backtests")
@@ -201,8 +259,8 @@ class Order(Base):
     perm_id = Column(Integer)  # IBKR's permanent order ID
     
     # Order details
-    ticker_id = Column(Integer, ForeignKey("tickers.id"), nullable=False, index=True)
-    strategy_id = Column(Integer, ForeignKey("strategies.id"), index=True)
+    ticker_id = Column(Integer, ForeignKey(FK_TICKERS_ID), nullable=False, index=True)
+    strategy_id = Column(Integer, ForeignKey(FK_STRATEGIES_ID), index=True)
     
     # Order parameters
     action = Column(String(10), nullable=False)  # BUY, SELL
@@ -222,7 +280,7 @@ class Order(Base):
     status_message = Column(Text)
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     submitted_at = Column(DateTime)
     filled_at = Column(DateTime)
     cancelled_at = Column(DateTime)
@@ -250,8 +308,8 @@ class Trade(Base):
     __tablename__ = "trades"
     
     id = Column(Integer, primary_key=True, index=True)
-    ticker_id = Column(Integer, ForeignKey("tickers.id"), nullable=False, index=True)
-    strategy_id = Column(Integer, ForeignKey("strategies.id"), index=True)
+    ticker_id = Column(Integer, ForeignKey(FK_TICKERS_ID), nullable=False, index=True)
+    strategy_id = Column(Integer, ForeignKey(FK_STRATEGIES_ID), index=True)
     order_type = Column(String(10), nullable=False)  # BUY, SELL
     quantity = Column(Integer, nullable=False)
     entry_price = Column(Float, nullable=False)
@@ -266,7 +324,7 @@ class Trade(Base):
     is_paper_trade = Column(Boolean, default=True)
     commission = Column(Float, default=0.0)
     notes = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationships
     ticker = relationship("Ticker", back_populates="trades")
@@ -286,8 +344,8 @@ class AutoTraderSession(Base):
     __tablename__ = "auto_trader_sessions"
     
     id = Column(Integer, primary_key=True, index=True)
-    ticker_id = Column(Integer, ForeignKey("tickers.id"), nullable=False)
-    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=False)
+    ticker_id = Column(Integer, ForeignKey(FK_TICKERS_ID), nullable=False)
+    strategy_id = Column(Integer, ForeignKey(FK_STRATEGIES_ID), nullable=False)
     
     status = Column(Enum(AutoTraderStatus), default=AutoTraderStatus.STOPPED, nullable=False)
     
@@ -346,7 +404,7 @@ class MLModel(Base):
     parameters = Column(Text)  # JSON string
     feature_importance = Column(Text)  # JSON string
     is_active = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     trained_at = Column(DateTime)
 
 

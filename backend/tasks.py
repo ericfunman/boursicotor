@@ -2,10 +2,15 @@
 Celery tasks for asynchronous data collection
 """
 from celery import Task
-from datetime import datetime
+from datetime import datetime, timezone
 from backend.celery_config import celery_app
 from backend.models import SessionLocal, DataCollectionJob, JobStatus
 from backend.config import logger
+
+
+class IBKRConnectionError(Exception):
+    """Raised when IBKR connection fails"""
+    pass
 
 
 class DatabaseTask(Task):
@@ -14,11 +19,13 @@ class DatabaseTask(Task):
     
     @property
     def db(self):
+        """TODO: Add docstring."""
         if self._db is None:
             self._db = SessionLocal()
         return self._db
     
     def after_return(self, *args, **kwargs):
+        """TODO: Add docstring."""
         if self._db is not None:
             self._db.close()
             self._db = None
@@ -55,16 +62,21 @@ def collect_data_ibkr(
     try:
         # Update job status to running
         job.status = JobStatus.RUNNING
-        job.started_at = datetime.utcnow()
+        job.started_at = datetime.now(timezone.utc)
         job.current_step = "Initializing IBKR connection..."
         db.commit()
         
         # Import here to avoid circular imports
         from backend.ibkr_collector import IBKRCollector
+        import random
         
-        # Create collector with client_id=3 for data collection tasks
-        # This avoids conflicts: client_id=1 (Streamlit), client_id=2 (Celery live data)
-        collector = IBKRCollector(client_id=3)
+        # Use a dynamic client_id for Celery tasks (4-999)
+        # This avoids conflicts with UI (client_id=1) and allows multiple concurrent Celery workers
+        # Each task disconnects after completion, freeing the client_id for reuse
+        celery_client_id = random.randint(4, 999)
+        logger.info(f"Celery task using client_id={celery_client_id}")
+        
+        collector = IBKRCollector(client_id=celery_client_id)
         
         # Connect to IBKR
         job.current_step = "Connecting to IBKR..."
@@ -72,7 +84,7 @@ def collect_data_ibkr(
         db.commit()
         
         if not collector.connect():
-            raise Exception("Failed to connect to IBKR")
+            raise IBKRConnectionError("Failed to connect to IBKR")
         
         # Progress callback to update job progress
         def progress_callback(current, total):
@@ -128,14 +140,14 @@ def collect_data_ibkr(
             job.records_total = result.get('total_records', 0)
             job.progress = 100
             job.current_step = "Completed successfully!"
-            job.completed_at = datetime.utcnow()
+            job.completed_at = datetime.now(timezone.utc)
             logger.info(f"✅ Job {job_id} completed: {job.records_new} new, {job.records_updated} updated, total: {job.records_total}")
         else:
             job.status = JobStatus.FAILED
             job.error_message = result.get('error', 'Unknown error')
             job.progress = 0
             job.current_step = "Failed"
-            job.completed_at = datetime.utcnow()
+            job.completed_at = datetime.now(timezone.utc)
             logger.error(f"❌ Job {job_id} failed: {job.error_message}")
         
         db.commit()
@@ -148,7 +160,7 @@ def collect_data_ibkr(
         job.error_message = str(e)
         job.progress = 0
         job.current_step = "Failed with exception"
-        job.completed_at = datetime.utcnow()
+        job.completed_at = datetime.now(timezone.utc)
         db.commit()
         
         # Re-raise for Celery to handle
@@ -174,8 +186,8 @@ def cleanup_old_jobs(days_to_keep: int = 7):
     """
     db = SessionLocal()
     try:
-        from datetime import timedelta
-        cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
+        from datetime import timedelta, timezone
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
         
         deleted = db.query(DataCollectionJob).filter(
             DataCollectionJob.status.in_([JobStatus.COMPLETED, JobStatus.FAILED]),
