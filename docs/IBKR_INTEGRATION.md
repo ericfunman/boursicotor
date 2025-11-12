@@ -133,7 +133,7 @@ Ajoutez IBKR comme nouvelle source de données:
 from backend.ibkr_connector import IBKRConnector
 
 class DataCollector:
-    def __init__(self, use_saxo=False, use_ibkr=True):
+    def __init__(self, use_ibkr=True):
         # ... code existant ...
         self.use_ibkr = use_ibkr
         self.ibkr_connector = None
