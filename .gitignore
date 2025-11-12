@@ -35,16 +35,6 @@ ibgateway.jts
 # IBC installation (auto-installed, contains credentials)
 C:/IBC/
 
-# IB Gateway credentials (IMPORTANT - contains login credentials)
-ibgateway_config.ini
-ibgateway.jts
-
-# IBC installation (auto-installed, contains credentials)
-C:/IBC/
-
-# Saxo Bank tokens (IMPORTANT - contains sensitive tokens)
-.saxo_tokens
-
 # IDE
 .vscode/
 .idea/

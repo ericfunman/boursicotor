@@ -21,17 +21,13 @@ ibkr_client = None
 class DataCollector:
     """Service for collecting and storing market data"""
     
-    def __init__(self, use_saxo: bool = False):
+    def __init__(self):
         """
         Initialize DataCollector
         
-        Args:
-            use_saxo: Deprecated parameter, kept for compatibility
+        Note: Only IBKR is supported as data source
         """
         self.db: Session = SessionLocal()
-        
-        # Note: Saxo Bank, Alpha Vantage, Polygon, and Yahoo Finance have been removed
-        # Only IBKR is supported as data source
         
     def __del__(self):
         """TODO: Add docstring."""
@@ -79,21 +75,6 @@ class DataCollector:
         try:
             # Ensure ticker exists
             ticker = self.ensure_ticker_exists(symbol, name, exchange)
-            
-            # Try Saxo Bank first if available
-            if self.saxo_client:
-                logger.info(f"📊 Fetching data from Saxo Bank for {symbol}")
-                df = self.saxo_client.get_historical_data(
-                    symbol=symbol,
-                    duration=duration,
-                    bar_size=bar_size,
-                    exchange=exchange
-                )
-                
-                if df is not None and len(df) > 0:
-                    return self._store_dataframe(df, ticker, bar_size)
-                else:
-                    logger.warning(f"⚠️ No data from Saxo Bank for {symbol}")
             
             # Fallback to IBKR if available
             if IBKR_AVAILABLE and ibkr_client is not None:

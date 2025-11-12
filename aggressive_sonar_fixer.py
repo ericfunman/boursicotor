@@ -42,7 +42,6 @@ class AgggressiveSonarFixer:
             "*_test.py",
             "test_api*.py",
             "test_ibkr*.py",
-            "test_saxo*.py",
             "test_app*.py",
             "test_order*.py",
             "test_save*.py",

@@ -27,24 +27,6 @@ class TestDataCollectorImport:
             assert collector is not None
         except Exception as e:
             pytest.skip(f"Cannot initialize DataCollector: {e}")
-    
-    def test_data_collector_init_with_saxo(self):
-        """Test DataCollector initialization with saxo parameter"""
-        try:
-            from backend.data_collector import DataCollector
-            collector = DataCollector(use_saxo=False)
-            assert collector is not None
-        except Exception as e:
-            pytest.skip(f"Cannot initialize DataCollector with saxo param: {e}")
-    
-    def test_data_collector_init_with_saxo_true(self):
-        """Test DataCollector initialization with saxo=True"""
-        try:
-            from backend.data_collector import DataCollector
-            collector = DataCollector(use_saxo=True)
-            assert collector is not None
-        except Exception as e:
-            pytest.skip(f"Cannot initialize DataCollector with saxo=True: {e}")
 
 
 class TestDataCollectorMethods:
@@ -251,18 +233,6 @@ class TestDataCollectorIntegration:
 
 class TestDataSources:
     """Test data source handling"""
-    
-    def test_data_collector_saxo_disabled_by_default(self):
-        """Test Saxo is disabled by default"""
-        try:
-            from backend.data_collector import DataCollector, IBKR_AVAILABLE
-            
-            collector = DataCollector(use_saxo=False)
-            assert collector is not None
-            # IBKR_AVAILABLE should be a boolean
-            assert isinstance(IBKR_AVAILABLE, bool)
-        except Exception as e:
-            pytest.skip(f"Cannot test data source configuration: {e}")
     
     def test_data_collector_module_level_ibkr_flag(self):
         """Test module has IBKR_AVAILABLE flag"""
