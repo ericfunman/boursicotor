@@ -117,8 +117,9 @@ jobs:
         args: >
           -Dsonar.projectKey=ericfunman_boursicotor
           -Dsonar.organization=ericfunman
-          -Dsonar.coverage.exclusions=**/tests/**,**/test_*.py
-          -Dsonar.sources=backend,frontend
+          -Dsonar.sources=backend
+          -Dsonar.python.coverage.reportPaths=coverage.xml
+          -Dsonar.coverage.exclusions=**/tests/**
 
   notify:
     runs-on: ubuntu-latest
