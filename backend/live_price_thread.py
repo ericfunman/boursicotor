@@ -132,12 +132,12 @@ class LivePriceCollector:
                 # Create fresh contract (EXACTLY LIKE DASHBOARD)
                 contract = Stock(symbol, 'SMART', 'EUR')
                 
-                # Request historical data (EXACTLY LIKE DASHBOARD)
+                # Request historical data - use 5min bars for more frequent updates
                 bars = ib.reqHistoricalData(
                     contract,
                     endDateTime='',
                     durationStr='1 D',
-                    barSizeSetting='1 day',
+                    barSizeSetting='5 mins',
                     whatToShow='TRADES',
                     useRTH=False,
                     formatDate=1

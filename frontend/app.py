@@ -512,7 +512,7 @@ def dashboard_page():
                                                 contract,
                                                 endDateTime='',
                                                 durationStr='1 D',
-                                                barSizeSetting='1 day',
+                                                barSizeSetting='5 mins',
                                                 whatToShow='TRADES',
                                                 useRTH=False,
                                                 formatDate=1
