@@ -818,15 +818,92 @@ def data_collection_page():
                 
                 # Export option
                 st.markdown("---")
-                if st.button("💾 Exporter le tableau (CSV)", use_container_width=True):
-                    csv = df_overview.to_csv(index=False)
-                    st.download_button(
-                        label="Télécharger CSV",
-                        data=csv,
-                        file_name=f"boursicotor_data_overview_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )
+                col_export, col_delete = st.columns(2)
+                
+                with col_export:
+                    if st.button("💾 Exporter le tableau (CSV)", use_container_width=True):
+                        csv = df_overview.to_csv(index=False)
+                        st.download_button(
+                            label="Télécharger CSV",
+                            data=csv,
+                            file_name=f"boursicotor_data_overview_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                            mime="text/csv",
+                            use_container_width=True
+                        )
+                
+                # Delete data section
+                with col_delete:
+                    st.subheader("🗑️ Supprimer Données par Ticker")
+                
+                st.markdown("---")
+                st.write("### Sélectionnez le(s) ticker(s) à supprimer:")
+                
+                # Get list of available tickers
+                available_tickers = sorted([t.symbol for t in tickers_with_stats])
+                
+                # Initialize session state for delete selection
+                if 'delete_selection' not in st.session_state:
+                    st.session_state.delete_selection = []
+                
+                # Multi-select for tickers - NO RERUN on change
+                tickers_to_delete = st.multiselect(
+                    "Choisissez un ou plusieurs tickers à supprimer:",
+                    available_tickers,
+                    default=st.session_state.delete_selection,
+                    help="Sélectionnez les tickers dont vous voulez supprimer les données",
+                    key="delete_multiselect"
+                )
+                
+                # Save to session state
+                st.session_state.delete_selection = tickers_to_delete
+                
+                if tickers_to_delete:
+                    # Show summary of what will be deleted
+                    st.warning("⚠️ APERÇU DES DONNÉES À SUPPRIMER:")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    total_points_to_delete = 0
+                    for ticker_sym in tickers_to_delete:
+                        ticker_data = next((t for t in tickers_with_stats if t.symbol == ticker_sym), None)
+                        if ticker_data:
+                            total_points_to_delete += ticker_data.total_points
+                            with col1 if tickers_to_delete.index(ticker_sym) % 2 == 0 else col2:
+                                st.info(f"**{ticker_sym}** ({ticker_data.name})\n"
+                                       f"- Points: {ticker_data.total_points:,}\n"
+                                       f"- Période: {ticker_data.first_date.strftime('%Y-%m-%d')} à {ticker_data.last_date.strftime('%Y-%m-%d')}")
+                    
+                    st.error(f"⚠️ Total à supprimer: {total_points_to_delete:,} points")
+                    
+                    # Confirmation buttons
+                    col_confirm, col_cancel = st.columns(2)
+                    
+                    with col_confirm:
+                        if st.button("✅ Confirmer Suppression", use_container_width=True, type="primary", key="confirm_delete_btn"):
+                            try:
+                                deleted_count = 0
+                                for ticker_sym in tickers_to_delete:
+                                    # Delete historical data for each ticker
+                                    ticker_obj = db.query(TickerModel).filter(TickerModel.symbol == ticker_sym).first()
+                                    if ticker_obj:
+                                        count = db.query(HistoricalData).filter(HistoricalData.ticker_id == ticker_obj.id).delete()
+                                        deleted_count += count
+                                
+                                db.commit()
+                                
+                                # Show success and clear selection (no rerun)
+                                st.session_state.delete_selection = []
+                                st.success(f"✅ Suppression réussie!\n{deleted_count:,} points de données supprimés pour {len(tickers_to_delete)} ticker(s)")
+                                st.info("💡 Rafraîchissez la page pour voir le tableau mis à jour (F5 ou cliquez ailleurs)")
+                            except Exception as e:
+                                st.error(f"❌ Erreur lors de la suppression: {e}")
+                                db.rollback()
+                    
+                    with col_cancel:
+                        if st.button("❌ Annuler", use_container_width=True):
+                            st.rerun()
+                else:
+                    st.info("💡 Sélectionnez un ou plusieurs tickers ci-dessus pour les supprimer")
             else:
                 st.warning("⚠️ Aucune donnée collectée pour le moment.")
                 st.info("💡 Utilisez l'onglet **Collecte IBKR** pour commencer à collecter des données sur TTE, WLN, TSL ou d'autres actions.")
@@ -1856,7 +1933,7 @@ def backtesting_page():
                 max_value=5.0,
                 value=0.09,
                 step=0.01,
-                format="%.2",
+                format="%.2f",
                 help="Commission par trade (achat + vente)"
             )
         
@@ -3570,18 +3647,28 @@ def order_placement_page():
             col_form1, col_form2 = st.columns([2, 1])
             
             with col_form1:
-                # Get available tickers
+                # Get available tickers from collected data only
                 db = SessionLocal()
                 try:
-                    from backend.models import Ticker
-                    tickers = db.query(Ticker).filter(Ticker.is_active == True).order_by(Ticker.symbol).all()
-                    ticker_options = {f"{t.symbol} - {t.name}": t.symbol for t in tickers}
+                    from backend.models import Ticker, HistoricalData
+                    from sqlalchemy import func
+                    
+                    # Get tickers with actual collected data (not just registered)
+                    tickers_with_data = db.query(Ticker).join(HistoricalData).filter(
+                        Ticker.is_active == True
+                    ).distinct().order_by(Ticker.symbol).all()
+                    
+                    ticker_options = {f"{t.symbol} - {t.name}": t.symbol for t in tickers_with_data}
                     
                     if not ticker_options:
                         st.warning("⚠️ Aucune action en base. Ajoutez des actions via 'Collecte de Données'.")
                         selected_symbol = st.text_input("Symbole (saisie manuelle)", value="WLN")
                     else:
-                        selected_display = st.selectbox("Action", list(ticker_options.keys()))
+                        selected_display = st.selectbox(
+                            "Action",
+                            sorted(ticker_options.keys()),
+                            help="Actions collectées via Collecte de Données"
+                        )
                         selected_symbol = ticker_options[selected_display]
                 finally:
                     db.close()
