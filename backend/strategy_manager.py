@@ -22,7 +22,6 @@ class StrategyManager:
     """Gestionnaire de stratégies"""
     
     @staticmethod
-    @staticmethod
     def _convert_numpy_types(obj):
         """Convert numpy types to Python native types"""
         import numpy as np
