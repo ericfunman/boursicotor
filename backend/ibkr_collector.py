@@ -1585,7 +1585,7 @@ class IBKRCollector:
                     break
             
             if not temp_ib.isConnected():
-                logger.warning(f"[get_current_market_price] Failed to connect with temporary connection")
+                logger.warning("[get_current_market_price] Failed to connect with temporary connection")
                 return None
             
             # Create a fresh Stock contract
@@ -1622,7 +1622,7 @@ class IBKRCollector:
             if temp_ib and temp_ib.isConnected():
                 try:
                     temp_ib.disconnect()
-                    logger.info(f"[get_current_market_price] Disconnected temporary connection")
+                    logger.info("[get_current_market_price] Disconnected temporary connection")
                 except Exception as e:
                     logger.error(f"Error disconnecting temporary connection: {e}")
     

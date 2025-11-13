@@ -529,7 +529,7 @@ class DataCollector:
             ib.connect('127.0.0.1', 4002, clientId=999)
             
             # Wait for connection
-            for i in range(5):
+            for _ in range(5):
                 time_module.sleep(0.5)
                 if ib.isConnected():
                     break

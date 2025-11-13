@@ -76,7 +76,7 @@ class LivePriceCollector:
             
             # Initialize persistent IBKR connection for real-time data
             self.ib = IB()
-            logger.info(f"[LivePriceCollector] Connecting to IBKR (clientId=201)...")
+            logger.info("[LivePriceCollector] Connecting to IBKR (clientId=201)...")
             self.ib.connect('127.0.0.1', 4002, clientId=201)
             
             # Wait for connection
@@ -87,7 +87,7 @@ class LivePriceCollector:
                     break
             
             if not self.ib.isConnected():
-                logger.error(f"[LivePriceCollector] Failed to connect to IBKR")
+                logger.error("[LivePriceCollector] Failed to connect to IBKR")
                 return
             
             logger.info(f"[LivePriceCollector] Starting price collection for {self.symbol}")
@@ -135,8 +135,8 @@ class LivePriceCollector:
             if self.ib:
                 try:
                     self.ib.disconnect()
-                    logger.info(f"[LivePriceCollector] Disconnected from IBKR")
-                except:
+                    logger.info("[LivePriceCollector] Disconnected from IBKR")
+                except Exception:
                     pass
             
             if db:
