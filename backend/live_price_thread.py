@@ -7,6 +7,7 @@ import time
 from typing import Optional, Callable
 from datetime import datetime
 from sqlalchemy.orm import Session
+from ib_insync import IB, Stock
 
 from backend.models import SessionLocal, Ticker, HistoricalData
 from backend.ibkr_collector import IBKRCollector
@@ -74,16 +75,13 @@ class LivePriceCollector:
             db = SessionLocal()
             
             # Initialize persistent IBKR connection for real-time data
-            from ib_insync import IB, Stock
-            import time as time_module
-            
             self.ib = IB()
             logger.info(f"[LivePriceCollector] Connecting to IBKR (clientId=201)...")
             self.ib.connect('127.0.0.1', 4002, clientId=201)
             
             # Wait for connection
             for i in range(20):  # 4 seconds max
-                time_module.sleep(0.2)
+                time.sleep(0.2)
                 if self.ib.isConnected():
                     logger.info(f"[LivePriceCollector] ✅ Connected after {(i+1)*0.2:.1f}s")
                     break
@@ -123,11 +121,11 @@ class LivePriceCollector:
                         logger.warning(f"[LivePriceCollector] No bars available for {self.symbol}")
                     
                     # Wait before next collection
-                    time_module.sleep(self.interval)
+                    time.sleep(self.interval)
                     
                 except Exception as e:
                     logger.error(f"[LivePriceCollector] Error collecting price: {e}", exc_info=True)
-                    time_module.sleep(self.interval)
+                    time.sleep(self.interval)
         
         except Exception as e:
             logger.error(f"[LivePriceCollector] Fatal error: {e}", exc_info=True)
