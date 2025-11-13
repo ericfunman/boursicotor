@@ -105,7 +105,7 @@ class LivePriceCollector:
             logger.info(f"[LivePriceCollector] Thread ended for {self.symbol}")
     
     def _get_price_from_temporary_connection(self, symbol: str) -> Optional[float]:
-        """Get price using temporary IBKR connection - SAME LOGIC AS DASHBOARD"""
+        """Get price using temporary IBKR connection - real-time market data"""
         try:
             from ib_insync import IB, Stock
             import time as time_module
@@ -129,27 +129,26 @@ class LivePriceCollector:
                     logger.warning(f"[LivePriceCollector] Failed to connect to IBKR for {symbol} after 2s")
                     return None
                 
-                # Create fresh contract (EXACTLY LIKE DASHBOARD)
+                # Create fresh contract
                 contract = Stock(symbol, 'SMART', 'EUR')
                 
-                # Request historical data - use 1min bars for frequent updates
-                bars = ib.reqHistoricalData(
-                    contract,
-                    endDateTime='',
-                    durationStr='1 D',
-                    barSizeSetting='1 min',
-                    whatToShow='TRADES',
-                    useRTH=False,
-                    formatDate=1
-                )
+                # Request real-time market data (bid/ask/last)
+                ticker = ib.reqMktData(contract, '', False, False)
                 
-                if bars and len(bars) > 0:
-                    price = bars[-1].close
-                    logger.info(f"[LivePriceCollector] {symbol}: {price}€")
-                    return price
-                else:
-                    logger.warning(f"[LivePriceCollector] No bars for {symbol}")
-                    return None
+                # Wait for data with timeout (max 2 seconds)
+                for i in range(10):
+                    time_module.sleep(0.2)
+                    if ticker.last > 0:
+                        price = ticker.last
+                        logger.info(f"[LivePriceCollector] {symbol}: {price}€ @ {ticker.time} (last trade)")
+                        return price
+                    elif ticker.close > 0:
+                        price = ticker.close
+                        logger.info(f"[LivePriceCollector] {symbol}: {price}€ @ {ticker.time} (close)")
+                        return price
+                
+                logger.warning(f"[LivePriceCollector] No market data for {symbol}")
+                return None
                     
             except Exception as e:
                 logger.error(f"[LivePriceCollector] Error: {e}")
