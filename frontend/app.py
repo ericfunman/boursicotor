@@ -2837,6 +2837,7 @@ def live_prices_page():
             # Calculate indicators
             rsi = calculate_rsi(prices, period=14)
             macd_result = calculate_macd(prices, fast=12, slow=26, signal=9)
+            bollinger_result = calculate_bollinger_bands(prices, period=20, num_std=2)
             
             # Create subplots
             from plotly.subplots import make_subplots
@@ -2863,6 +2864,51 @@ def live_prices_page():
                 ),
                 row=1, col=1
             )
+            
+            # Bollinger Bands
+            if bollinger_result:
+                upper, middle, lower = bollinger_result
+                
+                # Upper band
+                fig.add_trace(
+                    go.Scatter(
+                        x=times,
+                        y=upper,
+                        mode='lines',
+                        name='BB Upper',
+                        line=dict(color='#FF9999', width=1, dash='dash'),
+                        hovertemplate='<b>BB Upper</b>: %{y:.2f}<extra></extra>'
+                    ),
+                    row=1, col=1
+                )
+                
+                # Middle band (SMA)
+                fig.add_trace(
+                    go.Scatter(
+                        x=times,
+                        y=middle,
+                        mode='lines',
+                        name='BB Middle',
+                        line=dict(color='#FFCC99', width=1.5),
+                        hovertemplate='<b>BB Middle</b>: %{y:.2f}<extra></extra>'
+                    ),
+                    row=1, col=1
+                )
+                
+                # Lower band
+                fig.add_trace(
+                    go.Scatter(
+                        x=times,
+                        y=lower,
+                        mode='lines',
+                        name='BB Lower',
+                        line=dict(color='#99CCFF', width=1, dash='dash'),
+                        fill='tonexty',
+                        fillcolor='rgba(200, 200, 200, 0.1)',
+                        hovertemplate='<b>BB Lower</b>: %{y:.2f}<extra></extra>'
+                    ),
+                    row=1, col=1
+                )
             
             # RSI chart
             if rsi:
