@@ -18,11 +18,12 @@ import sys
 # Ensure we can import from parent directory (handles Streamlit working directory issues)
 _app_dir = Path(__file__).parent
 _project_root = _app_dir.parent
-sys.path.insert(0, str(_project_root))
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
 
 # Now we can import using absolute paths from project root
-# Import UI constants (use relative imports from same package)
-from .constants import (
+# Import UI constants
+from frontend.constants import (
     MENU_DASHBOARD, MENU_DATA_COLLECTION, MENU_TECHNICAL_ANALYSIS,
     MENU_AUTO_TRADING, MENU_ORDER_PLACEMENT, MENU_SETTINGS,
     BTN_REFRESH, ERROR_DETAILS, LABEL_QUANTITY, LABEL_PRICE_EUR,
