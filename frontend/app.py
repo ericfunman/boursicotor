@@ -121,8 +121,12 @@ def connect_global_ibkr():
         from backend.ibkr_collector import IBKRCollector
         
         if st.session_state.global_ibkr is None:
-            # Use client_id=1 for Streamlit main connection
-            st.session_state.global_ibkr = IBKRCollector(client_id=1)
+            # Use a random client_id (2-100) for Streamlit main connection
+            # This way each Streamlit instance can have its own connection without conflicts
+            import random
+            random_client_id = random.randint(2, 100)
+            logger.info(f"Creating new IBKRCollector with clientId={random_client_id}")
+            st.session_state.global_ibkr = IBKRCollector(client_id=random_client_id)
         
         # Check if already connected before calling connect()
         if st.session_state.global_ibkr_connected:
@@ -471,9 +475,10 @@ def dashboard_page():
                         
                         with st.spinner("⏳ Récupération des prix de marché..."):
                             try:
-                                # Use fixed clientId=999 for consistency
-                                logger.info("Connecting with clientId=999")
-                                ib_market.connect('127.0.0.1', 4002, clientId=999)
+                                # Use a different clientId (50) for temporary market data connection
+                                # to avoid conflict with global connection (clientId=999)
+                                logger.info("Connecting with clientId=50")
+                                ib_market.connect('127.0.0.1', 4002, clientId=50)
                                 
                                 # Wait for connection to establish
                                 for i in range(5):
@@ -2880,27 +2885,11 @@ def live_prices_page():
             import pandas as pd
             from backend.models import HistoricalData
             import time as time_module_local
-            import json
             
             # Get ticker object for database storage
             ticker_obj = db.query(Ticker).filter(Ticker.symbol == selected_symbol).first()
             
-            # Start background Celery task if not already running
-            if not st.session_state.get('live_task_id'):
-                try:
-                    from backend.live_data_task import stream_live_data_continuous
-                    # Start task in background (30 minutes max)
-                    task = stream_live_data_continuous.apply_async(
-                        args=[selected_symbol, 1800],  # 30 minutes
-                        expires=1800
-                    )
-                    st.session_state.live_task_id = task.id
-                    logger.info(f"[UI] Started live data task {task.id} for {selected_symbol}")
-                except Exception as e:
-                    logger.warning(f"[UI] Could not start Celery task: {e}")
-                    st.session_state.live_task_id = None
-            
-            # Collect one data point from Redis or IBKR (non-blocking approach)
+            # Collect one data point using get_current_market_price()
             current_price = None
             current_volume = None
             current_time = None
@@ -2908,56 +2897,18 @@ def live_prices_page():
             price_change_pct = 0
             
             try:
-                # Try to get latest data from Redis first
-                import redis
-                try:
-                    redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-                    redis_data = redis_client.get(f"live_data:{selected_symbol}")
-                    if redis_data:
-                        data_point = json.loads(redis_data)
-                        current_price = data_point.get('price')
-                        current_volume = data_point.get('volume', 0)
-                        current_time = datetime.fromisoformat(data_point.get('timestamp', datetime.now().isoformat()))
-                except Exception:
-                    redis_client = None
-                
-                # Fallback: Get from IBKR directly if Redis unavailable
-                if not current_price and st.session_state.get('global_ibkr_connected', False):
+                # Use get_current_market_price() to fetch current price
+                if st.session_state.get('global_ibkr_connected', False):
                     collector = st.session_state.global_ibkr
-                    contract = collector.get_contract(selected_symbol)
+                    current_price = collector.get_current_market_price(selected_symbol, "EUR")
+                    current_time = datetime.now()
+                    current_volume = 0  # Volume not available from get_current_market_price()
                     
-                    if contract:
-                        try:
-                            # Request market data WITHOUT blocking - set SHORT timeout
-                            ticker_data = collector.ib.reqMktData(contract, '', False, False)
-                            # Wait max 2 seconds for data (delayed data takes longer)
-                            max_wait = 20  # 2 seconds in tenths
-                            wait_count = 0
-                            while (ticker_data.last == 0 and ticker_data.close == 0) and wait_count < max_wait:
-                                collector.ib.sleep(0.1)
-                                wait_count += 1
-                            
-                            # Use 'last' if available, fallback to 'close' for delayed data
-                            current_price = ticker_data.last if ticker_data.last > 0 else ticker_data.close
-                            
-                            if current_price > 0:
-                                current_volume = ticker_data.volume if ticker_data.volume > 0 else 0
-                                current_time = datetime.now()
-                                
-                                logger.debug(f"[UI] Got {selected_symbol} from IBKR: {current_price}€ (volume: {current_volume})")
-                        finally:
-                            # Always cancel market data subscription
-                            try:
-                                collector.ib.cancelMktData(contract)
-                            except Exception:
-                                pass
-                    else:
-                        st.error(f"❌ Impossible de trouver le contrat pour {selected_symbol}")
-                        st.session_state.live_running = False
+                    if current_price:
+                        logger.debug(f"[UI] Got {selected_symbol} from get_current_market_price(): {current_price}€")
                 else:
-                    if not st.session_state.get('global_ibkr_connected', False):
-                        st.error("❌ Connexion IBKR perdue")
-                        st.session_state.live_running = False
+                    st.error("❌ IBKR not connected! Click 'Connecter à IBKR' first")
+                    st.session_state.live_running = False
             except Exception as e:
                 logger.error(f"Error collecting live data: {e}", exc_info=True)
                 st.warning(f"⚠️ Erreur lors de la collecte: {e}")
@@ -3089,205 +3040,31 @@ def live_prices_page():
                 signal = "En attente de données..."
                 signal_color = "orange"
             
-            # Create line chart - ALWAYS, even if no data yet
-            fig = go.Figure()
+            # DEBUG: Display collected data as table (simple version)
+            st.markdown("---")
+            st.subheader("📊 Données Collectées")
             
-            # Main price line - only if we have data
-            if len(st.session_state.live_data['price']) > 0:
-                fig.add_trace(go.Scatter(
-                    x=st.session_state.live_data['time'],
-                    y=st.session_state.live_data['price'],
-                    mode='lines',
-                    name='Prix',
-                    line=dict(color='#00D9FF', width=2),
-                    fill='tozeroy',
-                    fillcolor='rgba(0, 217, 255, 0.1)'
-                ))
+            if len(st.session_state.live_data['time']) > 0:
+                # Create a simple dataframe to display
+                debug_data = []
+                for t, p in zip(st.session_state.live_data['time'], st.session_state.live_data['price']):
+                    debug_data.append({
+                        'Heure': t.strftime("%H:%M:%S") if hasattr(t, 'strftime') else str(t),
+                        'Prix (€)': f"{p:.2f}"
+                    })
+                
+                st.dataframe(debug_data, width='stretch')
+                st.info(f"✅ {len(debug_data)} points collectés")
             else:
-                # Show empty chart message
-                fig.add_annotation(
-                    text="En attente de données...",
-                    xref="paper", yref="paper",
-                    x=0.5, y=0.5, showarrow=False,
-                    font=dict(size=20, color="gray")
-                )
+                st.warning("⏳ En attente de données...")
             
-            # Add historical buy/sell markers if strategy is selected
-            if signal_times and signal_prices and signal_types:
-                buy_times = [t for t, typ in zip(signal_times, signal_types) if typ == 'buy']
-                buy_prices = [p for p, typ in zip(signal_prices, signal_types) if typ == 'buy']
-                sell_times = [t for t, typ in zip(signal_times, signal_types) if typ == 'sell']
-                sell_prices = [p for p, typ in zip(signal_prices, signal_types) if typ == 'sell']
-                
-                if buy_times:
-                    fig.add_trace(go.Scatter(
-                        x=buy_times,
-                        y=buy_prices,
-                        mode='markers',
-                        name='Signaux Achat (Historique)',
-                        marker=dict(size=12, color='green', symbol='triangle-up', line=dict(width=1, color='darkgreen'))
-                    ))
-                
-                if sell_times:
-                    fig.add_trace(go.Scatter(
-                        x=sell_times,
-                        y=sell_prices,
-                        mode='markers',
-                        name='Signaux Vente (Historique)',
-                        marker=dict(size=12, color='red', symbol='triangle-down', line=dict(width=1, color='darkred'))
-                    ))
-                    
-                    # Show count of signals
-                    total_signals = len(buy_times) + len(sell_times)
-                    st.info(f"📊 {total_signals} signaux détectés : {len(buy_times)} achats, {len(sell_times)} ventes")
-            
-            # Add current signal marker if signal is present
-            if signal.startswith("ACHAT") and len(st.session_state.live_data['price']) > 0:
-                fig.add_trace(go.Scatter(
-                    x=[st.session_state.live_data['time'][-1]],
-                    y=[st.session_state.live_data['price'][-1]],
-                    mode='markers',
-                    name='Signal Achat (Actuel)',
-                    marker=dict(size=18, color='lime', symbol='triangle-up', line=dict(width=2, color='green'))
-                ))
-            elif signal.startswith("VENTE") and len(st.session_state.live_data['price']) > 0:
-                fig.add_trace(go.Scatter(
-                    x=[st.session_state.live_data['time'][-1]],
-                    y=[st.session_state.live_data['price'][-1]],
-                    mode='markers',
-                    name='Signal Vente (Actuel)',
-                    marker=dict(size=18, color='orangered', symbol='triangle-down', line=dict(width=2, color='red'))
-                ))
-            
-            # Update layout for all cases - OUTSIDE the conditional blocks
-            fig.update_layout(
-                title=f"{selected_symbol} - Cours en temps réel ({time_scale}) - Signal: {signal}",
-                xaxis_title="Heure",
-                yaxis_title=LABEL_PRICE_EUR,
-                xaxis=dict(
-                    tickformat='%H:%M:%S',  # Format avec les secondes
-                    tickmode='auto',
-                    nticks=10
-                ),
-                height=500,
-                hovermode=HOVERMODE_X_UNIFIED,
-                showlegend=True,
-                margin=dict(l=50, r=50, t=50, b=50)
-            )
-            
-            # Update chart without reloading entire page
-            chart_placeholder.plotly_chart(fig, use_container_width=True)
-            
-            # Display indicators below chart - always show the panel
-            with indicators_placeholder.container():
-                st.markdown("---")
-                st.subheader("📊 Indicateurs Techniques")
-                
-                ind_col1, ind_col2, ind_col3 = st.columns(3)
-                
-                with ind_col1:
-                    if latest_rsi:
-                        if latest_rsi > 70:
-                            rsi_delta = "Suracheté"
-                        elif latest_rsi < 30:
-                            rsi_delta = "Survendu"
-                        else:
-                            rsi_delta = "Normal"
-                        st.metric("RSI (14)", f"{latest_rsi:.2f}", rsi_delta)
-                    else:
-                        st.metric("RSI (14)", "---", "En attente...")
-                
-                with ind_col2:
-                    if latest_macd:
-                        st.metric("MACD", f"{latest_macd:.4f}")
-                    else:
-                        st.metric("MACD", "---", "En attente...")
-                
-                with ind_col3:
-                    st.markdown(f"### Signal: :{signal_color}[{signal}]")
-                
-                # Display strategy analysis if strategy selected and signals found
-                if selected_strategy and signal_times and signal_prices and signal_types:
-                    st.markdown("---")
-                    st.subheader(f"🎯 Analyse de la stratégie: {selected_strategy_name}")
-                    
-                    # Simulate trades based on signals
-                    position = None  # None = no position, 'long' = bought
-                    trades = []
-                    
-                    for i, (time, price, typ) in enumerate(zip(signal_times, signal_prices, signal_types)):
-                        if typ == 'buy' and position is None:
-                            # Open long position
-                            position = {'entry_time': time, 'entry_price': price}
-                        elif typ == 'sell' and position is not None:
-                            # Close long position
-                            profit = price - position['entry_price']
-                            profit_pct = (profit / position['entry_price']) * 100
-                            trades.append({
-                                'entry_time': position['entry_time'],
-                                'entry_price': position['entry_price'],
-                                'exit_time': time,
-                                'exit_price': price,
-                                'profit': profit,
-                                'profit_pct': profit_pct
-                            })
-                            position = None
-                    
-                    # Display trade summary
-                    if trades:
-                        trade_col1, trade_col2, trade_col3, trade_col4 = st.columns(4)
-                        
-                        total_trades = len(trades)
-                        winning_trades = len([t for t in trades if t['profit'] > 0])
-                        losing_trades = len([t for t in trades if t['profit'] < 0])
-                        win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
-                        
-                        total_profit = sum([t['profit'] for t in trades])
-                        avg_profit = total_profit / total_trades if total_trades > 0 else 0
-                        avg_profit_pct = sum([t['profit_pct'] for t in trades]) / total_trades if total_trades > 0 else 0
-                        
-                        with trade_col1:
-                            st.metric("Nombre de trades", f"{total_trades}")
-                        
-                        with trade_col2:
-                            st.metric("Taux de réussite", f"{win_rate:.1f}%", f"{winning_trades}W / {losing_trades}L")
-                        
-                        with trade_col3:
-                            delta_color = "normal" if total_profit >= 0 else "inverse"
-                            st.metric("Profit total", f"{total_profit:.2f} €", f"{sum([t['profit_pct'] for t in trades]):.2f}%", delta_color=delta_color)
-                        
-                        with trade_col4:
-                            st.metric("Profit moyen", f"{avg_profit:.2f} €", f"{avg_profit_pct:.2f}%")
-                        
-                        # Display recent trades table
-                        st.markdown("#### 📋 Derniers trades")
-                        recent_trades = trades[-10:]  # Last 10 trades
-                        trade_data = []
-                        for t in reversed(recent_trades):
-                            trade_data.append({
-                                'Entrée': t['entry_time'].strftime("%Y-%m-%d %H:%M:%S"),
-                                'Prix Entrée': f"{t['entry_price']:.2f} €",
-                                'Sortie': t['exit_time'].strftime("%Y-%m-%d %H:%M:%S"),
-                                'Prix Sortie': f"{t['exit_price']:.2f} €",
-                                'Profit': f"{t['profit']:.2f} €",
-                                'Profit %': f"{t['profit_pct']:.2f}%"
-                            })
-                        
-                        st.dataframe(pd.DataFrame(trade_data), width='stretch')
-                    else:
-                        st.info("ℹ️ Aucun trade complet détecté avec cette stratégie (signaux d'achat sans vente correspondante).")
-            
-            # Schedule next update using Streamlit's rerun
-            # Control refresh rate by checking last update time
+            # Auto-refresh: Use client-side polling instead of st.rerun()
+            # This is more stable and doesn't break after a few iterations
             if st.session_state.get('live_running'):
-                # Track last update time
-                current_time = time_module_local.time()
-                last_update = st.session_state.get('last_live_update', 0)
-                
-                # Only rerun every 2 seconds to prevent flickering
-                if current_time - last_update >= 2.0:
-                    st.session_state.last_live_update = current_time
-                    st.rerun()
+                import time as time_module_local_2
+                st.markdown(f"<meta http-equiv='refresh' content='3'>", unsafe_allow_html=True)
+                # Alternative: just display data, let browser auto-refresh
+                time_module_local_2.sleep(0.1)  # Small sleep to prevent tight loop
         else:
             # Not running - show static message
             st.info("👆 Cliquez sur 'Démarrer' pour afficher les cours en temps réel")

@@ -505,6 +505,107 @@ class DataCollector:
             logger.error(f"Error fetching Polygon.io data for {symbol}: {e}")
             return None
 
+    
+    def get_current_market_price(self, symbol: str, currency: str = "EUR") -> Optional[float]:
+        """
+        Get current market price from IBKR and save to database
+        
+        Args:
+            symbol: Stock symbol
+            currency: Currency code (default EUR)
+            
+        Returns:
+            Current market price or None if not available
+        """
+        try:
+            from ib_insync import IB, Stock
+            import time as time_module
+            
+            # Ensure ticker exists
+            ticker = self.ensure_ticker_exists(symbol)
+            
+            # Connect to IBKR if not already
+            ib = IB()
+            ib.connect('127.0.0.1', 4002, clientId=999)
+            
+            # Wait for connection
+            for i in range(5):
+                time_module.sleep(0.5)
+                if ib.isConnected():
+                    break
+            
+            if not ib.isConnected():
+                logger.warning(f"Could not connect to IBKR for {symbol}")
+                ib.disconnect()
+                return None
+            
+            # Create fresh contract
+            contract = Stock(symbol, 'SMART', currency)
+            
+            # Request historical data (1 day = most recent close)
+            bars = ib.reqHistoricalData(
+                contract,
+                endDateTime='',
+                durationStr='1 D',
+                barSizeSetting='1 day',
+                whatToShow='TRADES',
+                useRTH=False,
+                formatDate=1
+            )
+            
+            ib.disconnect()
+            
+            if not bars or len(bars) == 0:
+                logger.warning(f"No bars returned for {symbol}")
+                return None
+            
+            # Get the most recent bar
+            bar = bars[-1]
+            price = bar.close
+            
+            logger.info(f"✅ Got market price for {symbol}: {price}")
+            
+            # Save to database (1day interval with today's date)
+            now = datetime.now(timezone.utc)
+            today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            
+            # Check if we already have today's data
+            existing = self.db.query(HistoricalData).filter(
+                HistoricalData.ticker_id == ticker.id,
+                HistoricalData.timestamp == today,
+                HistoricalData.interval == '1day'
+            ).first()
+            
+            if existing:
+                # Update existing record
+                existing.close = price
+                existing.high = max(existing.high, price) if existing.high else price
+                existing.low = min(existing.low, price) if existing.low else price
+                self.db.commit()
+                logger.info(f"Updated today's data for {symbol}")
+            else:
+                # Create new record
+                record = HistoricalData(
+                    ticker_id=ticker.id,
+                    timestamp=today,
+                    open=price,
+                    high=price,
+                    low=price,
+                    close=price,
+                    volume=0,
+                    interval='1day'
+                )
+                self.db.add(record)
+                self.db.commit()
+                logger.info(f"Saved today's market price for {symbol}")
+            
+            return price
+            
+        except Exception as e:
+            logger.error(f"Error getting market price for {symbol}: {e}")
+            self.db.rollback()
+            return None
+
 
 if __name__ == "__main__":
     # Example usage

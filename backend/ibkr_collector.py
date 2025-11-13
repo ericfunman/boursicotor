@@ -1549,6 +1549,83 @@ class IBKRCollector:
             logger.error(f"Error getting positions: {e}")
             return []
     
+    def get_current_market_price(self, symbol: str, currency: str = "EUR") -> Optional[float]:
+        """
+        Get current market price for a symbol using historical data (1 day)
+        Uses a SEPARATE connection to avoid blocking the global connection
+        
+        Args:
+            symbol: Stock symbol
+            currency: Currency (default: EUR)
+            
+        Returns:
+            Current price or None if error
+        """
+        temp_ib = None
+        try:
+            logger.info(f"[get_current_market_price] Starting for {symbol}")
+            
+            # Create a TEMPORARY separate connection (like dashboard does)
+            # This avoids blocking the main connection
+            temp_ib = IB()
+            
+            # Use a unique client ID (between 100-200 for temporary connections)
+            import random
+            temp_client_id = random.randint(100, 200)
+            
+            logger.info(f"[get_current_market_price] Connecting with clientId={temp_client_id}...")
+            temp_ib.connect(self.host, self.port, clientId=temp_client_id, timeout=10)
+            
+            # Wait for connection
+            import time
+            for i in range(5):
+                time.sleep(0.5)
+                if temp_ib.isConnected():
+                    logger.info(f"[get_current_market_price] Connected after {(i+1)*0.5}s")
+                    break
+            
+            if not temp_ib.isConnected():
+                logger.warning(f"[get_current_market_price] Failed to connect with temporary connection")
+                return None
+            
+            # Create a fresh Stock contract
+            contract = Stock(symbol, 'SMART', currency)
+            logger.info(f"[get_current_market_price] Contract created: {contract}")
+            
+            # Request 1 day of historical data
+            logger.info(f"[get_current_market_price] Requesting historical data for {symbol}...")
+            bars = temp_ib.reqHistoricalData(
+                contract,
+                endDateTime='',
+                durationStr='1 D',
+                barSizeSetting='1 day',
+                whatToShow='TRADES',
+                useRTH=False,
+                formatDate=1
+            )
+            
+            logger.info(f"[get_current_market_price] Got bars: len={len(bars) if bars else 0}")
+            
+            if bars and len(bars) > 0:
+                latest_price = bars[-1].close
+                logger.info(f"[get_current_market_price] {symbol}: {latest_price}€")
+                return latest_price
+            else:
+                logger.warning(f"No historical data retrieved for {symbol}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error getting current market price for {symbol}: {e}", exc_info=True)
+            return None
+        finally:
+            # Always disconnect the temporary connection
+            if temp_ib and temp_ib.isConnected():
+                try:
+                    temp_ib.disconnect()
+                    logger.info(f"[get_current_market_price] Disconnected temporary connection")
+                except Exception as e:
+                    logger.error(f"Error disconnecting temporary connection: {e}")
+    
     def __del__(self):
         """Cleanup on deletion"""
         self.disconnect()
