@@ -456,69 +456,123 @@ def dashboard_page():
             st.subheader("📊 Positions Trading (via IBKR)")
             
             try:
-                # Get positions using collector's method
                 positions_list = []
                 
                 try:
-                    # Force IBKR to refresh portfolio data
+                    # Get positions directly from IBKR broker
                     if hasattr(collector, 'ib') and collector.ib.isConnected():
-                        # Clear the local cache and fetch fresh positions
-                        # Wait a moment for pending updates to settle
-                        time_module.sleep(0.2)
-                        
-                        # Get raw positions from IBKR
+                        # Get positions from collector
                         ib_positions = collector.ib.positions()
+                        logger.info(f"Got {len(ib_positions)} positions from IBKR")
                         
-                        for pos in ib_positions:
-                            positions_list.append({
-                                'symbol': pos.contract.symbol,
-                                'position': pos.position,
-                                'avg_cost': pos.avgCost,
-                                'market_price': pos.marketPrice if hasattr(pos, 'marketPrice') and pos.marketPrice else pos.avgCost,
-                                'market_value': pos.marketValue if hasattr(pos, 'marketValue') and pos.marketValue else (pos.position * pos.avgCost),
-                                'unrealized_pnl': pos.unrealizedPNL if hasattr(pos, 'unrealizedPNL') else None,
-                                'currency': pos.contract.currency,
-                                'exchange': pos.contract.exchange
-                            })
-                    else:
-                        st.write("⚠️ IBKR NOT connected")
+                        # Get market prices using separate connection with fixed clientId (like test script)
+                        from ib_insync import IB
+                        ib_market = IB()
+                        
+                        with st.spinner("⏳ Récupération des prix de marché..."):
+                            try:
+                                # Use fixed clientId=999 for consistency
+                                logger.info("Connecting with clientId=999")
+                                ib_market.connect('127.0.0.1', 4002, clientId=999)
+                                
+                                # Wait for connection to establish
+                                for i in range(5):
+                                    time_module.sleep(0.5)
+                                    if ib_market.isConnected():
+                                        logger.info(f"Connected after {(i+1)*0.5}s")
+                                        break
+                                
+                                if not ib_market.isConnected():
+                                    st.error("❌ Failed to connect to IBKR!")
+                                    market_data = {pos.contract.symbol: pos.avgCost for pos in ib_positions}
+                                else:
+                                    market_data = {}
+                                    for pos in ib_positions:
+                                        try:
+                                            symbol = pos.contract.symbol
+                                            logger.info(f"Fetching market data for {symbol}...")
+                                            
+                                            # Create a fresh contract (like in test script!)
+                                            from ib_insync import Stock
+                                            contract = Stock(symbol, 'SMART', 'EUR')
+                                            
+                                            # Request historical data
+                                            bars = ib_market.reqHistoricalData(
+                                                contract,
+                                                endDateTime='',
+                                                durationStr='1 D',
+                                                barSizeSetting='1 day',
+                                                whatToShow='TRADES',
+                                                useRTH=False,
+                                                formatDate=1
+                                            )
+                                            
+                                            if bars and len(bars) > 0:
+                                                bar = bars[-1]
+                                                price = bar.close
+                                                logger.info(f"{symbol}: {price}")
+                                            else:
+                                                price = pos.avgCost
+                                                logger.info(f"{symbol}: no bars, using avgCost={price}")
+                                            
+                                            market_data[symbol] = price
+                                        except Exception as e:
+                                            logger.error(f"Error for {symbol}: {e}")
+                                            market_data[symbol] = pos.avgCost
+                                
+                                for pos in ib_positions:
+                                    market_price = market_data.get(pos.contract.symbol, pos.avgCost)
+                                    market_value = pos.position * market_price
+                                    
+                                    positions_list.append({
+                                        'symbol': pos.contract.symbol,
+                                        'position': pos.position,
+                                        'avg_cost': pos.avgCost,
+                                        'market_price': market_price,
+                                        'market_value': market_value,
+                                        'currency': pos.contract.currency,
+                                        'exchange': pos.contract.exchange
+                                    })
+                            except Exception as e:
+                                st.error(f"Erreur marché: {e}")
+                                logger.error(f"Market fetch error: {e}")
+                            finally:
+                                try:
+                                    ib_market.disconnect()
+                                except:
+                                    pass
                 except Exception as e:
                     st.error(f"Erreur lors de la récupération des positions IBKR: {e}")
                     logger.error(f"Direct IBKR fetch error: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
                 
                 if positions_list:
                     import pandas as pd
                     pos_data = []
-                    try:
-                        for pos in positions_list:
-                            pos_data.append({
-                                'Symbole': pos['symbol'],
-                                'Quantité': int(pos['position']),
-                                'Prix Moyen': f"{float(pos['avg_cost']):.2f} {pos['currency']}",
-                                'Prix Marché': f"{float(pos['market_price']):.2f} {pos['currency']}" if pos.get('market_price') else 'N/A',
-                                'Valeur': f"{float(pos['market_value']):.2f} {pos['currency']}" if pos.get('market_value') else 'N/A',
-                                'P&L': f"{float(pos.get('unrealized_pnl', 0)):.2f}" if pos.get('unrealized_pnl') else 'N/A',
-                                'Bourse': pos['exchange']
-                            })
-                        
-                        positions_df = pd.DataFrame(pos_data)
-                        st.dataframe(positions_df, use_container_width=True)
-                        
-                        # Summary
-                        total_value = sum(float(p['market_value']) for p in positions_list if p.get('market_value'))
-                        total_upnl = sum(float(p.get('unrealized_pnl', 0)) for p in positions_list if p.get('unrealized_pnl'))
-                        
-                        col_pos1, col_pos2, col_pos3 = st.columns(3)
-                        with col_pos1:
-                            st.metric("Positions", len(positions_list))
-                        with col_pos2:
-                            st.metric("Valeur", f"{total_value:,.2f} €")
-                        with col_pos3:
-                            st.metric("P&L", f"{total_upnl:+,.2f} €")
-                    except Exception as e2:
-                        st.error(f"Erreur lors de l'affichage: {e2}")
-                        import traceback
-                        logger.error(traceback.format_exc())
+                    for pos in positions_list:
+                        pos_data.append({
+                            'Symbole': pos['symbol'],
+                            'Quantité': int(pos['position']),
+                            'Prix Moyen': f"{float(pos['avg_cost']):.2f} €",
+                            'Prix Marché': f"{float(pos['market_price']):.2f} €",
+                            'Valeur': f"{float(pos['market_value']):.2f} €",
+                            'Bourse': pos['exchange']
+                        })
+                    
+                    st.write("📊 **Vos Positions**")
+                    positions_df = pd.DataFrame(pos_data)
+                    st.table(positions_df)
+                    
+                    # Summary
+                    total_value = sum(p['market_value'] for p in positions_list)
+                    
+                    st.write("")  # spacing
+                    col_pos1, col_pos2 = st.columns(2)
+                    with col_pos1:
+                        st.metric("Nombre de positions", len(positions_list))
+                    with col_pos2:
+                        st.metric("Valeur totale", f"{total_value:,.2f} €")
                 else:
                     st.info("ℹ️ Aucune position ouverte")
                     
@@ -545,18 +599,19 @@ def dashboard_page():
                 trades_data = []
                 for trade in trades[:20]:  # Last 20 trades
                     fill = trade.execution
+                    commission = getattr(fill, 'commission', None) or getattr(trade, 'commission', 0)
                     trades_data.append({
-                        "Date": fill.time.strftime("%Y-%m-%d %H:%M:%S") if fill.time else "N/A",
+                        "Date": fill.time.strftime("%Y-%m-%d %H:%M:%S") if hasattr(fill, 'time') and fill.time else "N/A",
                         "Symbole": trade.contract.symbol,
                         "Type": "ACHAT" if fill.side == "BOT" else "VENTE",
                         LABEL_QUANTITY: fill.shares,
                         "Prix": f"{fill.price:.2f}",
-                        "Commission": f"{fill.commission:.2f}",
-                        "Compte": fill.acctNumber
+                        "Commission": f"{float(commission):.2f}" if commission else "N/A",
+                        "Compte": fill.acctNumber if hasattr(fill, 'acctNumber') else "N/A"
                     })
                 
                 import pandas as pd
-                st.dataframe(pd.DataFrame(trades_data), width='stretch')
+                st.dataframe(pd.DataFrame(trades_data), use_container_width=True)
             else:
                 st.info("ℹ️ Aucun trade récent. Passez des ordres dans l'onglet 'Trading' !")
         
@@ -2615,18 +2670,22 @@ def live_prices_page():
     st.header("📊 Cours Live")
     
     # Get tickers with collected data
-    from backend.models import SessionLocal, Ticker
+    from backend.models import SessionLocal, Ticker, HistoricalData
+    from sqlalchemy import distinct
     db = SessionLocal()
     
     try:
-        tickers = db.query(Ticker).all()
+        # Get ONLY tickers that have HistoricalData (collected data)
+        tickers_with_data = db.query(Ticker).join(
+            HistoricalData, Ticker.id == HistoricalData.ticker_id
+        ).distinct().all()
         
-        if not tickers:
+        if not tickers_with_data:
             st.warning("⚠️ Aucune action disponible. Collectez des données d'abord dans l'onglet 'Collecte de Données'.")
             return
         
         # Create ticker selection
-        ticker_options = {ticker.symbol: f"{ticker.symbol} - {ticker.name}" for ticker in tickers}
+        ticker_options = {ticker.symbol: f"{ticker.symbol} - {ticker.name}" for ticker in tickers_with_data}
         
         # Strategy selection
         from backend.models import Strategy
