@@ -2678,6 +2678,7 @@ def live_prices_page():
     from backend.live_price_thread import start_live_price_collection, stop_live_price_collection, is_collecting, get_current_symbol
     import plotly.graph_objects as go
     from backend.models import SessionLocal, Ticker, HistoricalData
+    import time as time_module
     
     db = SessionLocal()
     
@@ -2687,14 +2688,14 @@ def live_prices_page():
     db = SessionLocal()
     
     try:
-        # Get all tickers
-        all_tickers = db.query(Ticker).all()
+        # Get only ACTIVE tickers (not test data)
+        all_tickers = db.query(Ticker).filter(Ticker.is_active == True).all()
         
         if not all_tickers:
             st.warning("⚠️ Aucune action disponible. Allez dans 'Collecte de Données' pour en ajouter.")
             return
         
-        # Ticker selection
+        # Ticker selection - only active tickers
         ticker_options = {ticker.symbol: f"{ticker.symbol} - {ticker.name}" for ticker in all_tickers}
         
         # Layout: Symbol selection + Start/Stop button
@@ -2716,12 +2717,15 @@ def live_prices_page():
                 if st.button("⏸️ Arrêter", type="primary", use_container_width=True):
                     stop_live_price_collection()
                     st.success("✅ Collecte arrêtée")
+                    time_module.sleep(0.5)
                     st.rerun()
             else:
                 if st.button("▶️ Démarrer", type="primary", use_container_width=True):
                     start_live_price_collection(selected_symbol, interval=3)
                     st.success("✅ Collecte démarrée")
-                    st.rerun()
+                    # Don't rerun immediately - let the thread start and next poll will show it
+                    # st.rerun() here causes double-reload which breaks the connection
+
         
         st.markdown("---")
         
@@ -2792,9 +2796,22 @@ def live_prices_page():
             
             st.plotly_chart(fig, use_container_width=True)
             
-            # Auto-refresh when collecting
+            # Auto-refresh when collecting - use placeholder update instead of page refresh
             if is_active:
-                st.markdown("<meta http-equiv='refresh' content='3'>", unsafe_allow_html=True)
+                # Show status message
+                with st.container():
+                    col_status1, col_status2 = st.columns([3, 1])
+                    with col_status1:
+                        st.info("🔄 Collecte en cours... Données mises à jour toutes les 3s")
+                    with col_status2:
+                        # Show next refresh countdown
+                        st.caption(f"⏱️ Prochaine MAJ dans ~3s")
+                
+                # Use time.sleep for background polling instead of page refresh
+                # This keeps the connection alive instead of killing it with meta refresh
+                time_module.sleep(3)
+                st.rerun()
+
     
     finally:
         db.close()

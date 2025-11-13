@@ -21,6 +21,7 @@ class LivePriceCollector:
         self.running = False
         self.symbol: Optional[str] = None
         self.interval = 3  # seconds between price collections
+        self.collector: Optional[IBKRCollector] = None  # Reuse same connection
     
     def start(self, symbol: str, interval: int = 3) -> bool:
         """
@@ -60,27 +61,40 @@ class LivePriceCollector:
         if self.thread:
             self.thread.join(timeout=5)
         
+        # Cleanup connection
+        if self.collector:
+            try:
+                self.collector.disconnect()
+            except:
+                pass
+            self.collector = None
+        
         logger.info(f"Live price collector stopped for {self.symbol}")
         return True
     
     def _collect_prices(self):
         """Background thread function - runs continuously"""
-        collector = None
         db: Optional[Session] = None
         
         try:
             # Initialize database connection for this thread
             db = SessionLocal()
             
-            # Create IBKR collector
-            collector = IBKRCollector()
+            # Create IBKR collector with fixed client_id=200 for live collection thread
+            # This prevents conflicts with other connections
+            # Reuse same connection throughout the thread lifetime
+            self.collector = IBKRCollector(client_id=200)
+            if not self.collector.connect():
+                logger.error("[LivePriceCollector] Failed to connect to IBKR")
+                return
             
             logger.info(f"[LivePriceCollector] Starting price collection for {self.symbol}")
             
             while self.running:
                 try:
-                    # Get current market price
-                    price = collector.get_current_market_price(self.symbol, "EUR")
+                    # Get current market price using the persistent connection
+                    # Don't use get_current_market_price() which creates new connections
+                    price = self._get_price_from_persistent_connection(self.symbol)
                     
                     if price is not None:
                         # Save to database
@@ -103,12 +117,47 @@ class LivePriceCollector:
             # Cleanup
             if db:
                 db.close()
-            if collector:
+            if self.collector:
                 try:
-                    collector.disconnect()
+                    self.collector.disconnect()
                 except:
                     pass
+                self.collector = None
             logger.info(f"[LivePriceCollector] Thread ended for {self.symbol}")
+    
+    def _get_price_from_persistent_connection(self, symbol: str) -> Optional[float]:
+        """Get price using the persistent IBKR connection (not temporary)"""
+        try:
+            if not self.collector or not self.collector.ib.isConnected():
+                logger.error(f"[LivePriceCollector] Connection lost!")
+                return None
+            
+            from ib_insync import Stock
+            
+            # Create fresh contract
+            contract = Stock(symbol, 'SMART', 'EUR')
+            
+            # Request 1 day of historical data
+            bars = self.collector.ib.reqHistoricalData(
+                contract,
+                endDateTime='',
+                durationStr='1 D',
+                barSizeSetting='1 day',
+                whatToShow='TRADES',
+                useRTH=False,
+                formatDate=1
+            )
+            
+            if bars and len(bars) > 0:
+                return bars[-1].close
+            else:
+                logger.warning(f"[LivePriceCollector] No bars for {symbol}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"[LivePriceCollector] Error getting price: {e}", exc_info=True)
+            return None
+
     
     def _save_price_to_db(self, db: Session, symbol: str, price: float) -> bool:
         """Save price to database"""
