@@ -2723,8 +2723,10 @@ def live_prices_page():
                 if st.button("▶️ Démarrer", type="primary", use_container_width=True):
                     start_live_price_collection(selected_symbol, interval=3)
                     st.success("✅ Collecte démarrée")
-                    # Don't rerun immediately - let the thread start and next poll will show it
-                    # st.rerun() here causes double-reload which breaks the connection
+                    # Small delay then rerun to show the Stop button
+                    # This is OK because the thread is now running independently
+                    time_module.sleep(0.3)
+                    st.rerun()
 
         
         st.markdown("---")
@@ -2735,6 +2737,9 @@ def live_prices_page():
         if not ticker_obj:
             st.error(f"❌ Ticker {selected_symbol} non trouvé")
             return
+        
+        # Force DB refresh - important for live data updates
+        db.expire_all()
         
         # Get latest data from database
         latest_records = db.query(HistoricalData).filter(
@@ -2765,6 +2770,9 @@ def live_prices_page():
             with metric_col4:
                 timestamp_str = latest.timestamp.strftime("%H:%M:%S") if hasattr(latest.timestamp, 'strftime') else str(latest.timestamp)
                 st.metric("Dernière MAJ", timestamp_str)
+            
+            # Debug: Show latest record timestamp and value
+            st.caption(f"🔍 DEBUG: {len(latest_records)} records | Latest: {timestamp_str} @ {latest.close:.2f}€")
             
             st.markdown("---")
             
