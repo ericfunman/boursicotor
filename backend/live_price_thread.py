@@ -78,43 +78,49 @@ class LivePriceCollector:
             import time as time_module
             
             self.ib = IB()
-            logger.info(f"[LivePriceCollector] Connecting to IBKR (clientId=201) for {self.symbol}...")
+            logger.info(f"[LivePriceCollector] Connecting to IBKR (clientId=201)...")
             self.ib.connect('127.0.0.1', 4002, clientId=201)
             
             # Wait for connection
             for i in range(20):  # 4 seconds max
                 time_module.sleep(0.2)
                 if self.ib.isConnected():
-                    logger.info(f"[LivePriceCollector] ✅ Connected to IBKR after {(i+1)*0.2:.1f}s")
+                    logger.info(f"[LivePriceCollector] ✅ Connected after {(i+1)*0.2:.1f}s")
                     break
             
             if not self.ib.isConnected():
-                logger.error(f"[LivePriceCollector] Failed to connect to IBKR for {self.symbol}")
+                logger.error(f"[LivePriceCollector] Failed to connect to IBKR")
                 return
-            
-            # Request live market data - connection stays open to receive updates
-            contract = Stock(self.symbol, 'SMART', 'EUR')
-            self.ticker = self.ib.reqMktData(contract, '', False, False)
             
             logger.info(f"[LivePriceCollector] Starting price collection for {self.symbol}")
             
+            # Loop and collect prices - SAME LOGIC AS DASHBOARD
             while self.running:
                 try:
-                    # Get current price from persistent connection
-                    if self.ticker.last > 0:
-                        price = self.ticker.last
-                        logger.info(f"[LivePriceCollector] {self.symbol}: {price}€ @ {self.ticker.time}")
-                    elif self.ticker.close > 0:
-                        price = self.ticker.close
-                        logger.info(f"[LivePriceCollector] {self.symbol}: {price}€ (close) @ {self.ticker.time}")
-                    else:
-                        logger.warning(f"[LivePriceCollector] No price available")
-                        time_module.sleep(self.interval)
-                        continue
+                    # Create fresh contract (like dashboard)
+                    contract = Stock(self.symbol, 'SMART', 'EUR')
                     
-                    # Save to database
-                    self._save_price_to_db(db, self.symbol, price)
-                    logger.info(f"[LivePriceCollector] {self.symbol}: {price}€ saved to DB")
+                    # Request 1-min bars (like dashboard)
+                    bars = self.ib.reqHistoricalData(
+                        contract,
+                        endDateTime='',
+                        durationStr='1 D',
+                        barSizeSetting='1 min',
+                        whatToShow='TRADES',
+                        useRTH=False,
+                        formatDate=1
+                    )
+                    
+                    if bars and len(bars) > 0:
+                        bar = bars[-1]
+                        price = bar.close
+                        date = bar.date
+                        
+                        # Save to database
+                        self._save_price_to_db(db, self.symbol, price)
+                        logger.info(f"[LivePriceCollector] {self.symbol}: {price}€ @ {date} saved to DB")
+                    else:
+                        logger.warning(f"[LivePriceCollector] No bars available for {self.symbol}")
                     
                     # Wait before next collection
                     time_module.sleep(self.interval)
