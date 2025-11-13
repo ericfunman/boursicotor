@@ -126,34 +126,35 @@ class LivePriceCollector:
             logger.info(f"[LivePriceCollector] Thread ended for {self.symbol}")
     
     def _get_price_from_persistent_connection(self, symbol: str) -> Optional[float]:
-        """Get price using reqMktData for real-time quotes (like dashboard does)"""
+        """Get price using reqHistoricalData - SAME LOGIC AS DASHBOARD"""
         try:
             if not self.collector or not self.collector.ib.isConnected():
                 logger.error(f"[LivePriceCollector] Connection lost!")
                 return None
             
             from ib_insync import Stock
-            import time
             
-            # Create fresh contract
+            # Create fresh contract (EXACTLY LIKE DASHBOARD)
             contract = Stock(symbol, 'SMART', 'EUR')
             
-            # Use reqMktData for real-time market data (not historical)
-            ticker = self.collector.ib.reqMktData(contract, '', False, False)
+            # Request historical data (EXACTLY LIKE DASHBOARD)
+            # Always use 1 D (daily) bar to get consistent data
+            bars = self.collector.ib.reqHistoricalData(
+                contract,
+                endDateTime='',
+                durationStr='1 D',          # SAME AS DASHBOARD
+                barSizeSetting='1 day',     # SAME AS DASHBOARD
+                whatToShow='TRADES',
+                useRTH=False,
+                formatDate=1
+            )
             
-            # Wait for data to arrive (timeout 2 seconds)
-            time.sleep(0.5)
-            
-            # Get the latest price
-            if ticker.last > 0:
-                logger.debug(f"[LivePriceCollector] {symbol}: last={ticker.last}")
-                return ticker.last
-            elif ticker.bid > 0:
-                # Fallback to bid if last price not available
-                logger.debug(f"[LivePriceCollector] {symbol}: bid={ticker.bid} (fallback)")
-                return ticker.bid
+            if bars and len(bars) > 0:
+                price = bars[-1].close
+                logger.info(f"[LivePriceCollector] {symbol}: {price}€")
+                return price
             else:
-                logger.warning(f"[LivePriceCollector] No price data for {symbol} (last={ticker.last}, bid={ticker.bid})")
+                logger.warning(f"[LivePriceCollector] No bars for {symbol}")
                 return None
                 
         except Exception as e:
