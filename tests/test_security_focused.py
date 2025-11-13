@@ -170,7 +170,7 @@ class TestCredentialValidation:
         from backend.security import CredentialManager
         manager = CredentialManager()
         # If we got here, validation passed
-        assert True
+        pass  # S5914: assert always true
     
     @patch.dict(os.environ, {
         'IBKR_HOST': 'localhost',

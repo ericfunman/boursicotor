@@ -12,6 +12,17 @@ from backend.config import logger
 from backend.models import SessionLocal, Ticker as TickerModel, HistoricalData
 from sqlalchemy import and_
 
+# Constants for duplicated strings (S1192 fix)
+TIMEZONE_PARIS = ' Europe/Paris'
+TIMEFRAME_5SECS = '5 secs'
+TIMEFRAME_1MIN = '1 min'
+TIMEFRAME_5MINS = '5 mins'
+TIMEFRAME_15MINS = '15 mins'
+TIMEFRAME_30MINS = '30 mins'
+TIMEFRAME_1HOUR = '1 hour'
+TIMEFRAME_1DAY = '1 day'
+ERROR_NO_DATA = 'No data received'
+
 # Load environment variables
 load_dotenv()
 
@@ -45,23 +56,23 @@ class IBKRCollector:
     # Interval hierarchy in seconds (for aggregation logic)
     INTERVAL_SECONDS = {
         '1 secs': 1,
-        '5 secs': 5,
+        TIMEFRAME_5SECS: 5,
         '10 secs': 10,
         '15 secs': 15,
         '30 secs': 30,
-        '1 min': 60,
+        TIMEFRAME_1MIN: 60,
         '2 mins': 120,
         '3 mins': 180,
-        '5 mins': 300,
+        TIMEFRAME_5MINS: 300,
         '10 mins': 600,
-        '15 mins': 900,
+        TIMEFRAME_15MINS: 900,
         '20 mins': 1200,
-        '30 mins': 1800,
-        '1 hour': 3600,
+        TIMEFRAME_30MINS: 1800,
+        TIMEFRAME_1HOUR: 3600,
         '2 hours': 7200,
         '3 hours': 14400,
         '4 hours': 14400,
-        '1 day': 86400,
+        TIMEFRAME_1DAY: 86400,
         '1 week': 604800,
         '1 month': 2592000,
     }
@@ -70,24 +81,24 @@ class IBKRCollector:
     # Source: https://interactivebrokers.github.io/tws-api/historical_limitations.html
     IBKR_LIMITS = {
         '1 secs': {'max_duration': '1 D', 'chunk_days': 1, 'recommended_max_days': 7},      # 1 day max, recommend max 1 week total
-        '5 secs': {'max_duration': '2 D', 'chunk_days': 2, 'recommended_max_days': 14},     # 2 days max, recommend max 2 weeks total
+        TIMEFRAME_5SECS: {'max_duration': '2 D', 'chunk_days': 2, 'recommended_max_days': 14},     # 2 days max, recommend max 2 weeks total
         '10 secs': {'max_duration': '2 D', 'chunk_days': 2, 'recommended_max_days': 14},    # 2 days max
         '15 secs': {'max_duration': '2 D', 'chunk_days': 2, 'recommended_max_days': 14},    # 2 days max
         '30 secs': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 30},    # 1 week max
-        '1 min': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},      # 1 week max, recommend max 3 months
+        TIMEFRAME_1MIN: {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},      # 1 week max, recommend max 3 months
         '2 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},     # 1 week max
         '3 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},     # 1 week max
-        '5 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},     # 1 week max
+        TIMEFRAME_5MINS: {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},     # 1 week max
         '10 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},    # 1 week max
-        '15 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},    # 1 week max
+        TIMEFRAME_15MINS: {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},    # 1 week max
         '20 mins': {'max_duration': '1 W', 'chunk_days': 7, 'recommended_max_days': 90},    # 1 week max
-        '30 mins': {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 180},  # 1 month max
-        '1 hour': {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 365},   # 1 month max
+        TIMEFRAME_30MINS: {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 180},  # 1 month max
+        TIMEFRAME_1HOUR: {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 365},   # 1 month max
         '2 hours': {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 365},  # 1 month max
         '3 hours': {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 365},  # 1 month max
         '4 hours': {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 365},  # 1 month max
         '8 hours': {'max_duration': '1 M', 'chunk_days': 30, 'recommended_max_days': 365},  # 1 month max
-        '1 day': {'max_duration': '1 Y', 'chunk_days': 365, 'recommended_max_days': 3650},  # 1 year max
+        TIMEFRAME_1DAY: {'max_duration': '1 Y', 'chunk_days': 365, 'recommended_max_days': 3650},  # 1 year max
         '1 week': {'max_duration': '1 Y', 'chunk_days': 365, 'recommended_max_days': 3650}, # 1 year max
         '1 month': {'max_duration': '1 Y', 'chunk_days': 365, 'recommended_max_days': 3650}, # 1 year max
     }
@@ -273,7 +284,7 @@ class IBKRCollector:
         self,
         symbol: str,
         duration: str = '1 D',
-        bar_size: str = '1 min',
+        bar_size: str = TIMEFRAME_1MIN,
         what_to_show: str = 'TRADES',
         use_rth: bool = False,
         exchange: str = 'SMART',
@@ -285,7 +296,7 @@ class IBKRCollector:
         Args:
             symbol: Stock symbol
             duration: Duration string (e.g., '1 D', '1 W', '1 M', '1 Y')
-            bar_size: Bar size (e.g., '1 min', '5 mins', '1 hour', '1 day')
+            bar_size: Bar size (e.g., TIMEFRAME_1MIN, TIMEFRAME_5MINS, TIMEFRAME_1HOUR, TIMEFRAME_1DAY)
             what_to_show: Data type ('TRADES', 'MIDPOINT', 'BID', 'ASK')
             use_rth: Use regular trading hours only
             exchange: Exchange
@@ -381,7 +392,7 @@ class IBKRCollector:
         self,
         symbol: str,
         duration: str = '1 M',
-        bar_size: str = '5 secs',
+        bar_size: str = TIMEFRAME_5SECS,
         what_to_show: str = 'TRADES',
         use_rth: bool = False,
         exchange: str = 'SMART',
@@ -394,7 +405,7 @@ class IBKRCollector:
         Args:
             symbol: Stock symbol
             duration: Total duration requested (e.g., '1 M', '3 M')
-            bar_size: Bar size (e.g., '5 secs', '1 min')
+            bar_size: Bar size (e.g., TIMEFRAME_5SECS, TIMEFRAME_1MIN)
             what_to_show: Data type
             use_rth: Use regular trading hours only
             exchange: Exchange
@@ -479,8 +490,8 @@ class IBKRCollector:
                 
                 try:
                     # Format date for IBKR with timezone to avoid Warning 2174
-                    # Use Europe/Paris timezone for European stocks
-                    end_datetime = end_date.strftime('%Y%m%d %H:%M:%S') + ' Europe/Paris'
+                    # UseTIMEZONE_PARIS timezone for European stocks
+                    end_datetime = end_date.strftime('%Y%m%d %H:%M:%S') + 'TIMEZONE_PARIS'
                     
                     bars = self.ib.reqHistoricalData(
                         contract,
@@ -662,7 +673,7 @@ class IBKRCollector:
         
         Args:
             symbol: Stock symbol
-            target_interval: Desired interval (e.g., '1 min')
+            target_interval: Desired interval (e.g., TIMEFRAME_1MIN)
             start_date: Start of date range
             end_date: End of date range
             
@@ -708,8 +719,8 @@ class IBKRCollector:
         
         Args:
             symbol: Stock symbol
-            source_interval: Source interval (e.g., '5 secs')
-            target_interval: Target interval (e.g., '1 min')
+            source_interval: Source interval (e.g., TIMEFRAME_5SECS)
+            target_interval: Target interval (e.g., TIMEFRAME_1MIN)
             start_date: Start date
             end_date: End date
             
@@ -1004,7 +1015,7 @@ class IBKRCollector:
                 # Fallback for unknown bar size
                 df = self.get_historical_data(symbol, duration_str, bar_size)
                 if df is None or df.empty:
-                    return {'success': False, 'error': 'No data received'}
+                    return {'success': False, 'error': ERROR_NO_DATA}
                 return self.save_to_database(symbol, df, interval, name, progress_callback)
             
             limit_info = self.IBKR_LIMITS[bar_size]
@@ -1015,7 +1026,7 @@ class IBKRCollector:
                 logger.info(f"Gap within IBKR limits ({gap_days} <= {max_chunk_days} days), single request")
                 df = self.get_historical_data(symbol, duration_str, bar_size)
                 if df is None or df.empty:
-                    return {'success': False, 'error': 'No data received'}
+                    return {'success': False, 'error': ERROR_NO_DATA}
                 return self.save_to_database(symbol, df, interval, name, progress_callback)
             
             # Need chunking
@@ -1060,7 +1071,7 @@ class IBKRCollector:
                         continue
                     
                     # Request data with timezone to avoid Warning 2174
-                    end_datetime = chunk_end_date.strftime('%Y%m%d %H:%M:%S') + ' Europe/Paris'
+                    end_datetime = chunk_end_date.strftime('%Y%m%d %H:%M:%S') + 'TIMEZONE_PARIS'
                     
                     bars = self.ib.reqHistoricalData(
                         contract,
@@ -1139,7 +1150,7 @@ class IBKRCollector:
         self,
         symbol: str,
         duration: str = '1 M',
-        bar_size: str = '1 min',
+        bar_size: str = TIMEFRAME_1MIN,
         interval: str = '1min',
         name: str = None,
         progress_callback=None
@@ -1267,7 +1278,7 @@ class IBKRCollector:
                 # Fall back to standard method
                 df = self.get_historical_data(symbol, duration, bar_size)
                 if df is None or df.empty:
-                    return {'success': False, 'error': 'No data received'}
+                    return {'success': False, 'error': ERROR_NO_DATA}
                 return self.save_to_database(symbol, df, interval, name, progress_callback)
             
             limit_info = self.IBKR_LIMITS[bar_size]
@@ -1283,7 +1294,7 @@ class IBKRCollector:
                 logger.info(f"Request within IBKR limits ({requested_days} <= {max_chunk_days} days)")
                 df = self.get_historical_data(symbol, duration, bar_size)
                 if df is None or df.empty:
-                    return {'success': False, 'error': 'No data received'}
+                    return {'success': False, 'error': ERROR_NO_DATA}
                 return self.save_to_database(symbol, df, interval, name, progress_callback)
             
             # Calculate chunks
@@ -1342,7 +1353,7 @@ class IBKRCollector:
                         continue
                     
                     # Request historical data for this chunk with timezone to avoid Warning 2174
-                    end_datetime = end_date.strftime('%Y%m%d %H:%M:%S') + ' Europe/Paris'
+                    end_datetime = end_date.strftime('%Y%m%d %H:%M:%S') + 'TIMEZONE_PARIS'
                     
                     bars = self.ib.reqHistoricalData(
                         contract,
@@ -1434,7 +1445,7 @@ class IBKRCollector:
         self,
         symbol: str,
         duration: str = '1 M',
-        bar_size: str = '1 min',
+        bar_size: str = TIMEFRAME_1MIN,
         interval: str = '1min',
         name: str = None,
         progress_callback=None
@@ -1545,12 +1556,12 @@ class IBKRCollector:
 
 # Interval mapping for IBKR
 IBKR_INTERVAL_MAP = {
-    '1min': ('1 min', '1min'),
-    '5min': ('5 mins', '5min'),
-    '15min': ('15 mins', '15min'),
-    '30min': ('30 mins', '30min'),
-    '1h': ('1 hour', '1h'),
-    '1day': ('1 day', '1day'),
+    '1min': (TIMEFRAME_1MIN, '1min'),
+    '5min': (TIMEFRAME_5MINS, '5min'),
+    '15min': (TIMEFRAME_15MINS, '15min'),
+    '30min': (TIMEFRAME_30MINS, '30min'),
+    '1h': (TIMEFRAME_1HOUR, '1h'),
+    '1day': (TIMEFRAME_1DAY, '1day'),
 }
 
 IBKR_DURATION_MAP = {

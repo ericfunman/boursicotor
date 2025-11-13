@@ -412,7 +412,7 @@ def test_all_backend_modules_importable():
     for module_name in modules:
         try:
             __import__(module_name)
-            assert True
+            pass  # S5914: assert always true
         except (ImportError, AttributeError, ModuleNotFoundError):
             # It's OK if some imports fail due to missing dependencies
-            assert True
+            pass  # S5914: assert always true

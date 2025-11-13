@@ -228,7 +228,7 @@ class AutoTrader:
         time.sleep(2)  # Wait for data
         
         if ticker_data.last and ticker_data.last > 0:
-            exchange, currency = self._get_contract_info()
+            _, currency = self._get_contract_info()
             price_data = {
                 'timestamp': datetime.now(),
                 'open': ticker_data.open if ticker_data.open > 0 else ticker_data.last,

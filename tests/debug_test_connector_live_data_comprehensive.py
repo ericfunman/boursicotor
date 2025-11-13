@@ -63,7 +63,7 @@ class TestIBKRConnector:
         connector = IBKRConnector()
         connector.disconnect()
         
-        assert True  # No exception
+        pass  # S5914: assert always true
     
     @patch('backend.ibkr_connector.IB')
     def test_get_streaming_data(self, mock_ib):
@@ -207,7 +207,7 @@ class TestConnectorIntegration:
         # Disconnect
         connector.disconnect()
         
-        assert True  # Completed without exception
+        pass  # S5914: assert always true
 
 
 class TestLiveDataIntegration:
@@ -264,4 +264,4 @@ class TestConnectorEdgeCases:
             result = connector.subscribe_to_ticker(symbol)
             assert result is None or isinstance(result, bool)
         
-        assert True  # All subscriptions handled
+        pass  # S5914: assert always true

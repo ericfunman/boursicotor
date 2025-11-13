@@ -1,0 +1,1775 @@
+{
+  "total": 38,
+  "issues": [
+    {
+      "key": "AZp44BMjeyVFKzl0jEMu",
+      "rule": "python:S5914",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:tests/test_order_manager_focused.py",
+      "project": "ericfunman_boursicotor",
+      "line": 33,
+      "hash": "de86bc39e6a43dd4a3d4ad9ecb3f002e",
+      "textRange": {
+        "startLine": 33,
+        "endLine": 33,
+        "startOffset": 8,
+        "endOffset": 42
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Remove this identity assertion; its value is constant.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "confusing",
+        "suspicious",
+        "tests"
+      ],
+      "creationDate": "2025-11-12T16:21:52+0000",
+      "updateDate": "2025-11-12T16:21:52+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "LOGICAL",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZp4rX8EqSD_Wb-UyIaD",
+      "rule": "python:S5914",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:tests/test_security_focused.py",
+      "project": "ericfunman_boursicotor",
+      "line": 173,
+      "hash": "4bf0055e08bb4400dcc21e2889f93fbc",
+      "textRange": {
+        "startLine": 173,
+        "endLine": 173,
+        "startOffset": 15,
+        "endOffset": 19
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Replace this expression; its boolean value is constant.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "confusing",
+        "suspicious",
+        "tests"
+      ],
+      "creationDate": "2025-11-12T15:24:17+0000",
+      "updateDate": "2025-11-12T15:26:31+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "LOGICAL",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZp4qidnCmEOBQIvg6pb",
+      "rule": "python:S5914",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:tests/test_data_collector_focused.py",
+      "project": "ericfunman_boursicotor",
+      "line": 24,
+      "hash": "4bf0055e08bb4400dcc21e2889f93fbc",
+      "textRange": {
+        "startLine": 24,
+        "endLine": 24,
+        "startOffset": 15,
+        "endOffset": 19
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Replace this expression; its boolean value is constant.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "confusing",
+        "suspicious",
+        "tests"
+      ],
+      "creationDate": "2025-11-12T15:20:40+0000",
+      "updateDate": "2025-11-12T15:22:56+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "LOGICAL",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZp4qidnCmEOBQIvg6pc",
+      "rule": "python:S5914",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:tests/test_data_collector_focused.py",
+      "project": "ericfunman_boursicotor",
+      "line": 258,
+      "hash": "4bf0055e08bb4400dcc21e2889f93fbc",
+      "textRange": {
+        "startLine": 258,
+        "endLine": 258,
+        "startOffset": 15,
+        "endOffset": 19
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Replace this expression; its boolean value is constant.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "confusing",
+        "suspicious",
+        "tests"
+      ],
+      "creationDate": "2025-11-12T15:20:40+0000",
+      "updateDate": "2025-11-12T15:22:56+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "LOGICAL",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZp4qidnCmEOBQIvg6pd",
+      "rule": "python:S5914",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:tests/test_data_collector_focused.py",
+      "project": "ericfunman_boursicotor",
+      "line": 270,
+      "hash": "4bf0055e08bb4400dcc21e2889f93fbc",
+      "textRange": {
+        "startLine": 270,
+        "endLine": 270,
+        "startOffset": 15,
+        "endOffset": 19
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Replace this expression; its boolean value is constant.",
+      "effort": "5min",
+      "debt": "5min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "confusing",
+        "suspicious",
+        "tests"
+      ],
+      "creationDate": "2025-11-12T15:20:40+0000",
+      "updateDate": "2025-11-12T15:22:56+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "LOGICAL",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZp0viQoMLvI2e65Km85",
+      "rule": "python:S5914",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:tests/debug_test_connector_live_data_comprehensive.py",
+      "project": "ericfunman_boursicotor",
+      "line": 66,
+      "hash": "b113fbfd199cfb8eb0dd42794ea1505b",
+      "textRange": {
+        "startLine": 66,
+        "endLine": 66,
+        "startOffset": 15,
+        "endOffset": 19
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Replace this expression; its boolean value is constant.",
+      "effort": "5min",
+      "debt": "5min",
+      "tags": [
+        "confusing",
+        "suspicious",
+        "tests"
+      ],
+      "creationDate": "2025-11-11T21:01:48+0000",
+      "updateDate": "2025-11-11T21:33:16+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "LOGICAL",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZp0viQoMLvI2e65Km86",
+      "rule": "python:S5914",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:tests/debug_test_connector_live_data_comprehensive.py",
+      "project": "ericfunman_boursicotor",
+      "line": 210,
+      "hash": "69d45b140b5ed115ba8b57aaaa4a5eff",
+      "textRange": {
+        "startLine": 210,
+        "endLine": 210,
+        "startOffset": 15,
+        "endOffset": 19
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Replace this expression; its boolean value is constant.",
+      "effort": "5min",
+      "debt": "5min",
+      "tags": [
+        "confusing",
+        "suspicious",
+        "tests"
+      ],
+      "creationDate": "2025-11-11T21:01:48+0000",
+      "updateDate": "2025-11-11T21:33:16+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "LOGICAL",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZp0viQoMLvI2e65Km87",
+      "rule": "python:S5914",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:tests/debug_test_connector_live_data_comprehensive.py",
+      "project": "ericfunman_boursicotor",
+      "line": 267,
+      "hash": "d806ee7d5bac6c4b4a5eacdfccf21057",
+      "textRange": {
+        "startLine": 267,
+        "endLine": 267,
+        "startOffset": 15,
+        "endOffset": 19
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Replace this expression; its boolean value is constant.",
+      "effort": "5min",
+      "debt": "5min",
+      "tags": [
+        "confusing",
+        "suspicious",
+        "tests"
+      ],
+      "creationDate": "2025-11-11T21:01:48+0000",
+      "updateDate": "2025-11-11T21:33:16+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "LOGICAL",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZp0viPLMLvI2e65Km84",
+      "rule": "python:S5914",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:tests/test_ibkr_collector_comprehensive.py",
+      "project": "ericfunman_boursicotor",
+      "line": 180,
+      "hash": "6b57c6b82f4389c926ceca22b057f98e",
+      "textRange": {
+        "startLine": 180,
+        "endLine": 180,
+        "startOffset": 19,
+        "endOffset": 23
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Replace this expression; its boolean value is constant.",
+      "effort": "5min",
+      "debt": "5min",
+      "tags": [
+        "confusing",
+        "suspicious",
+        "tests"
+      ],
+      "creationDate": "2025-11-11T20:11:11+0000",
+      "updateDate": "2025-11-11T21:06:13+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "LOGICAL",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZp0viMfMLvI2e65Km82",
+      "rule": "python:S5914",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:tests/test_tasks_comprehensive.py",
+      "project": "ericfunman_boursicotor",
+      "line": 142,
+      "hash": "4bf0055e08bb4400dcc21e2889f93fbc",
+      "textRange": {
+        "startLine": 142,
+        "endLine": 142,
+        "startOffset": 15,
+        "endOffset": 19
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Replace this expression; its boolean value is constant.",
+      "effort": "5min",
+      "debt": "5min",
+      "tags": [
+        "confusing",
+        "suspicious",
+        "tests"
+      ],
+      "creationDate": "2025-11-11T20:11:11+0000",
+      "updateDate": "2025-11-11T21:06:13+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "LOGICAL",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZp0viMfMLvI2e65Km83",
+      "rule": "python:S5914",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:tests/test_tasks_comprehensive.py",
+      "project": "ericfunman_boursicotor",
+      "line": 211,
+      "hash": "4bf0055e08bb4400dcc21e2889f93fbc",
+      "textRange": {
+        "startLine": 211,
+        "endLine": 211,
+        "startOffset": 15,
+        "endOffset": 19
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Replace this expression; its boolean value is constant.",
+      "effort": "5min",
+      "debt": "5min",
+      "tags": [
+        "confusing",
+        "suspicious",
+        "tests"
+      ],
+      "creationDate": "2025-11-11T20:11:11+0000",
+      "updateDate": "2025-11-11T21:06:13+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "LOGICAL",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZp0R2xDjY_Sxl9CsfWg",
+      "rule": "python:S1481",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:backend/auto_trader.py",
+      "project": "ericfunman_boursicotor",
+      "line": 231,
+      "hash": "d405c761ac6d7650ac52613162e3756a",
+      "textRange": {
+        "startLine": 231,
+        "endLine": 231,
+        "startOffset": 12,
+        "endOffset": 20
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Replace the unused local variable \"exchange\" with \"_\".",
+      "effort": "5min",
+      "debt": "5min",
+      "tags": [
+        "unused"
+      ],
+      "creationDate": "2025-11-11T18:56:36+0000",
+      "updateDate": "2025-11-11T18:56:36+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpz5zJOeCJdO2cFpiCa",
+      "rule": "python:S5914",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:tests/test_business_logic.py",
+      "project": "ericfunman_boursicotor",
+      "line": 247,
+      "hash": "4bf0055e08bb4400dcc21e2889f93fbc",
+      "textRange": {
+        "startLine": 247,
+        "endLine": 247,
+        "startOffset": 27,
+        "endOffset": 31
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Replace this expression; its boolean value is constant.",
+      "effort": "5min",
+      "debt": "5min",
+      "tags": [
+        "confusing",
+        "suspicious",
+        "tests"
+      ],
+      "creationDate": "2025-11-11T17:09:15+0000",
+      "updateDate": "2025-11-11T17:11:26+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "LOGICAL",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpz5TnZCLnfKkSKj2UX",
+      "rule": "python:S5914",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:tests/test_high_impact_coverage.py",
+      "project": "ericfunman_boursicotor",
+      "line": 415,
+      "hash": "4bf0055e08bb4400dcc21e2889f93fbc",
+      "textRange": {
+        "startLine": 415,
+        "endLine": 415,
+        "startOffset": 19,
+        "endOffset": 23
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Replace this expression; its boolean value is constant.",
+      "effort": "5min",
+      "debt": "5min",
+      "tags": [
+        "confusing",
+        "suspicious",
+        "tests"
+      ],
+      "creationDate": "2025-11-11T17:05:14+0000",
+      "updateDate": "2025-11-11T17:09:18+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "LOGICAL",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpz5TnZCLnfKkSKj2UY",
+      "rule": "python:S5914",
+      "severity": "MAJOR",
+      "component": "ericfunman_boursicotor:tests/test_high_impact_coverage.py",
+      "project": "ericfunman_boursicotor",
+      "line": 418,
+      "hash": "4bf0055e08bb4400dcc21e2889f93fbc",
+      "textRange": {
+        "startLine": 418,
+        "endLine": 418,
+        "startOffset": 19,
+        "endOffset": 23
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Replace this expression; its boolean value is constant.",
+      "effort": "5min",
+      "debt": "5min",
+      "tags": [
+        "confusing",
+        "suspicious",
+        "tests"
+      ],
+      "creationDate": "2025-11-11T17:05:14+0000",
+      "updateDate": "2025-11-11T17:09:18+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "LOGICAL",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG8KoVv0jYiGrxeB",
+      "rule": "python:S117",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:backend/ibkr_connector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 28,
+      "hash": "732fa793ab0457d24d9c2650ca98c450",
+      "textRange": {
+        "startLine": 28,
+        "endLine": 28,
+        "startOffset": 51,
+        "endOffset": 74
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Rename this parameter \"advancedOrderRejectJson\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
+      "effort": "2min",
+      "debt": "2min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "convention"
+      ],
+      "creationDate": "2025-11-03T09:53:22+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "IDENTIFIABLE",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG8KoVv0jYiGrxeC",
+      "rule": "python:S117",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:backend/ibkr_connector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 28,
+      "hash": "732fa793ab0457d24d9c2650ca98c450",
+      "textRange": {
+        "startLine": 28,
+        "endLine": 28,
+        "startOffset": 27,
+        "endOffset": 36
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Rename this parameter \"errorCode\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
+      "effort": "2min",
+      "debt": "2min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "convention"
+      ],
+      "creationDate": "2025-11-03T09:53:22+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "IDENTIFIABLE",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG8KoVv0jYiGrxeD",
+      "rule": "python:S117",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:backend/ibkr_connector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 28,
+      "hash": "732fa793ab0457d24d9c2650ca98c450",
+      "textRange": {
+        "startLine": 28,
+        "endLine": 28,
+        "startOffset": 38,
+        "endOffset": 49
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Rename this parameter \"errorString\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
+      "effort": "2min",
+      "debt": "2min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "convention"
+      ],
+      "creationDate": "2025-11-03T09:53:22+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "IDENTIFIABLE",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG8KoVv0jYiGrxeE",
+      "rule": "python:S117",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:backend/ibkr_connector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 28,
+      "hash": "732fa793ab0457d24d9c2650ca98c450",
+      "textRange": {
+        "startLine": 28,
+        "endLine": 28,
+        "startOffset": 20,
+        "endOffset": 25
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Rename this parameter \"reqId\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
+      "effort": "2min",
+      "debt": "2min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "convention"
+      ],
+      "creationDate": "2025-11-03T09:53:22+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "IDENTIFIABLE",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG8KoVv0jYiGrxeF",
+      "rule": "python:S117",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:backend/ibkr_connector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 36,
+      "hash": "3c2a282c4348363840f9caa348ccb98e",
+      "textRange": {
+        "startLine": 36,
+        "endLine": 36,
+        "startOffset": 26,
+        "endOffset": 33
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Rename this parameter \"orderId\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
+      "effort": "2min",
+      "debt": "2min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "convention"
+      ],
+      "creationDate": "2025-11-03T09:53:22+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "IDENTIFIABLE",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG8KoVv0jYiGrxeG",
+      "rule": "python:S117",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:backend/ibkr_connector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 41,
+      "hash": "0ca1265c4a5a14061cbc0614d542ff8f",
+      "textRange": {
+        "startLine": 41,
+        "endLine": 41,
+        "startOffset": 24,
+        "endOffset": 29
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Rename this parameter \"reqId\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
+      "effort": "2min",
+      "debt": "2min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "convention"
+      ],
+      "creationDate": "2025-11-03T09:53:22+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "IDENTIFIABLE",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG8KoVv0jYiGrxeH",
+      "rule": "python:S117",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:backend/ibkr_connector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 41,
+      "hash": "0ca1265c4a5a14061cbc0614d542ff8f",
+      "textRange": {
+        "startLine": 41,
+        "endLine": 41,
+        "startOffset": 31,
+        "endOffset": 39
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Rename this parameter \"tickType\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
+      "effort": "2min",
+      "debt": "2min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "convention"
+      ],
+      "creationDate": "2025-11-03T09:53:22+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "IDENTIFIABLE",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG8KoVv0jYiGrxeI",
+      "rule": "python:S117",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:backend/ibkr_connector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 52,
+      "hash": "22516e4b1b213a87a36f934d98a6508b",
+      "textRange": {
+        "startLine": 52,
+        "endLine": 52,
+        "startOffset": 23,
+        "endOffset": 28
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Rename this parameter \"reqId\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
+      "effort": "2min",
+      "debt": "2min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "convention"
+      ],
+      "creationDate": "2025-11-03T09:53:22+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "IDENTIFIABLE",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG8KoVv0jYiGrxeJ",
+      "rule": "python:S117",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:backend/ibkr_connector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 52,
+      "hash": "22516e4b1b213a87a36f934d98a6508b",
+      "textRange": {
+        "startLine": 52,
+        "endLine": 52,
+        "startOffset": 30,
+        "endOffset": 38
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Rename this parameter \"tickType\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
+      "effort": "2min",
+      "debt": "2min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "convention"
+      ],
+      "creationDate": "2025-11-03T09:53:22+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "IDENTIFIABLE",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG8KoVv0jYiGrxeK",
+      "rule": "python:S117",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:backend/ibkr_connector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 62,
+      "hash": "71583c279c34837935f850ea709d12d1",
+      "textRange": {
+        "startLine": 62,
+        "endLine": 62,
+        "startOffset": 29,
+        "endOffset": 34
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Rename this parameter \"reqId\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
+      "effort": "2min",
+      "debt": "2min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "convention"
+      ],
+      "creationDate": "2025-11-03T09:53:22+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "IDENTIFIABLE",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG8KoVv0jYiGrxeL",
+      "rule": "python:S117",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:backend/ibkr_connector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 76,
+      "hash": "8eb72cdb00a145ec1e9ffa452eb0e6bd",
+      "textRange": {
+        "startLine": 76,
+        "endLine": 76,
+        "startOffset": 32,
+        "endOffset": 37
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Rename this parameter \"reqId\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
+      "effort": "2min",
+      "debt": "2min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "convention"
+      ],
+      "creationDate": "2025-11-03T09:53:22+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "IDENTIFIABLE",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG8KoVv0jYiGrxeM",
+      "rule": "python:S117",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:backend/ibkr_connector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 81,
+      "hash": "9b5e0679d78124af11d8b88040ef004e",
+      "textRange": {
+        "startLine": 81,
+        "endLine": 81,
+        "startOffset": 37,
+        "endOffset": 52
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Rename this parameter \"contractDetails\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
+      "effort": "2min",
+      "debt": "2min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "convention"
+      ],
+      "creationDate": "2025-11-03T09:53:22+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "IDENTIFIABLE",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG8KoVv0jYiGrxeN",
+      "rule": "python:S117",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:backend/ibkr_connector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 81,
+      "hash": "9b5e0679d78124af11d8b88040ef004e",
+      "textRange": {
+        "startLine": 81,
+        "endLine": 81,
+        "startOffset": 30,
+        "endOffset": 35
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Rename this parameter \"reqId\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
+      "effort": "2min",
+      "debt": "2min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "convention"
+      ],
+      "creationDate": "2025-11-03T09:53:22+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "IDENTIFIABLE",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG8KoVv0jYiGrxeO",
+      "rule": "python:S117",
+      "severity": "MINOR",
+      "component": "ericfunman_boursicotor:backend/ibkr_connector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 85,
+      "hash": "236c41ca4e209dddfa0b705ce9361ff2",
+      "textRange": {
+        "startLine": 85,
+        "endLine": 85,
+        "startOffset": 33,
+        "endOffset": 38
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Rename this parameter \"reqId\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
+      "effort": "2min",
+      "debt": "2min",
+      "assignee": "ericfunman-e2SD8@github",
+      "tags": [
+        "convention"
+      ],
+      "creationDate": "2025-11-03T09:53:22+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "IDENTIFIABLE",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG9xoVv0jYiGrxfF",
+      "rule": "python:S1192",
+      "severity": "CRITICAL",
+      "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 483,
+      "hash": "337bef397654b402e4ab794b3170a920",
+      "textRange": {
+        "startLine": 483,
+        "endLine": 483,
+        "startOffset": 74,
+        "endOffset": 89
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 1063,
+                "endLine": 1063,
+                "startOffset": 80,
+                "endOffset": 95
+              },
+              "msg": "Duplication"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 1345,
+                "endLine": 1345,
+                "startOffset": 74,
+                "endOffset": 89
+              },
+              "msg": "Duplication"
+            }
+          ]
+        }
+      ],
+      "status": "OPEN",
+      "message": "Define a constant instead of duplicating this literal ' Europe/Paris' 3 times.",
+      "effort": "6min",
+      "debt": "6min",
+      "tags": [
+        "design"
+      ],
+      "creationDate": "2025-11-02T11:47:45+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "DISTINCT",
+      "cleanCodeAttributeCategory": "ADAPTABLE",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG9xoVv0jYiGrxfH",
+      "rule": "python:S1192",
+      "severity": "CRITICAL",
+      "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 48,
+      "hash": "3cb22086825ea7babe938a42270774cd",
+      "textRange": {
+        "startLine": 48,
+        "endLine": 48,
+        "startOffset": 8,
+        "endOffset": 16
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 73,
+                "endLine": 73,
+                "startOffset": 8,
+                "endOffset": 16
+              },
+              "msg": "Duplication"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 384,
+                "endLine": 384,
+                "startOffset": 24,
+                "endOffset": 32
+              },
+              "msg": "Duplication"
+            }
+          ]
+        }
+      ],
+      "status": "OPEN",
+      "message": "Define a constant instead of duplicating this literal '5 secs' 3 times.",
+      "effort": "6min",
+      "debt": "6min",
+      "tags": [
+        "design"
+      ],
+      "creationDate": "2025-11-02T10:31:56+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "DISTINCT",
+      "cleanCodeAttributeCategory": "ADAPTABLE",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG9xoVv0jYiGrxfK",
+      "rule": "python:S1192",
+      "severity": "CRITICAL",
+      "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 52,
+      "hash": "384207a0a5375751ec473e46f0869849",
+      "textRange": {
+        "startLine": 52,
+        "endLine": 52,
+        "startOffset": 8,
+        "endOffset": 15
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 77,
+                "endLine": 77,
+                "startOffset": 8,
+                "endOffset": 15
+              },
+              "msg": "Duplication"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 276,
+                "endLine": 276,
+                "startOffset": 24,
+                "endOffset": 31
+              },
+              "msg": "Duplication"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 1142,
+                "endLine": 1142,
+                "startOffset": 24,
+                "endOffset": 31
+              },
+              "msg": "Duplication"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 1437,
+                "endLine": 1437,
+                "startOffset": 24,
+                "endOffset": 31
+              },
+              "msg": "Duplication"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 1548,
+                "endLine": 1548,
+                "startOffset": 13,
+                "endOffset": 20
+              },
+              "msg": "Duplication"
+            }
+          ]
+        }
+      ],
+      "status": "OPEN",
+      "message": "Define a constant instead of duplicating this literal '1 min' 6 times.",
+      "effort": "12min",
+      "debt": "12min",
+      "tags": [
+        "design"
+      ],
+      "creationDate": "2025-11-02T10:31:56+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "DISTINCT",
+      "cleanCodeAttributeCategory": "ADAPTABLE",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG9xoVv0jYiGrxfL",
+      "rule": "python:S1192",
+      "severity": "CRITICAL",
+      "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 55,
+      "hash": "1120298f4df685a0cbd405ef41cf903f",
+      "textRange": {
+        "startLine": 55,
+        "endLine": 55,
+        "startOffset": 8,
+        "endOffset": 16
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 80,
+                "endLine": 80,
+                "startOffset": 8,
+                "endOffset": 16
+              },
+              "msg": "Duplication"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 1549,
+                "endLine": 1549,
+                "startOffset": 13,
+                "endOffset": 21
+              },
+              "msg": "Duplication"
+            }
+          ]
+        }
+      ],
+      "status": "OPEN",
+      "message": "Define a constant instead of duplicating this literal '5 mins' 3 times.",
+      "effort": "6min",
+      "debt": "6min",
+      "tags": [
+        "design"
+      ],
+      "creationDate": "2025-11-02T10:31:56+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "DISTINCT",
+      "cleanCodeAttributeCategory": "ADAPTABLE",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG9xoVv0jYiGrxfJ",
+      "rule": "python:S1192",
+      "severity": "CRITICAL",
+      "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 57,
+      "hash": "cfc58d5e7b75b286adc04e80f88cae15",
+      "textRange": {
+        "startLine": 57,
+        "endLine": 57,
+        "startOffset": 8,
+        "endOffset": 17
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 82,
+                "endLine": 82,
+                "startOffset": 8,
+                "endOffset": 17
+              },
+              "msg": "Duplication"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 1550,
+                "endLine": 1550,
+                "startOffset": 14,
+                "endOffset": 23
+              },
+              "msg": "Duplication"
+            }
+          ]
+        }
+      ],
+      "status": "OPEN",
+      "message": "Define a constant instead of duplicating this literal '15 mins' 3 times.",
+      "effort": "6min",
+      "debt": "6min",
+      "tags": [
+        "design"
+      ],
+      "creationDate": "2025-11-02T10:31:56+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "DISTINCT",
+      "cleanCodeAttributeCategory": "ADAPTABLE",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG9xoVv0jYiGrxfE",
+      "rule": "python:S1192",
+      "severity": "CRITICAL",
+      "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 59,
+      "hash": "a48a87cd7e1ce93249b67776b221f514",
+      "textRange": {
+        "startLine": 59,
+        "endLine": 59,
+        "startOffset": 8,
+        "endOffset": 17
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 84,
+                "endLine": 84,
+                "startOffset": 8,
+                "endOffset": 17
+              },
+              "msg": "Duplication"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 1551,
+                "endLine": 1551,
+                "startOffset": 14,
+                "endOffset": 23
+              },
+              "msg": "Duplication"
+            }
+          ]
+        }
+      ],
+      "status": "OPEN",
+      "message": "Define a constant instead of duplicating this literal '30 mins' 3 times.",
+      "effort": "6min",
+      "debt": "6min",
+      "tags": [
+        "design"
+      ],
+      "creationDate": "2025-11-02T10:31:56+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "DISTINCT",
+      "cleanCodeAttributeCategory": "ADAPTABLE",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG9xoVv0jYiGrxfI",
+      "rule": "python:S1192",
+      "severity": "CRITICAL",
+      "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 60,
+      "hash": "22dc831b032e4373f6b8b783eb18bc7a",
+      "textRange": {
+        "startLine": 60,
+        "endLine": 60,
+        "startOffset": 8,
+        "endOffset": 16
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 85,
+                "endLine": 85,
+                "startOffset": 8,
+                "endOffset": 16
+              },
+              "msg": "Duplication"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 1552,
+                "endLine": 1552,
+                "startOffset": 11,
+                "endOffset": 19
+              },
+              "msg": "Duplication"
+            }
+          ]
+        }
+      ],
+      "status": "OPEN",
+      "message": "Define a constant instead of duplicating this literal '1 hour' 3 times.",
+      "effort": "6min",
+      "debt": "6min",
+      "tags": [
+        "design"
+      ],
+      "creationDate": "2025-11-02T10:31:56+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "DISTINCT",
+      "cleanCodeAttributeCategory": "ADAPTABLE",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG9xoVv0jYiGrxfG",
+      "rule": "python:S1192",
+      "severity": "CRITICAL",
+      "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 64,
+      "hash": "0684fc5458c00f9a057a89e1e0c92da4",
+      "textRange": {
+        "startLine": 64,
+        "endLine": 64,
+        "startOffset": 8,
+        "endOffset": 15
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 90,
+                "endLine": 90,
+                "startOffset": 8,
+                "endOffset": 15
+              },
+              "msg": "Duplication"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 1553,
+                "endLine": 1553,
+                "startOffset": 13,
+                "endOffset": 20
+              },
+              "msg": "Duplication"
+            }
+          ]
+        }
+      ],
+      "status": "OPEN",
+      "message": "Define a constant instead of duplicating this literal '1 day' 3 times.",
+      "effort": "6min",
+      "debt": "6min",
+      "tags": [
+        "design"
+      ],
+      "creationDate": "2025-11-02T10:31:56+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "DISTINCT",
+      "cleanCodeAttributeCategory": "ADAPTABLE",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    },
+    {
+      "key": "AZpuYG9xoVv0jYiGrxfM",
+      "rule": "python:S1192",
+      "severity": "CRITICAL",
+      "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+      "project": "ericfunman_boursicotor",
+      "line": 1007,
+      "hash": "e8691206b49a62420f0aac1c48b3a056",
+      "textRange": {
+        "startLine": 1007,
+        "endLine": 1007,
+        "startOffset": 55,
+        "endOffset": 73
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 1018,
+                "endLine": 1018,
+                "startOffset": 55,
+                "endOffset": 73
+              },
+              "msg": "Duplication"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 1270,
+                "endLine": 1270,
+                "startOffset": 55,
+                "endOffset": 73
+              },
+              "msg": "Duplication"
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "ericfunman_boursicotor:backend/ibkr_collector.py",
+              "textRange": {
+                "startLine": 1286,
+                "endLine": 1286,
+                "startOffset": 55,
+                "endOffset": 73
+              },
+              "msg": "Duplication"
+            }
+          ]
+        }
+      ],
+      "status": "OPEN",
+      "message": "Define a constant instead of duplicating this literal 'No data received' 4 times.",
+      "effort": "8min",
+      "debt": "8min",
+      "tags": [
+        "design"
+      ],
+      "creationDate": "2025-11-02T10:31:56+0000",
+      "updateDate": "2025-11-10T17:32:17+0000",
+      "type": "CODE_SMELL",
+      "organization": "ericfunman",
+      "cleanCodeAttribute": "DISTINCT",
+      "cleanCodeAttributeCategory": "ADAPTABLE",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "Boursicotor"
+    }
+  ]
+}

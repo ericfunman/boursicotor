@@ -21,7 +21,7 @@ class TestDataCollectorImport:
         from backend.data_collector import DataCollector
         assert hasattr(DataCollector, '__init__')
         # Methods may have different names, main is init works
-        assert True
+        pass  # S5914: assert always true
     
     def test_data_collector_module_functions(self):
         """Test module-level functions exist"""
@@ -255,7 +255,7 @@ class TestDataCollectorCleanup:
         del collector
         
         # Should complete without errors
-        assert True
+        pass  # S5914: assert always true
     
     def test_data_collector_multiple_cleanup(self):
         """Test multiple DataCollectors can be cleaned up"""
@@ -267,7 +267,7 @@ class TestDataCollectorCleanup:
         for collector in collectors:
             del collector
         
-        assert True
+        pass  # S5914: assert always true
 
 
 class TestDataCollectorEdgeCases:
