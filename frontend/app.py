@@ -2823,31 +2823,114 @@ def live_prices_page():
             
             st.markdown("---")
             
-            # Create and display chart
-            fig = go.Figure()
-            
-            # Sort by timestamp ascending for chart
+            # Create and display chart with indicators
             sorted_records = sorted(latest_records, key=lambda r: r.timestamp, reverse=False)
             times = [rec.timestamp for rec in sorted_records]
             prices = [rec.close for rec in sorted_records]
             
-            fig.add_trace(go.Scatter(
-                x=times,
-                y=prices,
-                mode='lines+markers',
-                name=f'{selected_symbol}',
-                line=dict(color='#00D9FF', width=2),
-                marker=dict(size=6),
-                fill='tozeroy',
-                fillcolor='rgba(0, 217, 255, 0.1)'
-            ))
+            # Calculate indicators
+            from backend.indicators import calculate_rsi, calculate_macd
+            rsi = calculate_rsi(prices, period=14)
+            macd_result = calculate_macd(prices, fast=12, slow=26, signal=9)
+            
+            # Create subplots
+            from plotly.subplots import make_subplots
+            import plotly.graph_objects as go
+            
+            fig = make_subplots(
+                rows=3, cols=1,
+                shared_xaxes=True,
+                vertical_spacing=0.08,
+                row_heights=[0.5, 0.25, 0.25]
+            )
+            
+            # Price chart
+            fig.add_trace(
+                go.Scatter(
+                    x=times,
+                    y=prices,
+                    mode='lines+markers',
+                    name=f'{selected_symbol}',
+                    line=dict(color='#00D9FF', width=2),
+                    marker=dict(size=4),
+                    fill='tozeroy',
+                    fillcolor='rgba(0, 217, 255, 0.1)'
+                ),
+                row=1, col=1
+            )
+            
+            # RSI chart
+            if rsi:
+                fig.add_trace(
+                    go.Scatter(
+                        x=times,
+                        y=rsi,
+                        mode='lines',
+                        name='RSI (14)',
+                        line=dict(color='#FF6B6B', width=1.5),
+                        hovertemplate='<b>RSI</b>: %{y:.2f}<extra></extra>'
+                    ),
+                    row=2, col=1
+                )
+                
+                # Add overbought/oversold levels
+                fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
+                fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
+            
+            # MACD chart
+            if macd_result:
+                macd_line, signal_line, histogram = macd_result
+                
+                # Histogram
+                colors = ['#00D9FF' if h >= 0 else '#FF6B6B' for h in histogram]
+                fig.add_trace(
+                    go.Bar(
+                        x=times,
+                        y=histogram,
+                        name='MACD Hist',
+                        marker=dict(color=colors),
+                        opacity=0.3,
+                        hovertemplate='<b>MACD Hist</b>: %{y:.4f}<extra></extra>'
+                    ),
+                    row=3, col=1
+                )
+                
+                # MACD line
+                fig.add_trace(
+                    go.Scatter(
+                        x=times,
+                        y=macd_line,
+                        mode='lines',
+                        name='MACD',
+                        line=dict(color='#00D9FF', width=2),
+                        hovertemplate='<b>MACD</b>: %{y:.4f}<extra></extra>'
+                    ),
+                    row=3, col=1
+                )
+                
+                # Signal line
+                fig.add_trace(
+                    go.Scatter(
+                        x=times,
+                        y=signal_line,
+                        mode='lines',
+                        name='Signal',
+                        line=dict(color='#FF6B6B', width=1.5),
+                        hovertemplate='<b>Signal</b>: %{y:.4f}<extra></extra>'
+                    ),
+                    row=3, col=1
+                )
+            
+            # Update layout
+            fig.update_xaxes(title_text="Heure", row=3, col=1)
+            fig.update_yaxes(title_text="Prix (€)", row=1, col=1)
+            fig.update_yaxes(title_text="RSI", row=2, col=1)
+            fig.update_yaxes(title_text="MACD", row=3, col=1)
             
             fig.update_layout(
-                title=f"{selected_symbol} - Cours Live (Refresh: {time_until_next:.0f}s)" if st.session_state.live_prices_auto_refresh else f"{selected_symbol} - Cours Live",
-                xaxis_title="Heure",
-                yaxis_title="Prix (€)",
+                title=f"{selected_symbol} - Cours Live + Indicateurs (Refresh: {time_until_next:.0f}s)" if st.session_state.live_prices_auto_refresh else f"{selected_symbol} - Cours Live + Indicateurs",
+                height=900,
                 hovermode='x unified',
-                height=500,
                 margin=dict(l=50, r=50, t=50, b=50)
             )
             

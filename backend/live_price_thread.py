@@ -21,7 +21,7 @@ class LivePriceCollector:
         self.running = False
         self.symbol: Optional[str] = None
         self.interval = 3  # seconds between price collections
-        self.collector: Optional[IBKRCollector] = None  # Reuse same connection
+        # No persistent collector - use temporary connections like dashboard
     
     def start(self, symbol: str, interval: int = 3) -> bool:
         """
@@ -61,14 +61,6 @@ class LivePriceCollector:
         if self.thread:
             self.thread.join(timeout=5)
         
-        # Cleanup connection
-        if self.collector:
-            try:
-                self.collector.disconnect()
-            except:
-                pass
-            self.collector = None
-        
         logger.info(f"Live price collector stopped for {self.symbol}")
         return True
     
@@ -80,21 +72,13 @@ class LivePriceCollector:
             # Initialize database connection for this thread
             db = SessionLocal()
             
-            # Create IBKR collector with fixed client_id=200 for live collection thread
-            # This prevents conflicts with other connections
-            # Reuse same connection throughout the thread lifetime
-            self.collector = IBKRCollector(client_id=200)
-            if not self.collector.connect():
-                logger.error("[LivePriceCollector] Failed to connect to IBKR")
-                return
-            
             logger.info(f"[LivePriceCollector] Starting price collection for {self.symbol}")
             
             while self.running:
                 try:
-                    # Get current market price using the persistent connection
-                    # Don't use get_current_market_price() which creates new connections
-                    price = self._get_price_from_persistent_connection(self.symbol)
+                    # Get current market price using TEMPORARY connection (like dashboard)
+                    # This avoids conflicts with other connections
+                    price = self._get_price_from_temporary_connection(self.symbol)
                     
                     if price is not None:
                         # Save to database
@@ -117,46 +101,65 @@ class LivePriceCollector:
             # Cleanup
             if db:
                 db.close()
-            if self.collector:
-                try:
-                    self.collector.disconnect()
-                except:
-                    pass
-                self.collector = None
+            
             logger.info(f"[LivePriceCollector] Thread ended for {self.symbol}")
     
-    def _get_price_from_persistent_connection(self, symbol: str) -> Optional[float]:
-        """Get price using reqHistoricalData - SAME LOGIC AS DASHBOARD"""
+    def _get_price_from_temporary_connection(self, symbol: str) -> Optional[float]:
+        """Get price using temporary IBKR connection - SAME LOGIC AS DASHBOARD"""
         try:
-            if not self.collector or not self.collector.ib.isConnected():
-                logger.error(f"[LivePriceCollector] Connection lost!")
-                return None
+            from ib_insync import IB, Stock
+            import time as time_module
             
-            from ib_insync import Stock
+            # Create temporary connection like dashboard does
+            ib = IB()
             
-            # Create fresh contract (EXACTLY LIKE DASHBOARD)
-            contract = Stock(symbol, 'SMART', 'EUR')
-            
-            # Request historical data (EXACTLY LIKE DASHBOARD)
-            # Always use 1 D (daily) bar to get consistent data
-            bars = self.collector.ib.reqHistoricalData(
-                contract,
-                endDateTime='',
-                durationStr='1 D',          # SAME AS DASHBOARD
-                barSizeSetting='1 day',     # SAME AS DASHBOARD
-                whatToShow='TRADES',
-                useRTH=False,
-                formatDate=1
-            )
-            
-            if bars and len(bars) > 0:
-                price = bars[-1].close
-                logger.info(f"[LivePriceCollector] {symbol}: {price}€")
-                return price
-            else:
-                logger.warning(f"[LivePriceCollector] No bars for {symbol}")
-                return None
+            try:
+                logger.debug(f"[LivePriceCollector] Connecting to IBKR for {symbol}...")
+                ib.connect('127.0.0.1', 4002, clientId=200)
                 
+                # Wait for connection with timeout
+                max_wait = 10  # 10 * 0.2s = 2 seconds max
+                for i in range(max_wait):
+                    time_module.sleep(0.2)
+                    if ib.isConnected():
+                        logger.debug(f"[LivePriceCollector] Connected after {(i+1)*0.2:.1f}s")
+                        break
+                
+                if not ib.isConnected():
+                    logger.warning(f"[LivePriceCollector] Failed to connect to IBKR for {symbol} after 2s")
+                    return None
+                
+                # Create fresh contract (EXACTLY LIKE DASHBOARD)
+                contract = Stock(symbol, 'SMART', 'EUR')
+                
+                # Request historical data (EXACTLY LIKE DASHBOARD)
+                bars = ib.reqHistoricalData(
+                    contract,
+                    endDateTime='',
+                    durationStr='1 D',
+                    barSizeSetting='1 day',
+                    whatToShow='TRADES',
+                    useRTH=False,
+                    formatDate=1
+                )
+                
+                if bars and len(bars) > 0:
+                    price = bars[-1].close
+                    logger.info(f"[LivePriceCollector] {symbol}: {price}€")
+                    return price
+                else:
+                    logger.warning(f"[LivePriceCollector] No bars for {symbol}")
+                    return None
+                    
+            except Exception as e:
+                logger.error(f"[LivePriceCollector] Error: {e}")
+                return None
+            finally:
+                try:
+                    ib.disconnect()
+                except:
+                    pass
+                    
         except Exception as e:
             logger.error(f"[LivePriceCollector] Error getting price: {e}", exc_info=True)
             return None
