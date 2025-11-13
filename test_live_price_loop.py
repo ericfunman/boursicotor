@@ -34,12 +34,12 @@ def test_live_price_loop():
             # Create fresh contract (like dashboard)
             contract = Stock(symbol, 'SMART', 'EUR')
             
-            # Request 1-sec bars for maximum frequency updates
+            # Request 1-min bars (minimum supported by IBKR)
             bars = ib.reqHistoricalData(
                 contract,
                 endDateTime='',
                 durationStr='1 D',
-                barSizeSetting='1 secs',
+                barSizeSetting='1 min',
                 whatToShow='TRADES',
                 useRTH=False,
                 formatDate=1

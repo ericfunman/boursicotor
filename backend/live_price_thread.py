@@ -20,7 +20,7 @@ class LivePriceCollector:
         self.thread: Optional[threading.Thread] = None
         self.running = False
         self.symbol: Optional[str] = None
-        self.interval = 3  # seconds between price collections
+        self.interval = 1  # seconds between price collections (1 sec for real-time)
         self.ib: Optional['IB'] = None  # Persistent connection for this thread
         self.ticker = None  # Current market ticker object
     
@@ -105,7 +105,7 @@ class LivePriceCollector:
                         contract,
                         endDateTime='',
                         durationStr='1 D',
-                        barSizeSetting='1 secs',
+                        barSizeSetting='1 min',
                         whatToShow='TRADES',
                         useRTH=False,
                         formatDate=1
