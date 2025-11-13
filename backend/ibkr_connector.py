@@ -25,7 +25,7 @@ class IBKRWrapper(EWrapper):
         self.contract_details_list = []
         self.data_ready = threading.Event()
         
-    def error(self, reqId, errorCode, errorString, advancedOrderRejectJson=""):
+    def error(self, reqId, errorCode, errorString, advancedOrderRejectJson=""):  # noqa: S117
         """Gestion des erreurs"""
         # Codes 2104 et 2106 sont des messages info, pas des erreurs
         if errorCode in [2104, 2106, 2158]:
@@ -33,12 +33,12 @@ class IBKRWrapper(EWrapper):
         else:
             print(f"ERREUR {errorCode} (reqId {reqId}): {errorString}")
     
-    def nextValidId(self, orderId: int):
+    def nextValidId(self, orderId: int):  # noqa: S117
         """Reçoit le prochain ID d'ordre valide"""
         self.next_order_id = orderId
         print(f"Connexion réussie! Prochain order ID: {orderId}")
     
-    def tickPrice(self, reqId, tickType, price, attrib):
+    def tickPrice(self, reqId, tickType, price, attrib):  # noqa: S117
         """Reçoit les prix en temps réel"""
         if reqId not in self.market_data:
             self.market_data[reqId] = {}
@@ -49,7 +49,7 @@ class IBKRWrapper(EWrapper):
             self.market_data[reqId][tick_names[tickType]] = price
             self.market_data[reqId]['timestamp'] = datetime.now()
     
-    def tickSize(self, reqId, tickType, size):
+    def tickSize(self, reqId, tickType, size):  # noqa: S117
         """Reçoit les volumes en temps réel"""
         if reqId not in self.market_data:
             self.market_data[reqId] = {}
@@ -59,7 +59,7 @@ class IBKRWrapper(EWrapper):
         if tickType in tick_names:
             self.market_data[reqId][tick_names[tickType]] = size
     
-    def historicalData(self, reqId, bar):
+    def historicalData(self, reqId, bar):  # noqa: S117
         """Reçoit les données historiques"""
         if reqId not in self.historical_data:
             self.historical_data[reqId] = []
@@ -73,7 +73,7 @@ class IBKRWrapper(EWrapper):
             'volume': bar.volume
         })
     
-    def historicalDataEnd(self, reqId, start, end):
+    def historicalDataEnd(self, reqId, start, end):  # noqa: S117
         """Signale la fin de la réception des données historiques"""
         print(f"Données historiques reçues pour reqId {reqId}: {start} à {end}")
         self.data_ready.set()

@@ -35,7 +35,7 @@ class TestOrderManagerImport(unittest.TestCase):
     def test_instantiate_without_collector(self):
         """Test 2: OrderManager instantiation without collector"""
         manager = OrderManager(ibkr_collector=None)
-        self.assertIsNone(manager.ibkr_collector)
+        self.assertEqual(manager.ibkr_collector, None)
         self.assertIsNotNone(manager._executor)
         self.assertIsNotNone(manager._pending_submissions)
     
