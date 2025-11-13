@@ -126,32 +126,34 @@ class LivePriceCollector:
             logger.info(f"[LivePriceCollector] Thread ended for {self.symbol}")
     
     def _get_price_from_persistent_connection(self, symbol: str) -> Optional[float]:
-        """Get price using the persistent IBKR connection (not temporary)"""
+        """Get price using reqMktData for real-time quotes (like dashboard does)"""
         try:
             if not self.collector or not self.collector.ib.isConnected():
                 logger.error(f"[LivePriceCollector] Connection lost!")
                 return None
             
             from ib_insync import Stock
+            import time
             
             # Create fresh contract
             contract = Stock(symbol, 'SMART', 'EUR')
             
-            # Request 1 day of historical data
-            bars = self.collector.ib.reqHistoricalData(
-                contract,
-                endDateTime='',
-                durationStr='1 D',
-                barSizeSetting='1 day',
-                whatToShow='TRADES',
-                useRTH=False,
-                formatDate=1
-            )
+            # Use reqMktData for real-time market data (not historical)
+            ticker = self.collector.ib.reqMktData(contract, '', False, False)
             
-            if bars and len(bars) > 0:
-                return bars[-1].close
+            # Wait for data to arrive (timeout 2 seconds)
+            time.sleep(0.5)
+            
+            # Get the latest price
+            if ticker.last > 0:
+                logger.debug(f"[LivePriceCollector] {symbol}: last={ticker.last}")
+                return ticker.last
+            elif ticker.bid > 0:
+                # Fallback to bid if last price not available
+                logger.debug(f"[LivePriceCollector] {symbol}: bid={ticker.bid} (fallback)")
+                return ticker.bid
             else:
-                logger.warning(f"[LivePriceCollector] No bars for {symbol}")
+                logger.warning(f"[LivePriceCollector] No price data for {symbol} (last={ticker.last}, bid={ticker.bid})")
                 return None
                 
         except Exception as e:

@@ -2671,24 +2671,77 @@ def backtesting_page():
 
 
 def live_prices_page():
-    """Live prices page with real-time chart updates using background thread"""
+    """Live prices page with real-time chart updates - same approach as dashboard"""
     st.header("📊 Cours Live")
     
     # Import required modules
-    from backend.live_price_thread import start_live_price_collection, stop_live_price_collection, is_collecting, get_current_symbol
+    from backend.live_price_thread import start_live_price_collection, stop_live_price_collection, is_collecting
     import plotly.graph_objects as go
     from backend.models import SessionLocal, Ticker, HistoricalData
     import time as time_module
     
-    db = SessionLocal()
+    # Initialize session state for auto-refresh (like dashboard)
+    if 'live_prices_auto_refresh' not in st.session_state:
+        st.session_state.live_prices_auto_refresh = False
+    if 'live_prices_last_refresh' not in st.session_state:
+        st.session_state.live_prices_last_refresh = 0
     
-    # Get tickers with collected data
-    from backend.models import SessionLocal, Ticker, HistoricalData
-    from sqlalchemy import distinct
+    # Initialize global IBKR connection (like dashboard)
+    init_global_ibkr_connection()
+    
     db = SessionLocal()
     
     try:
-        # Get only ACTIVE tickers (not test data)
+        # Refresh controls (like dashboard)
+        col_refresh1, col_refresh2 = st.columns([3, 1])
+        
+        with col_refresh1:
+            auto_refresh = st.toggle(
+                "🔄 Auto-refresh temps réel (3s)",
+                value=st.session_state.live_prices_auto_refresh,
+                help="Actualise automatiquement les données de prix en temps réel"
+            )
+            if auto_refresh != st.session_state.live_prices_auto_refresh:
+                st.session_state.live_prices_auto_refresh = auto_refresh
+                if auto_refresh:
+                    st.session_state.live_prices_last_refresh = time_module.time()
+                st.rerun()
+        
+        with col_refresh2:
+            if st.button("🔄 Rafraîchir", use_container_width=True):
+                st.session_state.live_prices_last_refresh = time_module.time()
+                st.rerun()
+        
+        # Auto-refresh logic (like dashboard)
+        if st.session_state.live_prices_auto_refresh and st.session_state.get('global_ibkr_connected', False):
+            current_time = time_module.time()
+            # Check if 3 seconds have passed
+            if current_time - st.session_state.live_prices_last_refresh >= 3:
+                st.session_state.live_prices_last_refresh = current_time
+                st.rerun()
+            
+            # Show countdown to next refresh
+            time_until_next = 3 - (current_time - st.session_state.live_prices_last_refresh)
+            if time_until_next > 0:
+                st.caption(f"⏱️ Prochaine actualisation dans {time_until_next:.1f}s")
+                time_module.sleep(0.5)
+                st.rerun()
+        
+        st.markdown("---")
+        
+        # Check IBKR connection (like dashboard)
+        if not st.session_state.get('global_ibkr_connected', False):
+            st.warning("⚠️ Connectez-vous à IBKR depuis la barre latérale pour voir les cours live.")
+            st.info("💡 La connexion IBKR est partagée entre toutes les pages. Utilisez le bouton dans la sidebar.")
+            return
+        
+        # Get global IBKR collector (like dashboard)
+        collector = st.session_state.get('global_ibkr')
+        if collector is None:
+            st.error("❌ Erreur: Connexion IBKR invalide")
+            return
+        
+        # Get only ACTIVE tickers
         all_tickers = db.query(Ticker).filter(Ticker.is_active == True).all()
         
         if not all_tickers:
@@ -2710,21 +2763,18 @@ def live_prices_page():
         
         with col2:
             # Control button
-            collecting_symbol = get_current_symbol()
             is_active = is_collecting(selected_symbol)
             
             if is_active:
                 if st.button("⏸️ Arrêter", type="primary", use_container_width=True):
                     stop_live_price_collection()
                     st.success("✅ Collecte arrêtée")
-                    time_module.sleep(0.5)
+                    time_module.sleep(0.3)
                     st.rerun()
             else:
                 if st.button("▶️ Démarrer", type="primary", use_container_width=True):
                     start_live_price_collection(selected_symbol, interval=3)
                     st.success("✅ Collecte démarrée")
-                    # Small delay then rerun to show the Stop button
-                    # This is OK because the thread is now running independently
                     time_module.sleep(0.3)
                     st.rerun()
 
@@ -2738,21 +2788,21 @@ def live_prices_page():
             st.error(f"❌ Ticker {selected_symbol} non trouvé")
             return
         
-        # Force DB refresh - important for live data updates
+        # Force DB refresh for live data
         db.expire_all()
         
         # Get latest data from database
         latest_records = db.query(HistoricalData).filter(
             HistoricalData.ticker_id == ticker_obj.id,
             HistoricalData.interval == '1day'
-        ).order_by(HistoricalData.timestamp.asc()).all()
+        ).order_by(HistoricalData.timestamp.desc()).all()
         
         if not latest_records:
             st.info("⏳ Aucune donnée. Cliquez sur 'Démarrer' pour commencer la collecte.")
         else:
             # Display metrics
-            latest = latest_records[-1]
-            prev = latest_records[-2] if len(latest_records) > 1 else latest
+            latest = latest_records[0]  # Most recent first now
+            prev = latest_records[1] if len(latest_records) > 1 else latest
             
             metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
             
@@ -2771,16 +2821,15 @@ def live_prices_page():
                 timestamp_str = latest.timestamp.strftime("%H:%M:%S") if hasattr(latest.timestamp, 'strftime') else str(latest.timestamp)
                 st.metric("Dernière MAJ", timestamp_str)
             
-            # Debug: Show latest record timestamp and value
-            st.caption(f"🔍 DEBUG: {len(latest_records)} records | Latest: {timestamp_str} @ {latest.close:.2f}€")
-            
             st.markdown("---")
             
             # Create and display chart
             fig = go.Figure()
             
-            times = [rec.timestamp for rec in latest_records]
-            prices = [rec.close for rec in latest_records]
+            # Sort by timestamp ascending for chart
+            sorted_records = sorted(latest_records, key=lambda r: r.timestamp, reverse=False)
+            times = [rec.timestamp for rec in sorted_records]
+            prices = [rec.close for rec in sorted_records]
             
             fig.add_trace(go.Scatter(
                 x=times,
@@ -2794,7 +2843,7 @@ def live_prices_page():
             ))
             
             fig.update_layout(
-                title=f"{selected_symbol} - Cours Live",
+                title=f"{selected_symbol} - Cours Live (Refresh: {time_until_next:.0f}s)" if st.session_state.live_prices_auto_refresh else f"{selected_symbol} - Cours Live",
                 xaxis_title="Heure",
                 yaxis_title="Prix (€)",
                 hovermode='x unified',
@@ -2803,22 +2852,6 @@ def live_prices_page():
             )
             
             st.plotly_chart(fig, use_container_width=True)
-            
-            # Auto-refresh when collecting - use placeholder update instead of page refresh
-            if is_active:
-                # Show status message
-                with st.container():
-                    col_status1, col_status2 = st.columns([3, 1])
-                    with col_status1:
-                        st.info("🔄 Collecte en cours... Données mises à jour toutes les 3s")
-                    with col_status2:
-                        # Show next refresh countdown
-                        st.caption(f"⏱️ Prochaine MAJ dans ~3s")
-                
-                # Use time.sleep for background polling instead of page refresh
-                # This keeps the connection alive instead of killing it with meta refresh
-                time_module.sleep(3)
-                st.rerun()
 
     
     finally:
