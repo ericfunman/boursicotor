@@ -100,12 +100,12 @@ class LivePriceCollector:
                     # Create fresh contract (like dashboard)
                     contract = Stock(self.symbol, 'SMART', 'EUR')
                     
-                    # Request 1-min bars (like dashboard)
+                    # Request 1-sec bars for maximum frequency updates
                     bars = self.ib.reqHistoricalData(
                         contract,
                         endDateTime='',
                         durationStr='1 D',
-                        barSizeSetting='1 min',
+                        barSizeSetting='1 secs',
                         whatToShow='TRADES',
                         useRTH=False,
                         formatDate=1

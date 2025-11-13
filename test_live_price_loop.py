@@ -29,17 +29,17 @@ def test_live_price_loop():
     logger.info(f"Starting price collection loop for {symbol}...")
     
     # Loop and collect prices - SAME LOGIC AS DASHBOARD
-    for i in range(10):  # 10 iterations
+    for i in range(20):  # 20 iterations = 20 seconds
         try:
             # Create fresh contract (like dashboard)
             contract = Stock(symbol, 'SMART', 'EUR')
             
-            # Request 1-min bars (like dashboard)
+            # Request 1-sec bars for maximum frequency updates
             bars = ib.reqHistoricalData(
                 contract,
                 endDateTime='',
                 durationStr='1 D',
-                barSizeSetting='1 min',
+                barSizeSetting='1 secs',
                 whatToShow='TRADES',
                 useRTH=False,
                 formatDate=1
@@ -49,16 +49,16 @@ def test_live_price_loop():
                 bar = bars[-1]
                 price = bar.close
                 date = bar.date
-                logger.info(f"[{i+1}] {symbol}: {price}€ @ {date}")
+                logger.info(f"[{i+1}] {symbol}: {price:.4f}€ @ {date}")
             else:
                 logger.warning(f"[{i+1}] No bars available")
         
         except Exception as e:
             logger.error(f"[{i+1}] Error: {e}")
         
-        # Wait 3 seconds between collections
-        if i < 9:
-            time.sleep(3)
+        # Wait 1 second between collections
+        if i < 19:
+            time.sleep(1)
     
     # Cleanup
     ib.disconnect()
