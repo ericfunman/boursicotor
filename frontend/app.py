@@ -13,9 +13,16 @@ import time as time_module  # Alias to avoid conflict with 'time' column name
 import sys
 import os
 from pathlib import Path
+import sys
 
-# Import UI constants
-from frontend.constants import (
+# Ensure we can import from parent directory (handles Streamlit working directory issues)
+_app_dir = Path(__file__).parent
+_project_root = _app_dir.parent
+sys.path.insert(0, str(_project_root))
+
+# Now we can import using absolute paths from project root
+# Import UI constants (use relative imports from same package)
+from .constants import (
     MENU_DASHBOARD, MENU_DATA_COLLECTION, MENU_TECHNICAL_ANALYSIS,
     MENU_AUTO_TRADING, MENU_ORDER_PLACEMENT, MENU_SETTINGS,
     BTN_REFRESH, ERROR_DETAILS, LABEL_QUANTITY, LABEL_PRICE_EUR,
@@ -40,12 +47,10 @@ try:
 except ImportError:
     pass
 
-# Add parent directory to path
-sys.path.append(str(Path(__file__).parent.parent))
-
 from backend.config import logger, FRENCH_TICKERS
 from backend.data_collector import DataCollector
 from backend.technical_indicators import calculate_and_update_indicators
+from backend.indicators import calculate_rsi, calculate_macd, calculate_bollinger_bands
 from backend.models import SessionLocal, Ticker as TickerModel, HistoricalData, Order, OrderStatus, init_db
 from sqlalchemy import func
 
@@ -2829,7 +2834,6 @@ def live_prices_page():
             prices = [rec.close for rec in sorted_records]
             
             # Calculate indicators
-            from backend.indicators import calculate_rsi, calculate_macd
             rsi = calculate_rsi(prices, period=14)
             macd_result = calculate_macd(prices, fast=12, slow=26, signal=9)
             
