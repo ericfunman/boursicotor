@@ -2671,8 +2671,15 @@ def backtesting_page():
 
 
 def live_prices_page():
-    """Live prices page with real-time chart updates"""
+    """Live prices page with real-time chart updates using background thread"""
     st.header("📊 Cours Live")
+    
+    # Import required modules
+    from backend.live_price_thread import start_live_price_collection, stop_live_price_collection, is_collecting, get_current_symbol
+    import plotly.graph_objects as go
+    from backend.models import SessionLocal, Ticker, HistoricalData
+    
+    db = SessionLocal()
     
     # Get tickers with collected data
     from backend.models import SessionLocal, Ticker, HistoricalData
@@ -2680,100 +2687,18 @@ def live_prices_page():
     db = SessionLocal()
     
     try:
-        # Get ONLY tickers that have HistoricalData (collected data)
-        tickers_with_data = db.query(Ticker).join(
-            HistoricalData, Ticker.id == HistoricalData.ticker_id
-        ).distinct().all()
+        # Get all tickers
+        all_tickers = db.query(Ticker).all()
         
-        if not tickers_with_data:
-            st.warning("⚠️ Aucune action disponible. Collectez des données d'abord dans l'onglet 'Collecte de Données'.")
+        if not all_tickers:
+            st.warning("⚠️ Aucune action disponible. Allez dans 'Collecte de Données' pour en ajouter.")
             return
         
-        # Create ticker selection
-        ticker_options = {ticker.symbol: f"{ticker.symbol} - {ticker.name}" for ticker in tickers_with_data}
+        # Ticker selection
+        ticker_options = {ticker.symbol: f"{ticker.symbol} - {ticker.name}" for ticker in all_tickers}
         
-        # Strategy selection
-        from backend.models import Strategy
-        from backend.strategy_adapter import StrategyAdapter
-        import json
-        
-        strategies = db.query(Strategy).all()
-        strategy_options = ["Aucune stratégie"] + [s.name for s in strategies]
-        
-        selected_strategy_name = st.selectbox(
-            "🎯 Stratégie de trading",
-            strategy_options,
-            help="Sélectionnez une stratégie pour afficher les signaux d'achat/vente. Toutes les stratégies (simples et complexes) sont supportées !"
-        )
-        
-        selected_strategy = None
-        if selected_strategy_name != "Aucune stratégie":
-            selected_strategy = db.query(Strategy).filter(Strategy.name == selected_strategy_name).first()
-            
-            # Display strategy info using adapter
-            if selected_strategy:
-                try:
-                    strategy_info = StrategyAdapter.format_strategy_info(selected_strategy)
-                    
-                    with st.expander("📊 Détails de la stratégie", expanded=False):
-                        st.write(f"**Type:** {strategy_info['type']}")
-                        st.write(f"**Description:** {strategy_info['description']}")
-                        
-                        if strategy_info['indicators']:
-                            st.write(f"**Indicateurs utilisés:** {', '.join(strategy_info['indicators'])}")
-                        
-                        # Affichage spécifique pour EnhancedMA
-                        if strategy_info['is_enhanced']:
-                            st.markdown("#### 🔧 Paramètres de la stratégie")
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.metric("MA Rapide", strategy_info.get('fast_period', 'N/A'))
-                            with col2:
-                                st.metric("MA Lente", strategy_info.get('slow_period', 'N/A'))
-                            with col3:
-                                st.metric("Signaux min", strategy_info.get('min_signals', 'N/A'))
-                            
-                            if strategy_info.get('active_advanced_indicators'):
-                                st.markdown("**Indicateurs avancés actifs:**")
-                                st.write(", ".join(strategy_info['active_advanced_indicators']))
-                        
-                        # Affichage pour stratégies simples
-                        elif strategy_info['is_simple']:
-                            col_buy, col_sell = st.columns(2)
-                            with col_buy:
-                                st.markdown("**🟢 Conditions d'achat:**")
-                                st.code(strategy_info.get('buy_conditions', 'N/A'), language='python')
-                            
-                            with col_sell:
-                                st.markdown("**🔴 Conditions de vente:**")
-                                st.code(strategy_info.get('sell_conditions', 'N/A'), language='python')
-                
-                except Exception as e:
-                    st.warning(f"⚠️ Impossible d'afficher les détails de la stratégie: {e}")
-
-        
-        # Data source selection
-        st.markdown("---")
-        st.subheader("📡 Source de Données : IBKR (Temps Réel)")
-        st.info("💼 Données temps réel via IB Gateway - Aucune limitation")
-        
-        # Use global IBKR connection
-        init_global_ibkr_connection()
-        
-        # Check global connection status
-        ibkr_connected = st.session_state.get('global_ibkr_connected', False)
-        
-        if ibkr_connected:
-            st.success("🟢 IBKR Connecté (connexion globale)")
-        else:
-            st.warning("� IBKR Non connecté - Connectez-vous depuis la barre latérale")
-            st.info("💡 Utilisez le bouton de connexion IBKR dans la sidebar pour établir la connexion globale")
-            return
-        
-        st.markdown("---")
-        
-        # Create ticker selection and time scale
-        col1, col2, col3 = st.columns([2, 1, 1])
+        # Layout: Symbol selection + Start/Stop button
+        col1, col2 = st.columns([3, 1])
         
         with col1:
             selected_symbol = st.selectbox(
@@ -2783,296 +2708,96 @@ def live_prices_page():
             )
         
         with col2:
-            # Time scale selector
-            time_scale = st.selectbox(
-                "Échelle de temps",
-                options=["1s", "1min", "5min", "15min", "30min", "1h", "1jour"],
-                index=0,
-                help="Période d'agrégation des données",
-                disabled=st.session_state.get('live_running', False)
-            )
-        
-        with col3:
-            # Control buttons
-            if 'live_running' not in st.session_state:
-                st.session_state.live_running = False
+            # Control button
+            collecting_symbol = get_current_symbol()
+            is_active = is_collecting(selected_symbol)
             
-            if st.session_state.live_running:
-                if st.button("⏸️ Pause", type="primary"):
-                    st.session_state.live_running = False
+            if is_active:
+                if st.button("⏸️ Arrêter", type="primary", use_container_width=True):
+                    stop_live_price_collection()
+                    st.success("✅ Collecte arrêtée")
                     st.rerun()
             else:
-                if st.button("▶️ Démarrer", type="primary"):
-                    st.session_state.live_running = True
+                if st.button("▶️ Démarrer", type="primary", use_container_width=True):
+                    start_live_price_collection(selected_symbol, interval=3)
+                    st.success("✅ Collecte démarrée")
                     st.rerun()
         
         st.markdown("---")
         
-        # Display area for metrics
-        metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+        # Get ticker object
+        ticker_obj = db.query(Ticker).filter(Ticker.symbol == selected_symbol).first()
         
-        # Placeholders for dynamic updates
-        with metric_col1:
-            price_placeholder = st.empty()
-        with metric_col2:
-            change_placeholder = st.empty()
-        with metric_col3:
-            volume_placeholder = st.empty()
-        with metric_col4:
-            time_placeholder = st.empty()
+        if not ticker_obj:
+            st.error(f"❌ Ticker {selected_symbol} non trouvé")
+            return
         
-        # Chart placeholder
-        chart_placeholder = st.empty()
+        # Get latest data from database
+        latest_records = db.query(HistoricalData).filter(
+            HistoricalData.ticker_id == ticker_obj.id,
+            HistoricalData.interval == '1day'
+        ).order_by(HistoricalData.timestamp.asc()).all()
         
-        # Indicators placeholder
-        indicators_placeholder = st.empty()
-        
-        # Info message
-        st.info("ℹ️ Les données proviennent d'IBKR en temps réel. Le graphique se rafraîchit toutes les secondes.")
-        
-        # Initialize data storage
-        if 'live_data' not in st.session_state:
-            st.session_state.live_data = {'time': [], 'price': []}
-        
-        # Check if we need to reload historical data (ticker or time scale changed)
-        reload_needed = (
-            st.session_state.get('last_ticker') != selected_symbol or
-            st.session_state.get('last_time_scale') != time_scale
-        )
-        
-        if reload_needed:
-            st.session_state.last_ticker = selected_symbol
-            st.session_state.last_time_scale = time_scale
-            
-            # Initialize live_data only once (on first run for this symbol)
-            if 'live_data' not in st.session_state or st.session_state.get('live_symbol') != selected_symbol:
-                st.session_state.live_symbol = selected_symbol
-                
-                # Load historical data from database
-                from backend.models import HistoricalData
-                ticker_obj = db.query(Ticker).filter(Ticker.symbol == selected_symbol).first()
-                
-                historical_records = db.query(HistoricalData).filter(
-                    HistoricalData.ticker_id == ticker_obj.id,
-                    HistoricalData.interval == time_scale
-                ).order_by(HistoricalData.timestamp.asc()).all()
-                
-                if historical_records:
-                    st.session_state.live_data = {
-                        'time': [rec.timestamp for rec in historical_records],
-                        'price': [rec.close for rec in historical_records],
-                        'open': [rec.open for rec in historical_records],
-                        'high': [rec.high for rec in historical_records],
-                        'low': [rec.low for rec in historical_records],
-                        'volume': [rec.volume for rec in historical_records]
-                    }
-                    st.success(f"✅ {len(historical_records)} données historiques chargées depuis la base de données")
-                else:
-                    st.session_state.live_data = {
-                        'time': [], 
-                        'price': [],
-                        'open': [],
-                        'high': [],
-                        'low': [],
-                        'volume': []
-                    }
-                    st.info("ℹ️ Aucune donnée historique. Les données seront collectées en temps réel.")
-        
-        # Live update loop
-        if st.session_state.live_running:
-            import plotly.graph_objects as go
-            from datetime import datetime
-            import pandas as pd
-            from backend.models import HistoricalData
-            import time as time_module_local
-            
-            # Get ticker object for database storage
-            ticker_obj = db.query(Ticker).filter(Ticker.symbol == selected_symbol).first()
-            
-            # Collect one data point using get_current_market_price()
-            current_price = None
-            current_volume = None
-            current_time = None
-            price_change = 0
-            price_change_pct = 0
-            
-            try:
-                # Use get_current_market_price() to fetch current price
-                if st.session_state.get('global_ibkr_connected', False):
-                    collector = st.session_state.global_ibkr
-                    current_price = collector.get_current_market_price(selected_symbol, "EUR")
-                    current_time = datetime.now()
-                    current_volume = 0  # Volume not available from get_current_market_price()
-                    
-                    if current_price:
-                        logger.debug(f"[UI] Got {selected_symbol} from get_current_market_price(): {current_price}€")
-                else:
-                    st.error("❌ IBKR not connected! Click 'Connecter à IBKR' first")
-                    st.session_state.live_running = False
-            except Exception as e:
-                logger.error(f"Error collecting live data: {e}", exc_info=True)
-                st.warning(f"⚠️ Erreur lors de la collecte: {e}")
-            
-            if current_price:  # Only update metrics if we have data
-                # Get previous close
-                if len(st.session_state.live_data['price']) > 0:
-                    prev_close = st.session_state.live_data['price'][-1]
-                else:
-                    prev_close = current_price
-                
-                # Calculate change
-                price_change = current_price - prev_close
-                price_change_pct = (price_change / prev_close * 100) if prev_close else 0
-                
-                # Add to live data - ALWAYS add to build up history
-                # Don't check if price changed - add every point for smooth graphing
-                st.session_state.live_data['time'].append(current_time)
-                st.session_state.live_data['price'].append(current_price)
-                st.session_state.live_data['open'].append(current_price)  # Simplified for live data
-                st.session_state.live_data['high'].append(current_price)
-                st.session_state.live_data['low'].append(current_price)
-                st.session_state.live_data['volume'].append(current_volume)
-                
-                # Update metrics
-                price_placeholder.metric(
-                    "Prix Actuel",
-                    f"{current_price:.2f} €",
-                    f"{price_change:+.2f} ({price_change_pct:+.2f}%)"
-                )
-                
-                change_placeholder.metric(
-                    "Variation",
-                    f"{price_change_pct:+.2f}%",
-                    f"{price_change:+.2f} €"
-                )
-                
-                volume_placeholder.metric(
-                    "Volume",
-                    f"{int(current_volume):,}" if current_volume else "N/A"
-                )
-                
-                time_placeholder.metric(
-                    "Dernière MAJ",
-                    current_time.strftime("%H:%M:%S")
-                )
-            
-            # Calculate indicators for live data if enough points
-            # (Always do this, even if no new price yet - keeps graph fresh)
-            signal_times = []
-            _ = []
-            signal_types = []
-            latest_rsi = None
-            latest_macd = None
-            latest_macd_signal = None
-            
-            # Create live DataFrame even with few points
-            live_df = None
-            if len(st.session_state.live_data['price']) > 0:
-                # Create DataFrame for indicator calculation
-                live_df = pd.DataFrame({
-                    'close': st.session_state.live_data['price'],
-                    'time': st.session_state.live_data['time']
-                })
-                
-                # Add OHLCV data if available (from historical data)
-                if 'open' in st.session_state.live_data and len(st.session_state.live_data['open']) > 0:
-                    live_df['high'] = st.session_state.live_data.get('high', live_df['close'])
-                    live_df['low'] = st.session_state.live_data.get('low', live_df['close'])
-                    live_df['open'] = st.session_state.live_data.get('open', live_df['close'])
-                    live_df['volume'] = st.session_state.live_data.get('volume', [0] * len(live_df))
-                else:
-                    # Approximation for line chart if no OHLCV data
-                    live_df['high'] = live_df['close']
-                    live_df['low'] = live_df['close']
-                    live_df['open'] = live_df['close']
-                    live_df['volume'] = 0
-                
-                # Only calculate indicators if enough points (50+)
-                if len(st.session_state.live_data['price']) >= 50:
-                    # Calculate indicators
-                    from backend.technical_indicators import calculate_and_update_indicators
-                    live_df = calculate_and_update_indicators(live_df, save_to_db=False)
-                    
-                    # Determine buy/sell signals based on selected strategy
-                    latest_rsi = live_df['rsi_14'].iloc[-1] if 'rsi_14' in live_df.columns else None
-                    latest_macd = live_df['macd'].iloc[-1] if 'macd' in live_df.columns else None
-                    latest_macd_signal = live_df['macd_signal'].iloc[-1] if 'macd_signal' in live_df.columns else None
-                    
-                    signal = "NEUTRE"
-                    signal_color = "gray"
-                    
-                    # Apply strategy if selected - using StrategyAdapter for ALL strategy types
-                    if selected_strategy:
-                        try:
-                            from backend.strategy_adapter import StrategyAdapter
-                            
-                            # Generate signals using the adapter (works for simple AND complex strategies)
-                            signal_times, signal_prices, signal_types = StrategyAdapter.generate_signals(live_df, selected_strategy)
-                            
-                            # Get current signal
-                            signal, signal_color = StrategyAdapter.get_current_signal(live_df, selected_strategy)
-                            
-                        except Exception as e:
-                            st.warning(f"⚠️ Erreur lors de l'évaluation de la stratégie: {e}")
-                            import traceback
-                            st.code(traceback.format_exc())
-                            # Fallback to simple strategy
-                            if latest_rsi and latest_macd and latest_macd_signal:
-                                if latest_rsi < 30 and latest_macd > latest_macd_signal:
-                                    signal = "ACHAT 🟢"
-                                    signal_color = "green"
-                                elif latest_rsi > 70 and latest_macd < latest_macd_signal:
-                                    signal = "VENTE 🔴"
-                                    signal_color = "red"
-                    else:
-                        # Simple default strategy logic if no strategy selected
-                        if latest_rsi and latest_macd and latest_macd_signal:
-                            if latest_rsi < 30 and latest_macd > latest_macd_signal:
-                                signal = "ACHAT 🟢"
-                                signal_color = "green"
-                            elif latest_rsi > 70 and latest_macd < latest_macd_signal:
-                                signal = "VENTE 🔴"
-                                signal_color = "red"
-                else:
-                    signal = f"Calcul... ({len(st.session_state.live_data['price'])}/50 points)"
-                    signal_color = "orange"
-            else:
-                signal = "En attente de données..."
-                signal_color = "orange"
-            
-            # DEBUG: Display collected data as table (simple version)
-            st.markdown("---")
-            st.subheader("📊 Données Collectées")
-            
-            if len(st.session_state.live_data['time']) > 0:
-                # Create a simple dataframe to display
-                debug_data = []
-                for t, p in zip(st.session_state.live_data['time'], st.session_state.live_data['price']):
-                    debug_data.append({
-                        'Heure': t.strftime("%H:%M:%S") if hasattr(t, 'strftime') else str(t),
-                        'Prix (€)': f"{p:.2f}"
-                    })
-                
-                st.dataframe(debug_data, width='stretch')
-                st.info(f"✅ {len(debug_data)} points collectés")
-            else:
-                st.warning("⏳ En attente de données...")
-            
-            # Auto-refresh: Use client-side polling instead of st.rerun()
-            # This is more stable and doesn't break after a few iterations
-            if st.session_state.get('live_running'):
-                import time as time_module_local_2
-                st.markdown(f"<meta http-equiv='refresh' content='3'>", unsafe_allow_html=True)
-                # Alternative: just display data, let browser auto-refresh
-                time_module_local_2.sleep(0.1)  # Small sleep to prevent tight loop
+        if not latest_records:
+            st.info("⏳ Aucune donnée. Cliquez sur 'Démarrer' pour commencer la collecte.")
         else:
-            # Not running - show static message
-            st.info("👆 Cliquez sur 'Démarrer' pour afficher les cours en temps réel")
+            # Display metrics
+            latest = latest_records[-1]
+            prev = latest_records[-2] if len(latest_records) > 1 else latest
             
+            metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+            
+            with metric_col1:
+                st.metric("Prix Actuel", f"{latest.close:.2f} €")
+            
+            with metric_col2:
+                change = latest.close - prev.close
+                change_pct = (change / prev.close * 100) if prev.close else 0
+                st.metric("Variation", f"{change_pct:+.2f}%", f"{change:+.2f} €")
+            
+            with metric_col3:
+                st.metric("Nombre de points", len(latest_records))
+            
+            with metric_col4:
+                timestamp_str = latest.timestamp.strftime("%H:%M:%S") if hasattr(latest.timestamp, 'strftime') else str(latest.timestamp)
+                st.metric("Dernière MAJ", timestamp_str)
+            
+            st.markdown("---")
+            
+            # Create and display chart
+            fig = go.Figure()
+            
+            times = [rec.timestamp for rec in latest_records]
+            prices = [rec.close for rec in latest_records]
+            
+            fig.add_trace(go.Scatter(
+                x=times,
+                y=prices,
+                mode='lines+markers',
+                name=f'{selected_symbol}',
+                line=dict(color='#00D9FF', width=2),
+                marker=dict(size=6),
+                fill='tozeroy',
+                fillcolor='rgba(0, 217, 255, 0.1)'
+            ))
+            
+            fig.update_layout(
+                title=f"{selected_symbol} - Cours Live",
+                xaxis_title="Heure",
+                yaxis_title="Prix (€)",
+                hovermode='x unified',
+                height=500,
+                margin=dict(l=50, r=50, t=50, b=50)
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Auto-refresh when collecting
+            if is_active:
+                st.markdown("<meta http-equiv='refresh' content='3'>", unsafe_allow_html=True)
+    
     finally:
         db.close()
-
-
 
 
 def trading_page():
