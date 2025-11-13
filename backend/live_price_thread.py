@@ -21,7 +21,8 @@ class LivePriceCollector:
         self.running = False
         self.symbol: Optional[str] = None
         self.interval = 3  # seconds between price collections
-        # No persistent collector - use temporary connections like dashboard
+        self.ib: Optional['IB'] = None  # Persistent connection for this thread
+        self.ticker = None  # Current market ticker object
     
     def start(self, symbol: str, interval: int = 3) -> bool:
         """
@@ -65,105 +66,80 @@ class LivePriceCollector:
         return True
     
     def _collect_prices(self):
-        """Background thread function - runs continuously"""
+        """Background thread function - runs continuously with persistent connection"""
         db: Optional[Session] = None
         
         try:
             # Initialize database connection for this thread
             db = SessionLocal()
             
+            # Initialize persistent IBKR connection for real-time data
+            from ib_insync import IB, Stock
+            import time as time_module
+            
+            self.ib = IB()
+            logger.info(f"[LivePriceCollector] Connecting to IBKR (clientId=201) for {self.symbol}...")
+            self.ib.connect('127.0.0.1', 4002, clientId=201)
+            
+            # Wait for connection
+            for i in range(20):  # 4 seconds max
+                time_module.sleep(0.2)
+                if self.ib.isConnected():
+                    logger.info(f"[LivePriceCollector] ✅ Connected to IBKR after {(i+1)*0.2:.1f}s")
+                    break
+            
+            if not self.ib.isConnected():
+                logger.error(f"[LivePriceCollector] Failed to connect to IBKR for {self.symbol}")
+                return
+            
+            # Request live market data - connection stays open to receive updates
+            contract = Stock(self.symbol, 'SMART', 'EUR')
+            self.ticker = self.ib.reqMktData(contract, '', False, False)
+            
             logger.info(f"[LivePriceCollector] Starting price collection for {self.symbol}")
             
             while self.running:
                 try:
-                    # Get current market price using TEMPORARY connection (like dashboard)
-                    # This avoids conflicts with other connections
-                    price = self._get_price_from_temporary_connection(self.symbol)
-                    
-                    if price is not None:
-                        # Save to database
-                        self._save_price_to_db(db, self.symbol, price)
-                        logger.info(f"[LivePriceCollector] {self.symbol}: {price}€ saved to DB")
+                    # Get current price from persistent connection
+                    if self.ticker.last > 0:
+                        price = self.ticker.last
+                        logger.info(f"[LivePriceCollector] {self.symbol}: {price}€ @ {self.ticker.time}")
+                    elif self.ticker.close > 0:
+                        price = self.ticker.close
+                        logger.info(f"[LivePriceCollector] {self.symbol}: {price}€ (close) @ {self.ticker.time}")
                     else:
-                        logger.warning(f"[LivePriceCollector] No price retrieved for {self.symbol}")
+                        logger.warning(f"[LivePriceCollector] No price available")
+                        time_module.sleep(self.interval)
+                        continue
+                    
+                    # Save to database
+                    self._save_price_to_db(db, self.symbol, price)
+                    logger.info(f"[LivePriceCollector] {self.symbol}: {price}€ saved to DB")
                     
                     # Wait before next collection
-                    time.sleep(self.interval)
+                    time_module.sleep(self.interval)
                     
                 except Exception as e:
                     logger.error(f"[LivePriceCollector] Error collecting price: {e}", exc_info=True)
-                    time.sleep(self.interval)
+                    time_module.sleep(self.interval)
         
         except Exception as e:
             logger.error(f"[LivePriceCollector] Fatal error: {e}", exc_info=True)
         
         finally:
             # Cleanup
+            if self.ib:
+                try:
+                    self.ib.disconnect()
+                    logger.info(f"[LivePriceCollector] Disconnected from IBKR")
+                except:
+                    pass
+            
             if db:
                 db.close()
             
             logger.info(f"[LivePriceCollector] Thread ended for {self.symbol}")
-    
-    def _get_price_from_temporary_connection(self, symbol: str) -> Optional[float]:
-        """Get price using temporary IBKR connection - real-time market data"""
-        try:
-            from ib_insync import IB, Stock
-            import time as time_module
-            
-            # Create temporary connection like dashboard does
-            ib = IB()
-            
-            try:
-                logger.debug(f"[LivePriceCollector] Connecting to IBKR for {symbol}...")
-                ib.connect('127.0.0.1', 4002, clientId=200)
-                
-                # Wait for connection with timeout
-                max_wait = 10  # 10 * 0.2s = 2 seconds max
-                for i in range(max_wait):
-                    time_module.sleep(0.2)
-                    if ib.isConnected():
-                        logger.debug(f"[LivePriceCollector] Connected after {(i+1)*0.2:.1f}s")
-                        break
-                
-                if not ib.isConnected():
-                    logger.warning(f"[LivePriceCollector] Failed to connect to IBKR for {symbol} after 2s")
-                    return None
-                
-                # Create fresh contract
-                contract = Stock(symbol, 'SMART', 'EUR')
-                
-                # Request real-time market data (bid/ask/last)
-                ticker = ib.reqMktData(contract, '', False, False)
-                
-                # Wait for data with timeout (max 2 seconds)
-                for i in range(10):
-                    time_module.sleep(0.2)
-                    if ticker.last > 0:
-                        price = ticker.last
-                        logger.info(f"[LivePriceCollector] {symbol}: {price}€ @ {ticker.time} (last trade)")
-                        return price
-                    elif ticker.close > 0:
-                        price = ticker.close
-                        logger.info(f"[LivePriceCollector] {symbol}: {price}€ @ {ticker.time} (close)")
-                        return price
-                
-                logger.warning(f"[LivePriceCollector] No market data for {symbol}")
-                return None
-                    
-            except Exception as e:
-                logger.error(f"[LivePriceCollector] Error: {e}")
-                return None
-            finally:
-                try:
-                    ib.disconnect()
-                except:
-                    pass
-                    
-        except Exception as e:
-            logger.error(f"[LivePriceCollector] Error getting price: {e}", exc_info=True)
-            return None
 
-    
     def _save_price_to_db(self, db: Session, symbol: str, price: float) -> bool:
         """Save price to database"""
         try:
