@@ -310,8 +310,51 @@ def dashboard_page():
     """Dashboard page - Uses global IBKR connection"""
     st.header(MENU_DASHBOARD)
     
-    # Initialize session state
+    # Initialize session state for auto-refresh
+    if 'dashboard_auto_refresh' not in st.session_state:
+        st.session_state.dashboard_auto_refresh = False
+    if 'dashboard_last_refresh' not in st.session_state:
+        st.session_state.dashboard_last_refresh = 0
+    
+    # Initialize global IBKR connection
     init_global_ibkr_connection()
+    
+    # Refresh controls
+    col_refresh1, col_refresh2 = st.columns([3, 1])
+    
+    with col_refresh1:
+        auto_refresh = st.toggle(
+            "🔄 Auto-refresh toutes les 5s",
+            value=st.session_state.dashboard_auto_refresh,
+            help="Actualise automatiquement les positions et les données du compte"
+        )
+        if auto_refresh != st.session_state.dashboard_auto_refresh:
+            st.session_state.dashboard_auto_refresh = auto_refresh
+            if auto_refresh:
+                st.session_state.dashboard_last_refresh = time_module.time()
+            st.rerun()
+    
+    with col_refresh2:
+        if st.button("🔄 Rafraîchir", use_container_width=True):
+            st.session_state.dashboard_last_refresh = time_module.time()
+            st.rerun()
+    
+    # Auto-refresh logic
+    if st.session_state.dashboard_auto_refresh and st.session_state.get('global_ibkr_connected', False):
+        current_time = time_module.time()
+        # Check if 5 seconds have passed
+        if current_time - st.session_state.dashboard_last_refresh >= 5:
+            st.session_state.dashboard_last_refresh = current_time
+            st.rerun()
+        
+        # Show countdown to next refresh
+        time_until_next = 5 - (current_time - st.session_state.dashboard_last_refresh)
+        if time_until_next > 0:
+            st.caption(f"⏱️ Prochaine actualisation dans {int(time_until_next)}s")
+            time_module.sleep(0.5)
+            st.rerun()
+    
+    st.markdown("---")
     
     # Debug: Show connection state
     # st.caption(f"Debug: Connected={st.session_state.get('global_ibkr_connected', False)}, Collector={st.session_state.get('global_ibkr') is not None}")
@@ -410,47 +453,74 @@ def dashboard_page():
             st.markdown("---")
             
             # Get positions from OrderManager (trading positions)
-            st.subheader("� Positions Trading (via OrderManager)")
-            
-            if 'order_manager' not in st.session_state or st.session_state.order_manager is None:
-                from backend.order_manager import OrderManager
-                st.session_state.order_manager = OrderManager(collector)
+            st.subheader("📊 Positions Trading (via IBKR)")
             
             try:
-                trading_positions = st.session_state.order_manager.get_positions()
+                # Get positions using collector's method
+                positions_list = []
                 
-                if trading_positions:
+                try:
+                    # Force IBKR to refresh portfolio data
+                    if hasattr(collector, 'ib') and collector.ib.isConnected():
+                        # Clear the local cache and fetch fresh positions
+                        # Wait a moment for pending updates to settle
+                        time_module.sleep(0.2)
+                        
+                        # Get raw positions from IBKR
+                        ib_positions = collector.ib.positions()
+                        
+                        for pos in ib_positions:
+                            positions_list.append({
+                                'symbol': pos.contract.symbol,
+                                'position': pos.position,
+                                'avg_cost': pos.avgCost,
+                                'market_price': pos.marketPrice if hasattr(pos, 'marketPrice') and pos.marketPrice else pos.avgCost,
+                                'market_value': pos.marketValue if hasattr(pos, 'marketValue') and pos.marketValue else (pos.position * pos.avgCost),
+                                'unrealized_pnl': pos.unrealizedPNL if hasattr(pos, 'unrealizedPNL') else None,
+                                'currency': pos.contract.currency,
+                                'exchange': pos.contract.exchange
+                            })
+                    else:
+                        st.write("⚠️ IBKR NOT connected")
+                except Exception as e:
+                    st.error(f"Erreur lors de la récupération des positions IBKR: {e}")
+                    logger.error(f"Direct IBKR fetch error: {e}")
+                
+                if positions_list:
                     import pandas as pd
                     pos_data = []
-                    for pos in trading_positions:
-                        pos_data.append({
-                            'Symbole': pos['symbol'],
-                            'Quantité': pos['position'],
-                            'Prix Moyen': f"{pos['avg_cost']:.2f} {pos['currency']}",
-                            'Prix Marché': f"{pos['market_price']:.2f} {pos['currency']}" if pos['market_price'] else 'N/A',
-                            'Valeur': f"{pos['market_value']:.2f} {pos['currency']}" if pos['market_value'] else 'N/A',
-                            'P&L Non Réalisé': f"{pos['unrealized_pnl']:+.2f} {pos['currency']}" if pos['unrealized_pnl'] else 'N/A',
-                            'Exchange': pos['exchange']
-                        })
-                    
-                    positions_df = pd.DataFrame(pos_data)
-                    st.dataframe(positions_df, width='stretch', hide_index=True)
-                    
-                    # Summary
-                    total_value = sum(p['market_value'] for p in trading_positions if p['market_value'])
-                    total_upnl = sum(p['unrealized_pnl'] for p in trading_positions if p['unrealized_pnl'])
-                    
-                    col_pos1, col_pos2, col_pos3 = st.columns(3)
-                    with col_pos1:
-                        st.metric("Nombre de positions", len(trading_positions))
-                    with col_pos2:
-                        st.metric("Valeur totale", f"{total_value:,.2f} €")
-                    with col_pos3:
-                        pnl_color = "normal" if total_upnl >= 0 else "inverse"
-                        st.metric("P&L Total Non Réalisé", f"{total_upnl:+,.2f} €", delta_color=pnl_color)
+                    try:
+                        for pos in positions_list:
+                            pos_data.append({
+                                'Symbole': pos['symbol'],
+                                'Quantité': int(pos['position']),
+                                'Prix Moyen': f"{float(pos['avg_cost']):.2f} {pos['currency']}",
+                                'Prix Marché': f"{float(pos['market_price']):.2f} {pos['currency']}" if pos.get('market_price') else 'N/A',
+                                'Valeur': f"{float(pos['market_value']):.2f} {pos['currency']}" if pos.get('market_value') else 'N/A',
+                                'P&L': f"{float(pos.get('unrealized_pnl', 0)):.2f}" if pos.get('unrealized_pnl') else 'N/A',
+                                'Bourse': pos['exchange']
+                            })
+                        
+                        positions_df = pd.DataFrame(pos_data)
+                        st.dataframe(positions_df, use_container_width=True)
+                        
+                        # Summary
+                        total_value = sum(float(p['market_value']) for p in positions_list if p.get('market_value'))
+                        total_upnl = sum(float(p.get('unrealized_pnl', 0)) for p in positions_list if p.get('unrealized_pnl'))
+                        
+                        col_pos1, col_pos2, col_pos3 = st.columns(3)
+                        with col_pos1:
+                            st.metric("Positions", len(positions_list))
+                        with col_pos2:
+                            st.metric("Valeur", f"{total_value:,.2f} €")
+                        with col_pos3:
+                            st.metric("P&L", f"{total_upnl:+,.2f} €")
+                    except Exception as e2:
+                        st.error(f"Erreur lors de l'affichage: {e2}")
+                        import traceback
+                        logger.error(traceback.format_exc())
                 else:
-                    st.info("ℹ️ Aucune position ouverte pour le moment")
-                    st.caption("Les positions apparaîtront ici après l'exécution de vos ordres")
+                    st.info("ℹ️ Aucune position ouverte")
                     
             except Exception as e:
                 logger.error(f"Error getting trading positions: {e}")
@@ -458,31 +528,8 @@ def dashboard_page():
             
             st.markdown("---")
             
-            # Get positions
-            st.subheader("�📊 Positions Actuelles (via Collector)")
-            
-            positions = None
-            try:
-                if hasattr(collector, 'get_positions'):
-                    positions = collector.get_positions()
-            except Exception as e:
-                logger.warning(f"Could not get positions: {e}")
-                st.warning(f"⚠️ Impossible de récupérer les positions: {e}")
-            
-            if positions:
-                import pandas as pd
-                positions_df = pd.DataFrame(positions)
-                st.dataframe(positions_df, width='stretch')
-            else:
-                st.info("ℹ️ Aucune position ouverte")
-            
-        else:
-            st.warning("⚠️ Impossible de récupérer les données du compte")
-        
-        st.markdown("---")
-        
-        # Recent trades
-        st.subheader("📋 Derniers Trades")
+            # Recent trades
+            st.subheader("📋 Derniers Trades")
         
         try:
             # Get trades (fills) with protection
