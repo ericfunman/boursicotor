@@ -20,20 +20,8 @@ LOGS_DIR.mkdir(exist_ok=True)
 DATA_DIR.mkdir(exist_ok=True)
 MODELS_DIR.mkdir(exist_ok=True)
 
-# Database Configuration
-DB_TYPE = os.getenv("DB_TYPE", "postgresql")
-
-if DB_TYPE == "sqlite":
-    DATABASE_URL = f"sqlite:///{BASE_DIR / os.getenv('DB_NAME', 'boursicotor.db')}"
-else:
-    DB_CONFIG = {
-        "host": os.getenv("DB_HOST", "localhost"),
-        "port": int(os.getenv("DB_PORT", 5432)),
-        "database": os.getenv("DB_NAME", "boursicotor"),
-        "user": os.getenv("DB_USER", "postgres"),
-        "password": os.getenv("DB_PASSWORD", ""),
-    }
-    DATABASE_URL = f"postgresql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}?client_encoding=utf8"
+# Database Configuration - SQLite only (no PostgreSQL dependency)
+DATABASE_URL = f"sqlite:///{BASE_DIR / os.getenv('DB_NAME', 'boursicotor.db')}"
 
 # Interactive Brokers Configuration
 IBKR_CONFIG = {

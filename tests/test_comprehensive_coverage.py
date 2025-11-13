@@ -45,8 +45,9 @@ def test_config_db_url():
 
 
 def test_config_db_type():
-    from backend.config import DB_TYPE
-    assert DB_TYPE is not None
+    from backend.config import DATABASE_URL
+    assert DATABASE_URL is not None
+    assert "sqlite" in DATABASE_URL  # Should use SQLite only
 
 
 def test_config_base_paths():

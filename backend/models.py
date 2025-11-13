@@ -65,9 +65,6 @@ if DATABASE_URL.startswith("sqlite://"):
     
     from sqlalchemy import event
     event.listen(engine, "connect", on_connect)
-else:
-    # PostgreSQL configuration
-    engine = create_engine(DATABASE_URL, echo=False, pool_size=10, max_overflow=20)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
