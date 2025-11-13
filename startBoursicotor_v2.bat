@@ -216,7 +216,8 @@ echo.
 echo Appuyez sur Ctrl+C pour arreter Streamlit
 echo.
 
-"%~dp0venv\Scripts\streamlit.exe" run "%~dp0frontend\app.py"
+REM Lancer Streamlit via python -m au lieu de l'executable
+"%~dp0venv\Scripts\python.exe" -m streamlit run "%~dp0frontend\app.py"
 
 REM Streamlit s'est arrete
 echo.
