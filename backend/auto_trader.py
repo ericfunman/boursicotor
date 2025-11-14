@@ -249,7 +249,8 @@ class AutoTrader:
     
     def _fetch_live_price(self) -> Optional[Dict]:
         """
-        Fetch current live price using IBKR
+        Fetch current live price from database (mirrors live_prices_page approach)
+        Returns latest HistoricalData for today if available, else tries IBKR
         
         Returns:
             Dictionary with price data or None if failed
@@ -257,22 +258,42 @@ class AutoTrader:
         try:
             logger.debug(f"Fetching live price for {self.ticker.symbol}...")
             
-            # Try IBKR first (real-time data)
+            db = SessionLocal()
+            try:
+                # First try to get latest price from database (like live_prices_page does)
+                latest_records = db.query(HistoricalData).filter(
+                    HistoricalData.ticker_id == self.ticker.id,
+                    HistoricalData.interval == '1day'
+                ).order_by(HistoricalData.timestamp.desc()).limit(2).all()
+                
+                if latest_records:
+                    latest = latest_records[0]
+                    logger.debug(f"Got price from DB: {latest.close:.2f} @ {latest.timestamp}")
+                    
+                    return {
+                        'timestamp': latest.timestamp,
+                        'open': latest.open,
+                        'high': latest.high,
+                        'low': latest.low,
+                        'close': latest.close,
+                        'volume': latest.volume if latest.volume else 0
+                    }
+                else:
+                    logger.warning(f"No historical data in DB for {self.ticker.symbol}")
+            finally:
+                db.close()
+            
+            # Fallback to IBKR if no database data
             if self.ibkr_collector and self.ibkr_collector.ib.isConnected():
-                logger.debug("Using IBKR for live data...")
+                logger.debug("Fallback: Using IBKR for live data...")
                 
                 exchange, currency = self._get_contract_info()
-                logger.debug(f"Fetching IBKR contract for {self.ticker.symbol} on {exchange} ({currency})")
-                
-                # Use get_contract method which qualifies the contract properly
                 contract = self.ibkr_collector.get_contract(self.ticker.symbol, exchange, currency)
                 
                 if contract:
                     price_data = self._fetch_ibkr_price(contract)
                     if price_data:
                         return price_data
-                else:
-                    logger.warning(f"Could not get IBKR contract for {self.ticker.symbol}")
             
             logger.warning(f"❌ Could not fetch live price for {self.ticker.symbol}")
             return None
@@ -396,15 +417,15 @@ class AutoTrader:
                 logger.info(f"🎯 Signal detected: {action} {quantity} {self.ticker.symbol} @ {current_price}")
                 
                 # Create and execute order
-                order_id = self.order_manager.create_order(
-                    ticker_symbol=self.ticker.symbol,
+                order = self.order_manager.create_order(
+                    symbol=self.ticker.symbol,
                     action=action,
                     order_type="MARKET",
                     quantity=quantity,
                     strategy_id=self.strategy.id
                 )
                 
-                if order_id:
+                if order:
                     # Update session
                     session.total_orders += 1
                     session.last_signal = action
@@ -418,7 +439,7 @@ class AutoTrader:
                     
                     db.commit()
                     
-                    logger.info(f"✅ Order #{order_id} created: {action} {quantity} {self.ticker.symbol}")
+                    logger.info(f"✅ Order #{order.id} created: {action} {quantity} {self.ticker.symbol}")
                 else:
                     session.failed_orders += 1
                     db.commit()

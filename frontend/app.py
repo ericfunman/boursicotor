@@ -4175,8 +4175,13 @@ def auto_trading_page():
         
         st.markdown("---")
         
-        # Tabs
-        tab1, tab2, tab3 = st.tabs(["🆕 Nouvelle Session", "▶️ Sessions Actives", "📜 Historique"])
+        # Initialize tab state
+        if 'auto_trading_active_tab' not in st.session_state:
+            st.session_state.auto_trading_active_tab = 0
+        
+        # Tabs with default to saved state
+        tab_labels = ["🆕 Nouvelle Session", "▶️ Sessions Actives", "📜 Historique"]
+        tab1, tab2, tab3 = st.tabs(tab_labels)
         
         # ========== TAB 1: NOUVELLE SESSION ==========
         with tab1:
@@ -4291,6 +4296,8 @@ def auto_trading_page():
                             manager.start_session(session_id)
                             
                             st.success(f"✅ Session #{session_id} créée et démarrée !")
+                            # Switch to Active Sessions tab
+                            st.session_state.auto_trading_active_tab = 1
                             time_module.sleep(1)
                             st.rerun()
             
