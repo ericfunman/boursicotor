@@ -577,6 +577,11 @@ class AutoTraderManager:
             
             result = []
             for session in sessions:
+                # Skip sessions with orphaned references
+                if session.ticker is None or session.strategy is None:
+                    logger.warning(f"Skipping session #{session.id}: orphaned ticker or strategy")
+                    continue
+                
                 result.append({
                     'id': session.id,
                     'ticker': session.ticker.symbol,

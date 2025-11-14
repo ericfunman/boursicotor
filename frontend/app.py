@@ -4201,8 +4201,13 @@ def auto_trading_page():
                         st.warning("⚠️ Aucune stratégie disponible. Créez une stratégie via 'Backtesting'.")
                         return
                     
-                    # Ticker selection
-                    ticker_options = {f"{t.symbol} - {t.name}": t.id for t in tickers}
+                    # Ticker selection - Filter out tickers with missing names
+                    valid_tickers = [t for t in tickers if t.name is not None]
+                    if not valid_tickers:
+                        st.error("❌ Aucun ticker valide (noms manquants). Vérifiez vos données.")
+                        return
+                    
+                    ticker_options = {f"{t.symbol} - {t.name}": t.id for t in valid_tickers}
                     selected_ticker_display = st.selectbox("Action à trader", list(ticker_options.keys()))
                     selected_ticker_id = ticker_options[selected_ticker_display]
                     
