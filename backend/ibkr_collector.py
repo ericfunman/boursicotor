@@ -491,8 +491,8 @@ class IBKRCollector:
                 
                 try:
                     # Format date for IBKR with timezone to avoid Warning 2174
-                    # UseTIMEZONE_PARIS timezone for European stocks
-                    end_datetime = end_date.strftime('%Y%m%d %H:%M:%S') + 'TIMEZONE_PARIS'
+                    # Use TIMEZONE_PARIS timezone for European stocks
+                    end_datetime = end_date.strftime('%Y%m%d %H:%M:%S') + TIMEZONE_PARIS
                     
                     bars = self.ib.reqHistoricalData(
                         contract,
@@ -1071,8 +1071,8 @@ class IBKRCollector:
                         errors.append(f"Chunk {chunk_idx + 1}: Failed to get contract")
                         continue
                     
-                    # Request data with timezone to avoid Warning 2174
-                    end_datetime = chunk_end_date.strftime('%Y%m%d %H:%M:%S') + 'TIMEZONE_PARIS'
+                    # Request data with proper timezone format: yyyymmdd hh:mm:ss TZ/Zone
+                    end_datetime = chunk_end_date.strftime('%Y%m%d %H:%M:%S') + ' Europe/Paris'
                     
                     bars = self.ib.reqHistoricalData(
                         contract,
@@ -1354,7 +1354,7 @@ class IBKRCollector:
                         continue
                     
                     # Request historical data for this chunk with timezone to avoid Warning 2174
-                    end_datetime = end_date.strftime('%Y%m%d %H:%M:%S') + 'TIMEZONE_PARIS'
+                    end_datetime = end_date.strftime('%Y%m%d %H:%M:%S') + TIMEZONE_PARIS
                     
                     bars = self.ib.reqHistoricalData(
                         contract,
