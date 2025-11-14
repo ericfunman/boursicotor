@@ -557,18 +557,20 @@ def dashboard_page():
                                 
                                 # Build positions list (moved outside ib_market connection check)
                                 for pos in ib_positions:
-                                    market_price = market_data.get(pos.contract.symbol, pos.avgCost)
-                                    market_value = pos.position * market_price
-                                    
-                                    positions_list.append({
-                                        'symbol': pos.contract.symbol,
-                                        'position': pos.position,
-                                        'avg_cost': pos.avgCost,
-                                        'market_price': market_price,
-                                        'market_value': market_value,
-                                        'currency': pos.contract.currency,
-                                        'exchange': pos.contract.exchange
-                                    })
+                                    # Only display positions with quantity > 0
+                                    if pos.position > 0:
+                                        market_price = market_data.get(pos.contract.symbol, pos.avgCost)
+                                        market_value = pos.position * market_price
+                                        
+                                        positions_list.append({
+                                            'symbol': pos.contract.symbol,
+                                            'position': pos.position,
+                                            'avg_cost': pos.avgCost,
+                                            'market_price': market_price,
+                                            'market_value': market_value,
+                                            'currency': pos.contract.currency,
+                                            'exchange': pos.contract.exchange
+                                        })
                             except Exception as e:
                                 st.error(f"Erreur marché: {e}")
                                 logger.error(f"Market fetch error: {e}")
@@ -646,7 +648,7 @@ def dashboard_page():
             
             if trades:
                 trades_data = []
-                for trade in trades[:20]:  # Last 20 trades
+                for trade in trades:  # Don't slice - sort properly below
                     fill = trade.execution
                     commission = getattr(fill, 'commission', None) or getattr(trade, 'commission', 0)
                     trades_data.append({
@@ -659,8 +661,11 @@ def dashboard_page():
                         "Compte": fill.acctNumber if hasattr(fill, 'acctNumber') else "N/A"
                     })
                 
+                # Sort by date descending (most recent first)
+                trades_data.sort(key=lambda x: x['Date'], reverse=True)
+                
                 import pandas as pd
-                st.dataframe(pd.DataFrame(trades_data), width='stretch')
+                st.dataframe(pd.DataFrame(trades_data[:20]), width='stretch')
             else:
                 st.info("ℹ️ Aucun trade récent. Passez des ordres dans l'onglet 'Trading' !")
         
