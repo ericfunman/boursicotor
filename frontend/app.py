@@ -4235,10 +4235,23 @@ def auto_trading_page():
                 st.warning("🟡 Non connecté à IBKR - Connectez-vous pour utiliser le trading automatique")
         
         with col_status2:
+            # Auto-refresh for live position updates
+            auto_refresh = st.checkbox("🔄 Auto-refresh (5s)", value=False, key="auto_refresh_trading")
+            
             if st.button(BTN_REFRESH, width='stretch'):
                 # Persist current tab before rerun - get from query_params or default to Sessions Actives (1)
                 if 'auto_trading_tab' not in st.query_params:
                     st.query_params['auto_trading_tab'] = '1'  # Default to Sessions Actives
+                st.rerun()
+        
+        # Auto-refresh logic - refreshes page every 5 seconds if enabled
+        if auto_refresh:
+            if 'last_trading_refresh' not in st.session_state:
+                st.session_state.last_trading_refresh = time_module.time()
+            
+            elapsed = time_module.time() - st.session_state.last_trading_refresh
+            if elapsed > 5:
+                st.session_state.last_trading_refresh = time_module.time()
                 st.rerun()
         
         st.markdown("---")
