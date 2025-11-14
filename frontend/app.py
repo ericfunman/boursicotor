@@ -4334,9 +4334,9 @@ def auto_trading_page():
                     max_daily_trades = st.number_input(
                         "Max trades par jour",
                         min_value=1,
-                        max_value=100,
+                        max_value=10000,
                         value=10,
-                        help="Limite de trades quotidiens"
+                        help="Limite de trades quotidiens (0 = illimité)"
                     )
                 
                 with col_param2:
