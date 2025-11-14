@@ -102,8 +102,8 @@ class AutoTrader:
             
             if self.ibkr_collector and self.ibkr_collector.ib.isConnected():
                 try:
-                    # Get contract info for IBKR request
-                    contract = self._get_contract_info()[0]
+                    # Get contract object for IBKR request
+                    contract = self.ibkr_collector.get_contract(self.ticker.symbol)
                     
                     # Request 1 day of 5-minute data (should cover today)
                     bars = self.ibkr_collector.ib.reqHistoricalData(
