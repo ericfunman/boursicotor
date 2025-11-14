@@ -477,12 +477,21 @@ def dashboard_page():
             col_pos1, col_pos2 = st.columns([3, 1])
             with col_pos2:
                 if st.button("🔄 Rafraîchir Positions", key="refresh_positions", width='stretch'):
-                    # Force refresh by clearing cache and reconnecting
+                    # Force refresh by requesting fresh positions from IBKR
                     try:
                         if collector and collector.ib and collector.ib.isConnected():
-                            # Request fresh account summary
-                            collector.ib.reqAccountSummary(9999, "All", "$LEDGER")
-                            st.success("✅ Positions rafraîchies depuis IBKR")
+                            # Cancel previous subscription if exists
+                            try:
+                                collector.ib.cancelPositions()
+                            except:
+                                pass
+                            
+                            # Request fresh positions directly from IBKR
+                            import time
+                            collector.ib.reqPositions()
+                            time.sleep(0.5)  # Give IBKR time to respond
+                            
+                            st.success("✅ Positions rafraîchies depuis IBKR (nouvelles données chargées)")
                     except Exception as e:
                         st.warning(f"⚠️ Erreur lors du rafraîchissement: {e}")
                     st.rerun()
@@ -493,9 +502,18 @@ def dashboard_page():
                 try:
                     # Get positions directly from IBKR broker
                     if hasattr(collector, 'ib') and collector.ib.isConnected():
-                        # Get positions from collector
+                        # Force a fresh request for positions from IBKR
+                        # (instead of using cached positions)
+                        import time as time_module_pos
+                        try:
+                            collector.ib.reqPositions()
+                            time_module_pos.sleep(0.3)  # Let IBKR send fresh data
+                        except:
+                            pass  # If reqPositions fails, continue with cached
+                        
+                        # Get positions from collector (now with fresh data)
                         ib_positions = collector.ib.positions()
-                        logger.info(f"Got {len(ib_positions)} positions from IBKR")
+                        logger.info(f"Got {len(ib_positions)} positions from IBKR (fresh request)")
                         
                         # Get market prices using separate connection with fixed clientId (like test script)
                         from ib_insync import IB
