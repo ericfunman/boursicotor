@@ -230,9 +230,9 @@ class AutoTrader:
     
     def _fetch_live_price(self) -> Optional[Dict]:
         """
-        Fetch current live price from live_price_thread collection
-        The live_price_thread continuously collects 1-min bars and saves to DB
-        This method retrieves those saved prices for the trading loop
+        Fetch current live price from DB (1min priority, fallback to 1day)
+        The live_price_thread collects 1-min bars, but data_collector also saves 1day data
+        This method prioritizes the most recent price regardless of interval
         
         Returns:
             Dictionary with price data or None if failed
@@ -240,18 +240,40 @@ class AutoTrader:
         try:
             logger.debug(f"Fetching live price for {self.ticker.symbol}...")
             
-            # Get prices collected by live_price_thread from DB (1-minute bars)
-            # These are collected every 10 seconds with real-time data
             db = SessionLocal()
             try:
-                # Query 1-minute bars (collected by live_price_thread)
-                latest_price = db.query(HistoricalData).filter(
+                # Priority 1: Query 1-minute bars (live_price_thread)
+                latest_1min = db.query(HistoricalData).filter(
                     HistoricalData.ticker_id == self.ticker.id,
-                    HistoricalData.interval == '1min'  # 1-minute bars from live_price_thread
+                    HistoricalData.interval == '1min'
                 ).order_by(HistoricalData.timestamp.desc()).first()
                 
+                # Priority 2: Query 1-day data (data_collector fallback)
+                latest_1day = db.query(HistoricalData).filter(
+                    HistoricalData.ticker_id == self.ticker.id,
+                    HistoricalData.interval == '1day'
+                ).order_by(HistoricalData.timestamp.desc()).first()
+                
+                # Use the most recent one
+                latest_price = None
+                source = ""
+                
+                if latest_1min and latest_1day:
+                    if latest_1min.timestamp > latest_1day.timestamp:
+                        latest_price = latest_1min
+                        source = "1min (live)"
+                    else:
+                        latest_price = latest_1day
+                        source = "1day (fallback)"
+                elif latest_1min:
+                    latest_price = latest_1min
+                    source = "1min (live)"
+                elif latest_1day:
+                    latest_price = latest_1day
+                    source = "1day (fallback)"
+                
                 if latest_price:
-                    logger.debug(f"Got live price from live_price_thread collection: {latest_price.close:.4f} @ {latest_price.timestamp}")
+                    logger.debug(f"Got live price from {source}: {latest_price.close:.4f} @ {latest_price.timestamp}")
                     return {
                         'timestamp': latest_price.timestamp,
                         'open': latest_price.open,
@@ -261,12 +283,11 @@ class AutoTrader:
                         'volume': latest_price.volume if latest_price.volume else 0
                     }
                 else:
-                    logger.warning(f"No 1-minute bar data collected for {self.ticker.symbol}")
+                    logger.warning(f"No price data available for {self.ticker.symbol}")
+                    return None
+                    
             finally:
                 db.close()
-            
-            logger.warning(f"❌ Could not fetch live price for {self.ticker.symbol} (no DB data)")
-            return None
             
         except Exception as e:
             logger.error(f"❌ Error fetching live price: {e}")
