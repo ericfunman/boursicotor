@@ -258,9 +258,25 @@ class AutoTrader:
         try:
             logger.debug(f"Fetching live price for {self.ticker.symbol}...")
             
+            # Priority 1: IBKR LIVE PRICE (intraday real-time data)
+            # This is essential for strategy signals to work with current prices
+            if self.ibkr_collector and self.ibkr_collector.ib.isConnected():
+                try:
+                    logger.debug(f"Requesting IBKR live price for {self.ticker.symbol}...")
+                    exchange, currency = self._get_contract_info()
+                    contract = self.ibkr_collector.get_contract(self.ticker.symbol, exchange, currency)
+                    
+                    if contract:
+                        price_data = self._fetch_ibkr_price(contract)
+                        if price_data:
+                            logger.debug(f"Got LIVE price from IBKR: {price_data['close']:.4f} @ {price_data['timestamp']}")
+                            return price_data
+                except Exception as e:
+                    logger.debug(f"Could not get IBKR live price: {e}")
+            
+            # Fallback: Database historical data (end-of-day cache, updated once per day)
             db = SessionLocal()
             try:
-                # First try to get latest price from database (like live_prices_page does)
                 latest_records = db.query(HistoricalData).filter(
                     HistoricalData.ticker_id == self.ticker.id,
                     HistoricalData.interval == '1day'
@@ -268,7 +284,7 @@ class AutoTrader:
                 
                 if latest_records:
                     latest = latest_records[0]
-                    logger.debug(f"Got price from DB: {latest.close:.2f} @ {latest.timestamp}")
+                    logger.debug(f"Fallback: Got cached price from DB: {latest.close:.2f} @ {latest.timestamp}")
                     
                     return {
                         'timestamp': latest.timestamp,
@@ -283,19 +299,7 @@ class AutoTrader:
             finally:
                 db.close()
             
-            # Fallback to IBKR if no database data
-            if self.ibkr_collector and self.ibkr_collector.ib.isConnected():
-                logger.debug("Fallback: Using IBKR for live data...")
-                
-                exchange, currency = self._get_contract_info()
-                contract = self.ibkr_collector.get_contract(self.ticker.symbol, exchange, currency)
-                
-                if contract:
-                    price_data = self._fetch_ibkr_price(contract)
-                    if price_data:
-                        return price_data
-            
-            logger.warning(f"❌ Could not fetch live price for {self.ticker.symbol}")
+            logger.warning(f"❌ Could not fetch live price for {self.ticker.symbol} (IBKR disconnected and no DB data)")
             return None
             
         except Exception as e:
