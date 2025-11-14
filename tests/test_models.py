@@ -231,3 +231,122 @@ class TestModelCreation:
         assert order.action == 'BUY'
         assert order.quantity == 100
         assert order.status == OrderStatus.PENDING
+
+
+class TestDatabaseConnection:
+    """Test database connection and configuration"""
+    
+    def test_session_local_exists(self):
+        """Test SessionLocal is properly configured"""
+        assert SessionLocal is not None
+        # Should be able to create a session
+        session = SessionLocal()
+        session.close()
+    
+    def test_get_db_generator(self):
+        """Test get_db is a generator function"""
+        from backend.models import get_db
+        
+        gen = get_db()
+        # Should be a generator
+        assert hasattr(gen, '__iter__')
+        assert hasattr(gen, '__next__')
+    
+    def test_engine_exists(self):
+        """Test engine is configured"""
+        assert engine is not None
+
+
+class TestEnumTypes:
+    """Test enum fields in models"""
+    
+    def test_order_status_enum_values(self):
+        """Test OrderStatus enum has expected values"""
+        from backend.models import OrderStatus
+        
+        # Check common status values exist
+        assert hasattr(OrderStatus, 'PENDING')
+        assert hasattr(OrderStatus, 'FILLED')
+    
+    def test_auto_trader_status_enum_values(self):
+        """Test AutoTraderStatus enum has expected values"""
+        from backend.models import AutoTraderStatus
+        
+        # Check status values exist
+        assert hasattr(AutoTraderStatus, 'RUNNING')
+
+
+class TestTickerModel:
+    """Test Ticker model"""
+    
+    def test_ticker_fields(self):
+        """Test Ticker has expected fields"""
+        from backend.models import Ticker
+        
+        ticker = Ticker(
+            symbol='TEST',
+            name='Test Company',
+            exchange='TEST',
+            currency='EUR'
+        )
+        
+        assert ticker.symbol == 'TEST'
+        assert ticker.name == 'Test Company'
+        assert ticker.exchange == 'TEST'
+        assert ticker.currency == 'EUR'
+    
+    def test_ticker_is_active_default(self):
+        """Test Ticker is_active can be set"""
+        from backend.models import Ticker
+        
+        ticker = Ticker(
+            symbol='TEST',
+            name='Test',
+            exchange='TEST',
+            currency='EUR',
+            is_active=True
+        )
+        
+        assert ticker.is_active is True
+
+
+class TestHistoricalDataModel:
+    """Test HistoricalData model"""
+    
+    def test_historical_data_fields(self):
+        """Test HistoricalData has expected fields"""
+        from backend.models import HistoricalData
+        from datetime import datetime, timezone
+        
+        now = datetime.now(timezone.utc)
+        data = HistoricalData(
+            ticker_id=1,
+            timestamp=now,
+            open=100.0,
+            high=105.0,
+            low=99.0,
+            close=102.5,
+            volume=1000000,
+            interval='1day'
+        )
+        
+        assert data.ticker_id == 1
+        assert data.timestamp == now
+        assert data.open == 100.0
+        assert data.close == 102.5
+    
+    def test_historical_data_precision(self):
+        """Test HistoricalData stores prices with precision"""
+        from backend.models import HistoricalData
+        from datetime import datetime, timezone
+        
+        now = datetime.now(timezone.utc)
+        price = 56.045
+        data = HistoricalData(
+            ticker_id=1,
+            timestamp=now,
+            close=price,
+            interval='1day'
+        )
+        
+        assert data.close == price

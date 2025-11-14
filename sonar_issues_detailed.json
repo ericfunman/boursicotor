@@ -1,209 +1,55 @@
 {
-  "python:S5914": [
-    {
-      "file": "tests/test_business_logic.py",
-      "line": 247,
-      "message": "Replace this expression; its boolean value is constant.",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "tests/test_high_impact_coverage.py",
-      "line": 434,
-      "message": "Replace this expression; its boolean value is constant.",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "tests/test_high_impact_coverage.py",
-      "line": 437,
-      "message": "Replace this expression; its boolean value is constant.",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "tests/test_comprehensive_coverage.py",
-      "line": 219,
-      "message": "Replace this expression; its boolean value is constant.",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "tests/test_comprehensive_coverage.py",
-      "line": 253,
-      "message": "Replace this expression; its boolean value is constant.",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "tests/test_config.py",
-      "line": 64,
-      "message": "Replace this expression; its boolean value is constant.",
-      "severity": "MAJOR"
-    }
-  ],
   "python:S1481": [
     {
       "file": "backend/data_collector.py",
-      "line": 394,
-      "message": "Replace the unused local variable \"meta_data\" with \"_\".",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 3869,
-      "message": "Remove the unused local variable \"status_emoji\".",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 3877,
-      "message": "Remove the unused local variable \"action_color\".",
-      "severity": "MINOR"
-    },
-    {
-      "file": "backend/security.py",
-      "line": 300,
-      "message": "Remove the unused local variable \"manager\".",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 3342,
-      "message": "Remove the unused local variable \"status\".",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 3119,
-      "message": "Replace the unused local variable \"message\" with \"_\".",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2723,
-      "message": "Remove the unused local variable \"redis_err\".",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 3968,
-      "message": "Replace the unused local variable \"col_clean1\" with \"_\".",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 3643,
-      "message": "Remove the unused local variable \"error_occurred\".",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 4022,
-      "message": "Remove the unused local variable \"pnl_str\".",
-      "severity": "MINOR"
-    },
-    {
-      "file": "backend/strategy_adapter.py",
-      "line": 201,
-      "message": "Replace the unused local variable \"signal_prices\" with \"_\".",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1855,
-      "message": "Replace the unused local variable \"col6\" with \"_\".",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2703,
-      "message": "Remove the unused local variable \"max_points\".",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2812,
-      "message": "Remove the unused local variable \"buy_signals\".",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2813,
-      "message": "Remove the unused local variable \"sell_signals\".",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2216,
-      "message": "Replace the unused local variable \"col_refresh2\" with \"_\".",
+      "line": 532,
+      "message": "Replace the unused loop index \"i\" with \"_\".",
       "severity": "MINOR"
     }
   ],
-  "python:S6709": [
+  "python:S3457": [
     {
-      "file": "frontend/app.py",
-      "line": 8,
-      "message": "Provide a seed for this random generator.",
+      "file": "backend/ibkr_collector.py",
+      "line": 1588,
+      "message": "Add replacement fields or use a normal string instead of an f-string.",
       "severity": "MAJOR"
-    }
-  ],
-  "python:S5713": [
-    {
-      "file": "backend/strategy_adapter.py",
-      "line": 23,
-      "message": "Remove this redundant Exception class; it derives from another which is already caught.",
-      "severity": "MINOR"
     },
     {
-      "file": "frontend/app.py",
-      "line": 4492,
-      "message": "Remove this redundant Exception class; it derives from another which is already caught.",
-      "severity": "MINOR"
+      "file": "backend/ibkr_collector.py",
+      "line": 1625,
+      "message": "Add replacement fields or use a normal string instead of an f-string.",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "backend/live_price_thread.py",
+      "line": 79,
+      "message": "Add replacement fields or use a normal string instead of an f-string.",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "backend/live_price_thread.py",
+      "line": 90,
+      "message": "Add replacement fields or use a normal string instead of an f-string.",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "backend/live_price_thread.py",
+      "line": 138,
+      "message": "Add replacement fields or use a normal string instead of an f-string.",
+      "severity": "MAJOR"
     }
   ],
   "python:S3776": [
     {
-      "file": "frontend/app.py",
-      "line": 2471,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 234 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 514,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 95 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/order_manager.py",
-      "line": 261,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 42 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 3100,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 67 to the 15 allowed.",
+      "file": "backend/live_price_thread.py",
+      "line": 69,
+      "message": "Refactor this function to reduce its Cognitive Complexity from 16 to the 15 allowed.",
       "severity": "CRITICAL"
     },
     {
       "file": "backend/ibkr_collector.py",
-      "line": 152,
+      "line": 163,
       "message": "Refactor this function to reduce its Cognitive Complexity from 40 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1183,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 93 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 3403,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 256 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1689,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 203 to the 15 allowed.",
       "severity": "CRITICAL"
     },
     {
@@ -213,804 +59,136 @@
       "severity": "CRITICAL"
     },
     {
-      "file": "frontend/app.py",
-      "line": 165,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 36 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/auto_trader.py",
-      "line": 214,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 31 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 4236,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 167 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/auto_trader.py",
-      "line": 328,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 17 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
       "file": "backend/order_manager.py",
-      "line": 810,
+      "line": 843,
       "message": "Refactor this function to reduce its Cognitive Complexity from 46 to the 15 allowed.",
       "severity": "CRITICAL"
     },
     {
-      "file": "frontend/app.py",
-      "line": 301,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 64 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/order_manager.py",
-      "line": 45,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 16 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/strategy_adapter.py",
-      "line": 32,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 18 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/strategy_adapter.py",
-      "line": 69,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 17 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/strategy_adapter.py",
-      "line": 224,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 18 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/strategy_manager.py",
-      "line": 25,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 21 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/strategy_manager.py",
-      "line": 144,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 17 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
       "file": "backend/ibkr_collector.py",
-      "line": 974,
+      "line": 984,
       "message": "Refactor this function to reduce its Cognitive Complexity from 39 to the 15 allowed.",
       "severity": "CRITICAL"
     },
     {
       "file": "backend/ibkr_collector.py",
-      "line": 805,
+      "line": 815,
       "message": "Refactor this function to reduce its Cognitive Complexity from 24 to the 15 allowed.",
       "severity": "CRITICAL"
     },
     {
       "file": "backend/ibkr_collector.py",
-      "line": 1139,
+      "line": 1149,
       "message": "Refactor this function to reduce its Cognitive Complexity from 70 to the 15 allowed.",
       "severity": "CRITICAL"
     },
     {
       "file": "backend/ibkr_collector.py",
-      "line": 381,
+      "line": 391,
       "message": "Refactor this function to reduce its Cognitive Complexity from 39 to the 15 allowed.",
       "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1436,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 19 to the 15 allowed.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1568,
-      "message": "Refactor this function to reduce its Cognitive Complexity from 17 to the 15 allowed.",
-      "severity": "CRITICAL"
     }
   ],
-  "python:S1192": [
+  "python:S5754": [
     {
-      "file": "frontend/app.py",
-      "line": 509,
-      "message": "Define a constant instead of duplicating this literal \"D\u00e9tails de l'erreur\" 6 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2218,
-      "message": "Define a constant instead of duplicating this literal \"\ud83d\udd04 Rafra\u00eechir\" 4 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1555,
-      "message": "Define a constant instead of duplicating this literal \"Prix (\u20ac)\" 4 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2977,
-      "message": "Define a constant instead of duplicating this literal 'x unified' 4 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/models.py",
-      "line": 158,
-      "message": "Define a constant instead of duplicating this literal \"tickers.id\" 5 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/models.py",
-      "line": 215,
-      "message": "Define a constant instead of duplicating this literal \"strategies.id\" 4 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 231,
-      "message": "Define a constant instead of duplicating this literal \"\ud83e\udd16 Trading Automatique\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 231,
-      "message": "Define a constant instead of duplicating this literal \"\ud83d\udcdd Passage d'Ordres\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 231,
-      "message": "Define a constant instead of duplicating this literal \"\u2699\ufe0f Param\u00e8tres\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 492,
-      "message": "Define a constant instead of duplicating this literal \"Quantit\u00e9\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 229,
-      "message": "Define a constant instead of duplicating this literal \"\ud83d\udcca Dashboard\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 229,
-      "message": "Define a constant instead of duplicating this literal \"\ud83d\udcbe Collecte de Donn\u00e9es\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 230,
-      "message": "Define a constant instead of duplicating this literal \"\ud83d\udcc8 Analyse Technique\" 4 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/ibkr_connector.py",
-      "line": 187,
-      "message": "Define a constant instead of duplicating this literal \"\u274c Pas connect\u00e9 \u00e0 IBKR\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1067,
-      "message": "Define a constant instead of duplicating this literal \"Date de d\u00e9but\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1076,
-      "message": "Define a constant instead of duplicating this literal \"Date de fin\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/ibkr_collector.py",
-      "line": 484,
-      "message": "Define a constant instead of duplicating this literal ' Europe/Paris' 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/ibkr_collector.py",
-      "line": 48,
-      "message": "Define a constant instead of duplicating this literal '5 secs' 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/ibkr_collector.py",
-      "line": 52,
-      "message": "Define a constant instead of duplicating this literal '1 min' 6 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/ibkr_collector.py",
-      "line": 55,
-      "message": "Define a constant instead of duplicating this literal '5 mins' 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/ibkr_collector.py",
-      "line": 57,
-      "message": "Define a constant instead of duplicating this literal '15 mins' 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/ibkr_collector.py",
-      "line": 59,
-      "message": "Define a constant instead of duplicating this literal '30 mins' 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/ibkr_collector.py",
-      "line": 60,
-      "message": "Define a constant instead of duplicating this literal '1 hour' 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/ibkr_collector.py",
-      "line": 64,
-      "message": "Define a constant instead of duplicating this literal '1 day' 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "backend/ibkr_collector.py",
-      "line": 1008,
-      "message": "Define a constant instead of duplicating this literal 'No data received' 4 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 322,
-      "message": "Define a constant instead of duplicating this literal \"--- \u20ac\" 4 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 607,
-      "message": "Define a constant instead of duplicating this literal \"1 jour\" 5 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 609,
-      "message": "Define a constant instead of duplicating this literal \"1 semaine\" 4 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 611,
-      "message": "Define a constant instead of duplicating this literal \"1 mois\" 4 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 627,
-      "message": "Define a constant instead of duplicating this literal \"5 secondes\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 628,
-      "message": "Define a constant instead of duplicating this literal \"10 secondes\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 630,
-      "message": "Define a constant instead of duplicating this literal \"30 secondes\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 631,
-      "message": "Define a constant instead of duplicating this literal \"1 minute\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 634,
-      "message": "Define a constant instead of duplicating this literal \"5 minutes\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 636,
-      "message": "Define a constant instead of duplicating this literal \"15 minutes\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 638,
-      "message": "Define a constant instead of duplicating this literal \"30 minutes\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 639,
-      "message": "Define a constant instead of duplicating this literal \"1 heure\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1670,
-      "message": "Define a constant instead of duplicating this literal \"RSI (14)\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1002,
-      "message": "Define a constant instead of duplicating this literal \"\u26a0\ufe0f Aucune donn\u00e9e disponible. Collectez des donn\u00e9es d'abord dans l'onglet 'Collecte de Donn\u00e9es'.\" 3 times.",
-      "severity": "CRITICAL"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2076,
-      "message": "Define a constant instead of duplicating this literal \"Win Rate\" 4 times.",
-      "severity": "CRITICAL"
-    }
-  ],
-  "python:S1172": [
-    {
-      "file": "backend/order_manager.py",
-      "line": 261,
-      "message": "Remove the unused function parameter \"trade\".",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "backend/auto_trader.py",
-      "line": 406,
-      "message": "Remove the unused function parameter \"price_data\".",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "backend/auto_trader.py",
-      "line": 406,
-      "message": "Remove the unused function parameter \"signals\".",
-      "severity": "MAJOR"
-    }
-  ],
-  "python:S6890": [
-    {
-      "file": "backend/models.py",
-      "line": 10,
-      "message": "Don't use `pytz` module with Python 3.9 and later.",
-      "severity": "CRITICAL"
-    }
-  ],
-  "python:S5886": [
-    {
-      "file": "backend/models.py",
-      "line": 21,
-      "message": "Return a value of type \"datetime\" instead of \"NoneType\" or update function \"datetime_paris\" type hint.",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "backend/strategy_manager.py",
-      "line": 110,
-      "message": "Return a value of type \"int\" instead of \"NoneType\" or update function \"save_strategy\" type hint.",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "backend/strategy_manager.py",
+      "file": "backend/live_price_thread.py",
       "line": 139,
-      "message": "Return a value of type \"int\" instead of \"NoneType\" or update function \"save_strategy\" type hint.",
-      "severity": "MAJOR"
+      "message": "Specify an exception class to catch or reraise the exception",
+      "severity": "CRITICAL"
     }
   ],
-  "python:S7498": [
+  "python:S5914": [
     {
-      "file": "frontend/app.py",
-      "line": 2916,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 4138,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 4514,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 4524,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 4533,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 4547,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 4556,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 4561,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 4602,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 4606,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 4143,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 4171,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 4176,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2932,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2932,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2941,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2941,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2955,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2955,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2963,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2963,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2971,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2906,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2979,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1145,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1145,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1156,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1647,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1648,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1659,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1659,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1635,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1637,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1641,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1642,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1646,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1652,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1653,
-      "message": "Replace this constructor call with a literal.",
-      "severity": "MINOR"
-    }
-  ],
-  "pythonbugs:S2589": [
-    {
-      "file": "backend/auto_trader.py",
-      "line": 525,
-      "message": "Fix this condition that always evaluates to true.",
+      "file": "tests/test_order_manager_focused.py",
+      "line": 33,
+      "message": "Remove this identity assertion; its value is constant.",
       "severity": "MAJOR"
-    }
-  ],
-  "python:S125": [
-    {
-      "file": "backend/auto_trader.py",
-      "line": 311,
-      "message": "Remove this commented out code.",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "backend/ibkr_connector.py",
-      "line": 228,
-      "message": "Remove this commented out code.",
-      "severity": "MAJOR"
-    }
-  ],
-  "python:S7504": [
-    {
-      "file": "backend/auto_trader.py",
-      "line": 543,
-      "message": "Remove this unnecessary `list()` call on an already iterable object.",
-      "severity": "MINOR"
     }
   ],
   "python:S117": [
     {
       "file": "backend/ibkr_connector.py",
-      "line": 27,
+      "line": 28,
       "message": "Rename this parameter \"advancedOrderRejectJson\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
       "severity": "MINOR"
     },
     {
       "file": "backend/ibkr_connector.py",
-      "line": 27,
+      "line": 28,
       "message": "Rename this parameter \"errorCode\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
       "severity": "MINOR"
     },
     {
       "file": "backend/ibkr_connector.py",
-      "line": 27,
+      "line": 28,
       "message": "Rename this parameter \"errorString\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
       "severity": "MINOR"
     },
     {
       "file": "backend/ibkr_connector.py",
-      "line": 27,
+      "line": 28,
       "message": "Rename this parameter \"reqId\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
       "severity": "MINOR"
     },
     {
       "file": "backend/ibkr_connector.py",
-      "line": 35,
+      "line": 36,
       "message": "Rename this parameter \"orderId\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
       "severity": "MINOR"
     },
     {
       "file": "backend/ibkr_connector.py",
-      "line": 40,
+      "line": 41,
       "message": "Rename this parameter \"reqId\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
       "severity": "MINOR"
     },
     {
       "file": "backend/ibkr_connector.py",
-      "line": 40,
+      "line": 41,
       "message": "Rename this parameter \"tickType\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
       "severity": "MINOR"
     },
     {
       "file": "backend/ibkr_connector.py",
-      "line": 51,
+      "line": 52,
       "message": "Rename this parameter \"reqId\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
       "severity": "MINOR"
     },
     {
       "file": "backend/ibkr_connector.py",
-      "line": 51,
+      "line": 52,
       "message": "Rename this parameter \"tickType\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
       "severity": "MINOR"
     },
     {
       "file": "backend/ibkr_connector.py",
-      "line": 61,
+      "line": 62,
       "message": "Rename this parameter \"reqId\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
       "severity": "MINOR"
     },
     {
       "file": "backend/ibkr_connector.py",
-      "line": 75,
+      "line": 76,
       "message": "Rename this parameter \"reqId\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
       "severity": "MINOR"
     },
     {
       "file": "backend/ibkr_connector.py",
-      "line": 80,
+      "line": 81,
       "message": "Rename this parameter \"contractDetails\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
       "severity": "MINOR"
     },
     {
       "file": "backend/ibkr_connector.py",
-      "line": 80,
+      "line": 81,
       "message": "Rename this parameter \"reqId\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
       "severity": "MINOR"
     },
     {
       "file": "backend/ibkr_connector.py",
-      "line": 84,
+      "line": 85,
       "message": "Rename this parameter \"reqId\" to match the regular expression ^[_a-z][a-z0-9_]*$.",
       "severity": "MINOR"
-    }
-  ],
-  "python:S112": [
-    {
-      "file": "backend/tasks.py",
-      "line": 82,
-      "message": "Replace this generic exception class with a more specific one.",
-      "severity": "MAJOR"
-    }
-  ],
-  "python:S3358": [
-    {
-      "file": "frontend/app.py",
-      "line": 375,
-      "message": "Extract this nested conditional expression into an independent statement.",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 2994,
-      "message": "Extract this nested conditional expression into an independent statement.",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "frontend/app.py",
-      "line": 1671,
-      "message": "Extract this nested conditional expression into an independent statement.",
-      "severity": "MAJOR"
-    }
-  ],
-  "python:S1066": [
-    {
-      "file": "backend/ibkr_collector.py",
-      "line": 299,
-      "message": "Merge this if statement with the enclosing one.",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "backend/ibkr_collector.py",
-      "line": 1495,
-      "message": "Merge this if statement with the enclosing one.",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "backend/ibkr_collector.py",
-      "line": 1523,
-      "message": "Merge this if statement with the enclosing one.",
-      "severity": "MAJOR"
-    }
-  ],
-  "python:S1135": [
-    {
-      "file": "backend/technical_indicators.py",
-      "line": 253,
-      "message": "Complete the task associated to this \"TODO\" comment.",
-      "severity": "INFO"
     }
   ]
 }
