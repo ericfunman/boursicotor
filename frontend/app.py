@@ -4550,7 +4550,6 @@ def auto_trading_page():
                             
                             try:
                                 from backend.models import Order, OrderStatus, Ticker
-                                from datetime import datetime, timedelta
                                 
                                 # Query recent orders for this session's ticker
                                 orders_db = SessionLocal()
