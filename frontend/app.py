@@ -63,7 +63,7 @@ IBKR_AVAILABLE = False
 ibkr_client = None
 
 def get_available_tickers():
-    """Get only tickers that have collected data in the database"""
+    """Get only tickers that have collected data in the database (excluding test tickers)"""
     db = SessionLocal()
     try:
         # Get tickers that have data in historical_data table
@@ -72,8 +72,16 @@ def get_available_tickers():
             TickerModel.id == HistoricalData.ticker_id
         ).distinct().all()
         
-        # Return as dict {symbol: name}
-        return {ticker.symbol: ticker.name for ticker in tickers_with_data}
+        # Filter out test tickers
+        result = {}
+        for ticker in tickers_with_data:
+            symbol = ticker.symbol.upper()
+            # Skip test/mock tickers
+            if any(skip in symbol for skip in ['TEST', 'MOCK', 'INVALID', 'XYZ', 'DUMMY']):
+                continue
+            result[ticker.symbol] = ticker.name
+        
+        return result
     except Exception as e:
         logger.error(f"Error getting available tickers: {e}")
         return {}
