@@ -2134,7 +2134,17 @@ def backtesting_page():
                         st.info(f"🚀 Mode parallèle activé - utilisation de {cpu_count() - 1} processus")
                         st.warning("📊 **Progression en temps réel** : Consultez les logs dans la console/terminal pour suivre l'avancement détaillé (mise à jour tous les 10 backtests)")
                         
-                        with st.spinner("⏳ Optimisation en cours... Consultez les logs pour la progression détaillée"):
+                        # Create progress bar
+                        progress_bar = st.progress(0)
+                        progress_text = st.empty()
+                        
+                        def update_progress(current, total, best_return):
+                            """Callback to update progress bar"""
+                            progress = current / total
+                            progress_bar.progress(progress)
+                            progress_text.text(f"🔄 Itération {current}/{total} - Meilleur rendement: {best_return:.2f}%")
+                        
+                        with st.spinner("⏳ Optimisation en cours..."):
                             engine = BacktestingEngine(
                                 initial_capital=initial_capital,
                                 commission=commission_decimal,
@@ -2142,14 +2152,14 @@ def backtesting_page():
                                 min_hold_minutes=min_hold_minutes
                             )
                             
-                            # Run parallel optimization (les logs s'affichent dans la console)
+                            # Run parallel optimization with progress callback
                             best_strategy, best_result, all_results = engine.run_parallel_optimization(
                                 df=df,
                                 symbol=selected_ticker,
                                 num_iterations=max_iterations,
                                 target_return=target_return,
                                 num_processes=None,  # Auto-detect
-                                progress_callback=None  # Pas de callback (logs console uniquement)
+                                progress_callback=update_progress  # Pass progress callback
                             )
                         
                         st.success(f"✅ Optimisation terminée ! {len(all_results)} stratégies testées.")

@@ -48,6 +48,13 @@ class Strategy:
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
         """Generate buy/sell signals"""
         raise NotImplementedError()
+    
+    def to_dict(self) -> Dict:
+        """Convert strategy to dictionary"""
+        return {
+            "name": self.name,
+            "parameters": self.parameters
+        }
 
 
 class SimpleMovingAverageStrategy(Strategy):
@@ -334,6 +341,10 @@ class BacktestingEngine:
                     best_return = result.total_return
                     best_result = result
                     best_strategy = strategy
+                
+                # Call progress callback if provided
+                if progress_callback:
+                    progress_callback(i + 1, num_iterations, best_return)
                 
                 # Log progress
                 if (i + 1) % 10 == 0:
