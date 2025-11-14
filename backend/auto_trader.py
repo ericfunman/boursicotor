@@ -70,6 +70,178 @@ class AutoTrader:
         finally:
             db.close()
     
+    def _check_and_collect_intraday_data(self) -> int:
+        """
+        Check if 5-minute data exists for today. If not, collect from start of day.
+        
+        Returns:
+            Number of points collected/loaded
+        """
+        db = SessionLocal()
+        try:
+            ticker_id = self.ticker.id
+            today = datetime.now().date()
+            start_of_today = datetime.combine(today, datetime.min.time())
+            
+            # Check if any 5-minute interval data exists for today
+            today_5m_count = db.query(HistoricalData).filter(
+                HistoricalData.ticker_id == ticker_id,
+                HistoricalData.interval == '5min',
+                HistoricalData.timestamp >= start_of_today
+            ).count()
+            
+            logger.info(f"Found {today_5m_count} 5-minute data points for {self.ticker.symbol} today")
+            
+            if today_5m_count > 0:
+                # Data already exists - no need to collect
+                logger.info(f"✅ Using existing {today_5m_count} 5-minute data points from today")
+                return today_5m_count
+            
+            # No data for today - collect from start of trading day
+            logger.info(f"📊 Collecting 5-minute data from start of today for {self.ticker.symbol}...")
+            
+            if self.ibkr_collector and self.ibkr_collector.ib.isConnected():
+                try:
+                    # Get contract info for IBKR request
+                    contract = self._get_contract_info()[0]
+                    
+                    # Request 1 day of 5-minute data (should cover today)
+                    bars = self.ibkr_collector.ib.reqHistoricalData(
+                        contract,
+                        endDateTime='',  # Now
+                        durationStr='1 D',  # 1 day
+                        barSizeSetting='5 mins',  # 5-minute bars
+                        whatToShow='TRADES',
+                        useRTH=False,  # Extended hours
+                        formatDate=1
+                    )
+                    
+                    if bars and len(bars) > 0:
+                        logger.info(f"📥 Received {len(bars)} bars from IBKR for today")
+                        
+                        # Store in database
+                        inserted = 0
+                        for bar in bars:
+                            # Only store if it's from today
+                            if bar.date.date() == today:
+                                exists = db.query(HistoricalData).filter(
+                                    HistoricalData.ticker_id == ticker_id,
+                                    HistoricalData.timestamp == bar.date,
+                                    HistoricalData.interval == '5min'
+                                ).first()
+                                
+                                if not exists:
+                                    record = HistoricalData(
+                                        ticker_id=ticker_id,
+                                        timestamp=bar.date,
+                                        open=bar.open,
+                                        high=bar.high,
+                                        low=bar.low,
+                                        close=bar.close,
+                                        volume=bar.volume,
+                                        interval='5min'
+                                    )
+                                    db.add(record)
+                                    inserted += 1
+                        
+                        if inserted > 0:
+                            db.commit()
+                            logger.info(f"✅ Stored {inserted} new 5-minute data points for today")
+                            return inserted + (today_5m_count if today_5m_count > 0 else 0)
+                    else:
+                        logger.warning(f"⚠️ No bars received from IBKR")
+                        
+                except Exception as e:
+                    logger.error(f"Error collecting 5-minute data from IBKR: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+            else:
+                logger.warning(f"⚠️ IBKR not connected - cannot collect intraday data")
+            
+            return today_5m_count
+            
+        except Exception as e:
+            logger.error(f"Error checking/collecting intraday data: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return 0
+        finally:
+            db.close()
+    
+    def _init_price_buffer_with_intraday(self) -> int:
+        """
+        Initialize price buffer with intraday 5-minute data if available.
+        Falls back to loading 200 most recent points.
+        
+        Returns:
+            Number of points loaded into buffer
+        """
+        db = SessionLocal()
+        try:
+            ticker_id = self.ticker.id
+            today = datetime.now().date()
+            start_of_today = datetime.combine(today, datetime.min.time())
+            
+            logger.info(f"Initializing price buffer for {self.ticker.symbol} with intraday data...")
+            
+            # First, try to load today's 5-minute data
+            today_data = db.query(HistoricalData).filter(
+                HistoricalData.ticker_id == ticker_id,
+                HistoricalData.interval == '5min',
+                HistoricalData.timestamp >= start_of_today
+            ).order_by(HistoricalData.timestamp.asc()).all()
+            
+            if today_data and len(today_data) >= 50:
+                # Great! We have enough intraday data - use it
+                logger.info(f"✅ Loading {len(today_data)} 5-minute data points from today")
+                
+                for h in today_data:
+                    self.price_buffer.append({
+                        'timestamp': h.timestamp,
+                        'open': h.open,
+                        'high': h.high,
+                        'low': h.low,
+                        'close': h.close,
+                        'volume': h.volume
+                    })
+                
+                logger.info(f"✅ Initialized buffer with {len(self.price_buffer)} intraday points - ready to trade immediately!")
+                return len(self.price_buffer)
+            
+            # Fallback: Load 200 most recent points (any interval)
+            logger.info(f"⚠️ Only {len(today_data) if today_data else 0} intraday points available, falling back to recent historical data")
+            
+            historical = db.query(HistoricalData).filter(
+                HistoricalData.ticker_id == ticker_id
+            ).order_by(HistoricalData.timestamp.desc()).limit(self.buffer_size).all()
+            
+            if historical:
+                historical = list(reversed(historical))
+                
+                for h in historical:
+                    self.price_buffer.append({
+                        'timestamp': h.timestamp,
+                        'open': h.open,
+                        'high': h.high,
+                        'low': h.low,
+                        'close': h.close,
+                        'volume': h.volume
+                    })
+                
+                logger.info(f"⚠️ Loaded {len(self.price_buffer)} historical points (will need ~8-9 min for live data to reach 50+ points)")
+            else:
+                logger.warning(f"⚠️ No historical data available - will start collecting from live prices")
+            
+            return len(self.price_buffer)
+            
+        except Exception as e:
+            logger.error(f"Error initializing buffer with intraday data: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return 0
+        finally:
+            db.close()
+    
     def start(self):
         """Start the automatic trading loop"""
         if self.running:
@@ -139,8 +311,19 @@ class AutoTrader:
         """Main trading loop - runs in separate thread"""
         logger.info(f"Trading loop started for session #{self.session_id}")
         
-        # Load initial historical data for buffer
-        self._init_price_buffer()
+        # NEW: Check and collect intraday 5-minute data for today (if missing)
+        logger.info(f"🔍 Checking for intraday data...")
+        intraday_points = self._check_and_collect_intraday_data()
+        logger.info(f"Found/collected {intraday_points} intraday data points")
+        
+        # Initialize buffer with intraday data (or fallback to historical)
+        buffer_size = self._init_price_buffer_with_intraday()
+        
+        # Check if we have enough points to start trading
+        if buffer_size >= 50:
+            logger.info(f"✅ READY TO TRADE! Buffer has {buffer_size} points, starting signals calculation immediately")
+        else:
+            logger.warning(f"⚠️ Buffer has only {buffer_size} points (need 50), will start collecting live data...")
         
         while self.running:
             try:
@@ -151,12 +334,18 @@ class AutoTrader:
                     # 2. Add to buffer
                     self._add_to_buffer(current_price)
                     
-                    # 3. Calculate indicators
-                    signals = self._calculate_signals()
-                    
-                    # 4. Check for trading signal
-                    if signals:
-                        self._process_signal(signals)
+                    # 3. Calculate indicators (only if buffer has enough points)
+                    if len(self.price_buffer) >= 50:
+                        signals = self._calculate_signals()
+                        
+                        # 4. Check for trading signal
+                        if signals:
+                            self._process_signal(signals)
+                    else:
+                        # Buffer still building up
+                        pending = 50 - len(self.price_buffer)
+                        if len(self.price_buffer) % 10 == 0:  # Log every 10 points
+                            logger.info(f"⏳ Building buffer... {len(self.price_buffer)}/50 points ({pending} more needed)")
                     
                     # 5. Update session
                     self._update_session()
