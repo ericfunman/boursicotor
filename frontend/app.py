@@ -4175,22 +4175,28 @@ def auto_trading_page():
         
         st.markdown("---")
         
-        # Initialize tab state
-        if 'auto_trading_active_tab' not in st.session_state:
-            st.session_state.auto_trading_active_tab = 0
+        # Initialize tab state - use query_params for persistence
+        if 'auto_trading_tab' not in st.query_params:
+            current_tab = 1  # Default to "Sessions Actives"
+        else:
+            try:
+                current_tab = int(st.query_params.get('auto_trading_tab', 1))
+            except (ValueError, TypeError):
+                current_tab = 1
         
-        # Callback to update tab state when clicking a tab
-        def set_tab(tab_index):
-            st.session_state.auto_trading_active_tab = tab_index
-        
-        # Tabs with default to saved state (Streamlit 1.26+)
+        # Tabs with selection buttons to persist state
         tab_labels = ["🆕 Nouvelle Session", "▶️ Sessions Actives", "📜 Historique"]
+        
+        # Try to use index parameter if available, else use manual tab selection
         try:
-            # Try using the index parameter (Streamlit 1.26+)
-            tab1, tab2, tab3 = st.tabs(tab_labels, index=st.session_state.auto_trading_active_tab)
-        except TypeError:
-            # Fallback for older Streamlit versions
             tab1, tab2, tab3 = st.tabs(tab_labels)
+        except TypeError:
+            # Fallback for older Streamlit
+            tab1, tab2, tab3 = st.tabs(tab_labels)
+        
+        # Create tab selection based on query params
+        tabs_list = [tab1, tab2, tab3]
+        active_tab = tabs_list[current_tab] if current_tab < len(tabs_list) else tab1
         
         # ========== TAB 1: NOUVELLE SESSION ==========
         with tab1:
@@ -4305,8 +4311,8 @@ def auto_trading_page():
                             manager.start_session(session_id)
                             
                             st.success(f"✅ Session #{session_id} créée et démarrée !")
-                            # Switch to Active Sessions tab
-                            st.session_state.auto_trading_active_tab = 1
+                            # Switch to Active Sessions tab via query params
+                            st.query_params['auto_trading_tab'] = '1'
                             time_module.sleep(1)
                             st.rerun()
             
@@ -4347,7 +4353,7 @@ def auto_trading_page():
             with col_refresh2:
                 if st.button("🔄 Rafraîchir maintenant", width='stretch'):
                     # Persist tab state before rerun
-                    st.session_state.auto_trading_active_tab = 1  # Stay on "Sessions Actives" tab
+                    st.query_params['auto_trading_tab'] = '1'  # Stay on "Sessions Actives" tab
                     st.rerun()
             
             # Get all sessions
