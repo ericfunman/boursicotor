@@ -353,7 +353,7 @@ def dashboard_page():
             st.rerun()
     
     with col_refresh2:
-        if st.button("🔄 Rafraîchir", use_container_width=True):
+        if st.button("🔄 Rafraîchir", width=" stretch\):
             st.session_state.dashboard_last_refresh = time_module.time()
             st.rerun()
     
@@ -660,7 +660,7 @@ def dashboard_page():
                     })
                 
                 import pandas as pd
-                st.dataframe(pd.DataFrame(trades_data), use_container_width=True)
+                st.dataframe(pd.DataFrame(trades_data), width=" stretch\)
             else:
                 st.info("ℹ️ Aucun trade récent. Passez des ordres dans l'onglet 'Trading' !")
         
@@ -947,7 +947,7 @@ def data_collection_page():
                 # Display as table
                 st.dataframe(
                     df_overview,
-                    use_container_width=True,
+                    width=" stretch\,
                     height=400,
                     hide_index=True
                 )
@@ -972,14 +972,14 @@ def data_collection_page():
                 col_export, col_delete = st.columns(2)
                 
                 with col_export:
-                    if st.button("💾 Exporter le tableau (CSV)", use_container_width=True):
+                    if st.button("💾 Exporter le tableau (CSV)", width=" stretch\):
                         csv = df_overview.to_csv(index=False)
                         st.download_button(
                             label="Télécharger CSV",
                             data=csv,
                             file_name=f"boursicotor_data_overview_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                             mime="text/csv",
-                            use_container_width=True
+                            width=" stretch\
                         )
                 
                 # Delete data section
@@ -1030,7 +1030,7 @@ def data_collection_page():
                     col_confirm, col_cancel = st.columns(2)
                     
                     with col_confirm:
-                        if st.button("✅ Confirmer Suppression", use_container_width=True, type="primary", key="confirm_delete_btn"):
+                        if st.button("✅ Confirmer Suppression", width=" stretch\, type="primary", key="confirm_delete_btn"):
                             try:
                                 deleted_count = 0
                                 for ticker_sym in tickers_to_delete:
@@ -1051,7 +1051,7 @@ def data_collection_page():
                                 db.rollback()
                     
                     with col_cancel:
-                        if st.button("❌ Annuler", use_container_width=True):
+                        if st.button("❌ Annuler", width=" stretch\):
                             st.rerun()
                 else:
                     st.info("💡 Sélectionnez un ou plusieurs tickers ci-dessus pour les supprimer")
@@ -1387,7 +1387,7 @@ def data_collection_page():
                         hovermode='x'
                     )
                     
-                    st.plotly_chart(fig, use_container_width=True, key="live_price_chart")
+                    st.plotly_chart(fig, width=" stretch\, key="live_price_chart")
                     
                     # Volume chart
                     fig_volume = go.Figure(data=[go.Bar(
@@ -1798,10 +1798,10 @@ def technical_analysis_page():
                 height=500
             )
             
-            st.plotly_chart(fig, use_container_width=True, key="historical_price_chart")
+            st.plotly_chart(fig, width=" stretch\, key="historical_price_chart")
             
             # Data table
-            st.dataframe(df.tail(20), use_container_width=True)
+            st.dataframe(df.tail(20), width=" stretch\)
         else:
             st.info("Aucune donnée disponible pour ce ticker. Téléchargez des données d'abord.")
 
@@ -1898,7 +1898,7 @@ def technical_analysis_page():
     fig.add_trace(go.Bar(x=df.index, y=df['volume'], name='Volume'), row=4, col=1)
     
     fig.update_layout(height=1000, showlegend=True, xaxis=dict(rangeslider=dict(visible=False)))
-    st.plotly_chart(fig, use_container_width=True, key="technical_analysis_chart")
+    st.plotly_chart(fig, width=" stretch\, key="technical_analysis_chart")
     
     # Indicator values
     st.subheader("📊 Valeurs actuelles des indicateurs")
@@ -2463,7 +2463,7 @@ def backtesting_page():
                 trades_df = pd.DataFrame(best_result.trades)
                 trades_df['entry_date'] = pd.to_datetime(trades_df['entry_date'])
                 trades_df['exit_date'] = pd.to_datetime(trades_df['exit_date'])
-                st.dataframe(trades_df, use_container_width=True)
+                st.dataframe(trades_df, width=" stretch\)
     
     with tab2:
         st.subheader("💾 Stratégies Sauvegardées")
@@ -2762,7 +2762,7 @@ def live_prices_page():
                 st.rerun()
         
         with col_refresh2:
-            if st.button("🔄 Rafraîchir", use_container_width=True):
+            if st.button("🔄 Rafraîchir", width=" stretch\):
                 st.session_state.live_prices_last_refresh = time_module.time()
                 st.rerun()
         
@@ -2820,13 +2820,13 @@ def live_prices_page():
             is_active = is_collecting(selected_symbol)
             
             if is_active:
-                if st.button("⏸️ Arrêter", type="primary", use_container_width=True):
+                if st.button("⏸️ Arrêter", type="primary", width=" stretch\):
                     stop_live_price_collection()
                     st.success("✅ Collecte arrêtée")
                     time_module.sleep(0.3)
                     st.rerun()
             else:
-                if st.button("▶️ Démarrer", type="primary", use_container_width=True):
+                if st.button("▶️ Démarrer", type="primary", width=" stretch\):
                     start_live_price_collection(selected_symbol, interval=3)
                     st.success("✅ Collecte démarrée")
                     time_module.sleep(0.3)
@@ -3033,7 +3033,7 @@ def live_prices_page():
                 margin=dict(l=50, r=50, t=50, b=50)
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width=" stretch\)
 
     
     finally:
@@ -3055,7 +3055,7 @@ def trading_page():
         
         with col_connect1:
             if not st.session_state.get('global_ibkr_connected', False):
-                if st.button("🔌 Connecter à IBKR", type="primary", use_container_width=True):
+                if st.button("🔌 Connecter à IBKR", type="primary", width=" stretch\):
                     try:
                         with st.spinner("Connexion à IB Gateway..."):
                             # Use global IBKR connection from main()
@@ -3268,7 +3268,7 @@ def trading_page():
                     })
                 
                 orders_df = pd.DataFrame(orders_data)
-                st.dataframe(orders_df, width='stretch', use_container_width=True)
+                st.dataframe(orders_df, width='stretch', width=" stretch\)
                 
                 # Action buttons for each order - Direct cancel buttons
                 st.markdown("#### Actions rapides")
@@ -3288,7 +3288,7 @@ def trading_page():
                         if st.button(
                             button_text,
                             type="secondary",
-                            use_container_width=True,
+                            width=" stretch\,
                             key=f"cancel_order_{order_id}"
                         ):
                             try:
@@ -3626,7 +3626,7 @@ def order_placement_page():
                 col_submit1, col_submit2 = st.columns([2, 1])
                 
                 with col_submit1:
-                    if st.button("📤 Envoyer l'Ordre", type="primary", use_container_width=True):
+                    if st.button("📤 Envoyer l'Ordre", type="primary", width=" stretch\):
                         try:
                             # Debug: Vérifier que order_manager existe
                             order_manager = st.session_state.order_manager
@@ -4115,7 +4115,7 @@ def order_placement_page():
                                 yaxis_title="Nombre d'Ordres",
                                 hovermode=HOVERMODE_X_UNIFIED
                             )
-                            st.plotly_chart(fig_bar, use_container_width=True, key="daily_orders_chart")
+                            st.plotly_chart(fig_bar, width=" stretch\, key="daily_orders_chart")
                         
                         # Chart 2: Order volume by day
                         st.markdown("**📅 Volume d'Ordres par Jour**")
@@ -4148,7 +4148,7 @@ def order_placement_page():
                                 yaxis_title="Volume (€)",
                                 hovermode=HOVERMODE_X_UNIFIED
                             )
-                            st.plotly_chart(fig_bar, use_container_width=True, key="daily_volume_chart")
+                            st.plotly_chart(fig_bar, width=" stretch\, key="daily_volume_chart")
                     else:
                         st.info("📊 Aucun ordre rempli pour générer des graphiques")
                 
@@ -4572,7 +4572,7 @@ def auto_trading_page():
                                         
                                         st.plotly_chart(
                                             fig,
-                                            use_container_width=True,
+                                            width=" stretch\,
                                             key=f"signals_chart_{session['id']}"
                                         )
                                         
@@ -4614,7 +4614,7 @@ def auto_trading_page():
                                     )
                                     st.plotly_chart(
                                         fig,
-                                        use_container_width=True,
+                                        width=" stretch\,
                                         key=f"fallback_chart_{session['id']}"
                                     )
                             else:
@@ -4669,7 +4669,7 @@ def auto_trading_page():
                                             
                                             # Display trades table
                                             trades_df = pd.DataFrame(trades_data)
-                                            st.dataframe(trades_df, use_container_width=True, hide_index=True)
+                                            st.dataframe(trades_df, width=" stretch\, hide_index=True)
                                             
                                             # P&L metrics
                                             col_pnl1, col_pnl2, col_pnl3 = st.columns(3)

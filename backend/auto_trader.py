@@ -277,7 +277,7 @@ class AutoTrader:
         # Start live price collection for this ticker
         # This ensures we have real-time price data for strategy signals
         from backend.live_price_thread import start_live_price_collection
-        start_live_price_collection(self.ticker.symbol, interval=10)
+        start_live_price_collection(self.ticker.symbol, interval=5)
         logger.info(f"📊 Live price collection started for {self.ticker.symbol}")
         
         # Start trading loop in separate thread
