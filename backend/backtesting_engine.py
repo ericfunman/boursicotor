@@ -30,10 +30,22 @@ class BacktestResult:
     trades: List[Dict]
     
     def to_dict(self):
-        """Convert to dictionary"""
+        """Convert to dictionary with proper JSON serialization"""
         result = asdict(self)
+        
+        # Convert datetime objects to ISO format strings
         result["start_date"] = self.start_date.isoformat() if self.start_date else None
         result["end_date"] = self.end_date.isoformat() if self.end_date else None
+        
+        # Convert trade dates to ISO format
+        if result.get("trades"):
+            for trade in result["trades"]:
+                if "entry_date" in trade and trade["entry_date"]:
+                    # Handle both datetime and Timestamp objects
+                    trade["entry_date"] = trade["entry_date"].isoformat() if hasattr(trade["entry_date"], 'isoformat') else str(trade["entry_date"])
+                if "exit_date" in trade and trade["exit_date"]:
+                    trade["exit_date"] = trade["exit_date"].isoformat() if hasattr(trade["exit_date"], 'isoformat') else str(trade["exit_date"])
+        
         return result
 
 
