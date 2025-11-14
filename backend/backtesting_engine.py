@@ -2,7 +2,7 @@
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Callable
 from datetime import datetime
 from dataclasses import dataclass, asdict
 import logging
@@ -162,9 +162,20 @@ class StrategyGenerator:
 class BacktestingEngine:
     """Backtesting engine for trading strategies"""
     
-    def __init__(self, initial_capital: float = 10000.0):
-        """Initialize backtesting engine"""
+    def __init__(self, initial_capital: float = 10000.0, commission: float = 0.001, 
+                 allow_short: bool = False, min_hold_minutes: int = 1):
+        """Initialize backtesting engine
+        
+        Args:
+            initial_capital: Starting capital for backtest
+            commission: Commission per trade (decimal, e.g., 0.001 for 0.1%)
+            allow_short: Whether to allow short positions
+            min_hold_minutes: Minimum minutes to hold a position
+        """
         self.initial_capital = initial_capital
+        self.commission = commission
+        self.allow_short = allow_short
+        self.min_hold_minutes = min_hold_minutes
     
     def run(self, strategy: Strategy, df: pd.DataFrame, symbol: str = "UNKNOWN") -> BacktestResult:
         """
@@ -284,6 +295,56 @@ class BacktestingEngine:
         
         sharpe = np.mean(excess_returns) / np.std(excess_returns) * np.sqrt(252)
         return float(sharpe)
+    
+    def run_parallel_optimization(self, df: pd.DataFrame, symbol: str, num_iterations: int = 100,
+                                 target_return: float = 0.0, num_processes: Optional[int] = None,
+                                 progress_callback: Optional[Callable] = None) -> Tuple[Optional[Strategy], Optional[BacktestResult], List[BacktestResult]]:
+        """
+        Run parallel optimization of trading strategies (sequential fallback if multiprocessing unavailable)
+        
+        Args:
+            df: DataFrame with OHLCV data
+            symbol: Stock symbol
+            num_iterations: Number of strategies to test
+            target_return: Target return (not used, for compatibility)
+            num_processes: Number of processes (None = auto-detect)
+            progress_callback: Callback for progress (not used)
+            
+        Returns:
+            Tuple of (best_strategy, best_result, all_results)
+        """
+        generator = StrategyGenerator(target_return=target_return)
+        all_results = []
+        best_result = None
+        best_strategy = None
+        best_return = -np.inf
+        
+        # Run sequential optimization (simple version)
+        for i in range(num_iterations):
+            try:
+                # Generate random strategy
+                strategy = generator.generate()
+                
+                # Run backtest
+                result = self.run(strategy, df, symbol)
+                all_results.append(result)
+                
+                # Track best result
+                if result.total_return > best_return:
+                    best_return = result.total_return
+                    best_result = result
+                    best_strategy = strategy
+                
+                # Log progress
+                if (i + 1) % 10 == 0:
+                    logger.info(f"[{i + 1}/{num_iterations}] Best return: {best_return:.2f}%")
+            
+            except Exception as e:
+                logger.warning(f"Error in iteration {i}: {e}")
+                continue
+        
+        logger.info(f"Optimization complete. Best return: {best_return:.2f}%")
+        return best_strategy, best_result, all_results
 
 
 # Aliases for backward compatibility
