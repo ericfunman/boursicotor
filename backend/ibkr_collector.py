@@ -6,6 +6,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 import os
+import secrets
 from dotenv import load_dotenv
 
 from backend.config import logger
@@ -123,8 +124,8 @@ class IBKRCollector:
         if client_id is not None:
             self.client_id = client_id
         else:
-            import random
-            self.client_id = int(os.getenv('IBKR_CLIENT_ID', random.randint(2, 999)))
+            # Using secrets for secure random number generation
+            self.client_id = int(os.getenv('IBKR_CLIENT_ID', secrets.randbelow(998) + 2))
         
         self.account = os.getenv('IBKR_ACCOUNT', 'DU0118471')
         
@@ -1570,8 +1571,8 @@ class IBKRCollector:
             temp_ib = IB()
             
             # Use a unique client ID (between 100-200 for temporary connections)
-            import random
-            temp_client_id = random.randint(100, 200)
+            # Using secrets for secure random number generation
+            temp_client_id = secrets.randbelow(101) + 100  # Generates 100-200
             
             logger.info(f"[get_current_market_price] Connecting with clientId={temp_client_id}...")
             temp_ib.connect(self.host, self.port, clientId=temp_client_id, timeout=10)
