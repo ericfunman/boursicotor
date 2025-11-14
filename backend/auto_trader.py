@@ -92,6 +92,12 @@ class AutoTrader:
         finally:
             db.close()
         
+        # Start live price collection for this ticker
+        # This ensures we have real-time price data for strategy signals
+        from backend.live_price_thread import start_live_price_collection
+        start_live_price_collection(self.ticker.symbol, interval=10)
+        logger.info(f"📊 Live price collection started for {self.ticker.symbol}")
+        
         # Start trading loop in separate thread
         self.thread = threading.Thread(target=self._trading_loop, daemon=True)
         self.thread.start()
@@ -105,6 +111,11 @@ class AutoTrader:
             return
         
         self.running = False
+        
+        # Stop live price collection
+        from backend.live_price_thread import stop_live_price_collection
+        stop_live_price_collection()
+        logger.info(f"📊 Live price collection stopped")
         
         # Wait for thread to finish
         if self.thread and self.thread.is_alive():
