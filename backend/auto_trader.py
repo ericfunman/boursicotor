@@ -447,6 +447,9 @@ class AutoTrader:
             
         finally:
             db.close()
+        
+        # Sync position with IBKR to correct any optimistic estimates
+        self._sync_position_with_ibkr()
     
     def _update_session(self):
         """Update session with latest state"""
@@ -463,6 +466,48 @@ class AutoTrader:
             
         finally:
             db.close()
+    
+    def _sync_position_with_ibkr(self):
+        """
+        Synchronize current position with actual IBKR portfolio
+        This ensures we have the true position, not an optimistic estimate
+        """
+        try:
+            if not self.ibkr_collector or not self.ibkr_collector.ib.isConnected():
+                logger.warning("Cannot sync position: IBKR not connected")
+                return None
+            
+            # Get all positions from IBKR
+            ib_positions = self.ibkr_collector.ib.positions()
+            
+            # Find our ticker's position
+            actual_position = 0
+            for pos in ib_positions:
+                if pos.contract.symbol == self.ticker.symbol:
+                    actual_position = int(pos.position)
+                    logger.info(f"📊 Position sync: {self.ticker.symbol} = {actual_position} shares (from IBKR)")
+                    break
+            
+            # Update session with actual position
+            db = SessionLocal()
+            try:
+                session = db.query(AutoTraderSession).filter(
+                    AutoTraderSession.id == self.session_id
+                ).first()
+                
+                if session.current_position != actual_position:
+                    logger.info(f"Position corrected: {session.current_position} -> {actual_position}")
+                    session.current_position = actual_position
+                    db.commit()
+                
+                return actual_position
+                
+            finally:
+                db.close()
+                
+        except Exception as e:
+            logger.error(f"Error syncing position with IBKR: {e}")
+            return None
     
     def _handle_error(self, error_message: str):
         """Handle error in trading loop"""

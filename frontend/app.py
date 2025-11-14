@@ -4179,9 +4179,18 @@ def auto_trading_page():
         if 'auto_trading_active_tab' not in st.session_state:
             st.session_state.auto_trading_active_tab = 0
         
-        # Tabs with default to saved state
+        # Callback to update tab state when clicking a tab
+        def set_tab(tab_index):
+            st.session_state.auto_trading_active_tab = tab_index
+        
+        # Tabs with default to saved state (Streamlit 1.26+)
         tab_labels = ["🆕 Nouvelle Session", "▶️ Sessions Actives", "📜 Historique"]
-        tab1, tab2, tab3 = st.tabs(tab_labels)
+        try:
+            # Try using the index parameter (Streamlit 1.26+)
+            tab1, tab2, tab3 = st.tabs(tab_labels, index=st.session_state.auto_trading_active_tab)
+        except TypeError:
+            # Fallback for older Streamlit versions
+            tab1, tab2, tab3 = st.tabs(tab_labels)
         
         # ========== TAB 1: NOUVELLE SESSION ==========
         with tab1:
@@ -4337,6 +4346,8 @@ def auto_trading_page():
             
             with col_refresh2:
                 if st.button("🔄 Rafraîchir maintenant", width='stretch'):
+                    # Persist tab state before rerun
+                    st.session_state.auto_trading_active_tab = 1  # Stay on "Sessions Actives" tab
                     st.rerun()
             
             # Get all sessions
@@ -4531,6 +4542,78 @@ def auto_trading_page():
                                     )
                             else:
                                 st.info("⏳ En attente de données... Le système récupère les cours.")
+                            
+                            st.markdown("---")
+                            
+                            # Display recent trades and P&L
+                            st.markdown("### 📋 Ordres Exécutés & P&L")
+                            
+                            try:
+                                from backend.models import Order, OrderStatus, Ticker
+                                from datetime import datetime, timedelta
+                                
+                                # Query recent orders for this session's ticker
+                                orders_db = SessionLocal()
+                                try:
+                                    # Get ticker ID from symbol
+                                    ticker_obj = orders_db.query(Ticker).filter(Ticker.symbol == session['ticker']).first()
+                                    
+                                    if ticker_obj:
+                                        # Get orders from the last 24 hours
+                                        yesterday = datetime.now() - timedelta(hours=24)
+                                        recent_orders = orders_db.query(Order).filter(
+                                            Order.ticker_id == ticker_obj.id,
+                                            Order.status.in_([OrderStatus.FILLED, OrderStatus.SUBMITTED]),
+                                            Order.created_at >= yesterday
+                                        ).order_by(Order.created_at.desc()).all()
+                                        
+                                        if recent_orders:
+                                            # Create trades display
+                                            trades_data = []
+                                            total_pnl = 0
+                                            total_cost = 0
+                                            
+                                            for order in recent_orders:
+                                                trade_info = {
+                                                    'Heure': order.created_at.strftime('%H:%M:%S') if order.created_at else 'N/A',
+                                                    'Action': f"{'📈 BUY' if order.action == 'BUY' else '📉 SELL'}",
+                                                    'Qty': order.quantity,
+                                                    'Prix': f"{order.limit_price:.2f}€" if order.limit_price else "Market",
+                                                    'Status': '✅ Exécuté' if order.status == OrderStatus.FILLED else '⏳ En attente'
+                                                }
+                                                
+                                                # Calculate PNL for filled orders
+                                                if order.status == OrderStatus.FILLED and order.limit_price:
+                                                    if order.action == 'BUY':
+                                                        total_cost += order.quantity * order.limit_price
+                                                    else:
+                                                        total_pnl += order.quantity * order.limit_price - total_cost
+                                                
+                                                trades_data.append(trade_info)
+                                            
+                                            # Display trades table
+                                            trades_df = pd.DataFrame(trades_data)
+                                            st.dataframe(trades_df, use_container_width=True, hide_index=True)
+                                            
+                                            # P&L metrics
+                                            col_pnl1, col_pnl2, col_pnl3 = st.columns(3)
+                                            
+                                            with col_pnl1:
+                                                st.metric("📊 Ordres Exécutés", len([o for o in recent_orders if o.status == OrderStatus.FILLED]))
+                                            
+                                            with col_pnl2:
+                                                st.metric("💰 P&L Total", f"{total_pnl:.2f} €", delta=f"{total_pnl:.2f}€" if total_pnl != 0 else None)
+                                            
+                                            with col_pnl3:
+                                                st.metric("📈 Position Actuelle", f"{session['current_position']} actions")
+                                        else:
+                                            st.info("ℹ️ Aucun ordre exécuté dans les dernières 24h")
+                                    
+                                finally:
+                                    orders_db.close()
+                            
+                            except Exception as e:
+                                st.warning(f"⚠️ Erreur lors de l'affichage des ordres: {e}")
                             
                             st.markdown("---")
                             
