@@ -103,16 +103,26 @@ class StrategyManager:
                 db.flush()  # Get the ID
                 logger.info(f"Strategy created with ID: {strategy_db.id}, name: {strategy.name}")
             
-            # Get ticker - remove .PA suffix if present
+            # Get ticker - try with and without .PA suffix
             ticker_symbol = backtest_result.symbol.replace('.PA', '')
             logger.info(f"Looking for ticker: {ticker_symbol} (original: {backtest_result.symbol})")
             
+            # Try exact match first
             ticker = db.query(Ticker).filter(Ticker.symbol == ticker_symbol).first()
+            
+            # If not found, try with .PA suffix
+            if not ticker and not ticker_symbol.endswith('.PA'):
+                ticker = db.query(Ticker).filter(Ticker.symbol == f"{ticker_symbol}.PA").first()
+            
+            # If still not found, try the original symbol
+            if not ticker:
+                ticker = db.query(Ticker).filter(Ticker.symbol == backtest_result.symbol).first()
+            
             if not ticker:
                 logger.error(f"Ticker {ticker_symbol} not found (original: {backtest_result.symbol})")
                 # List available tickers
                 available_tickers = db.query(Ticker).all()
-                logger.error(f"Available tickers: {[t.symbol for t in available_tickers]}")
+                logger.error(f"Available tickers: {[(t.symbol, t.id) for t in available_tickers]}")
                 return None
             
             # Save backtest result
