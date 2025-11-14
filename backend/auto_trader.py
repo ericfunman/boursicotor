@@ -228,40 +228,11 @@ class AutoTrader:
         currency = self.ticker.currency if hasattr(self.ticker, 'currency') else 'EUR'
         return exchange, currency
     
-    def _fetch_ibkr_price(self, contract) -> Optional[Dict]:
-        """
-        Fetch price data from IBKR
-        
-        Returns:
-            Price dictionary or None if failed
-        """
-        ticker_data = self.ibkr_collector.ib.reqMktData(contract, '', False, False)
-        time.sleep(2)  # Wait for data
-        
-        if ticker_data.last and ticker_data.last > 0:
-            _, currency = self._get_contract_info()
-            price_data = {
-                'timestamp': datetime.now(),
-                'open': ticker_data.open if ticker_data.open > 0 else ticker_data.last,
-                'high': ticker_data.high if ticker_data.high > 0 else ticker_data.last,
-                'low': ticker_data.low if ticker_data.low > 0 else ticker_data.last,
-                'close': ticker_data.last,
-                'volume': ticker_data.volume if ticker_data.volume else 0
-            }
-            logger.info(f"✅ Got IBKR price: {price_data['close']:.2f} {currency}")
-            
-            # Cancel market data to avoid accumulation
-            self.ibkr_collector.ib.cancelMktData(contract)
-            return price_data
-        else:
-            logger.warning(f"IBKR returned no valid price for {self.ticker.symbol}")
-            self.ibkr_collector.ib.cancelMktData(contract)
-            return None
-    
     def _fetch_live_price(self) -> Optional[Dict]:
         """
-        Fetch current live price from database (mirrors live_prices_page approach)
-        Returns latest HistoricalData for today if available, else tries IBKR
+        Fetch current live price from live_price_thread collection
+        The live_price_thread continuously collects 1-min bars and saves to DB
+        This method retrieves those saved prices for the trading loop
         
         Returns:
             Dictionary with price data or None if failed
@@ -269,48 +240,32 @@ class AutoTrader:
         try:
             logger.debug(f"Fetching live price for {self.ticker.symbol}...")
             
-            # Priority 1: IBKR LIVE PRICE (intraday real-time data)
-            # This is essential for strategy signals to work with current prices
-            if self.ibkr_collector and self.ibkr_collector.ib.isConnected():
-                try:
-                    logger.debug(f"Requesting IBKR live price for {self.ticker.symbol}...")
-                    exchange, currency = self._get_contract_info()
-                    contract = self.ibkr_collector.get_contract(self.ticker.symbol, exchange, currency)
-                    
-                    if contract:
-                        price_data = self._fetch_ibkr_price(contract)
-                        if price_data:
-                            logger.debug(f"Got LIVE price from IBKR: {price_data['close']:.4f} @ {price_data['timestamp']}")
-                            return price_data
-                except Exception as e:
-                    logger.debug(f"Could not get IBKR live price: {e}")
-            
-            # Fallback: Database historical data (end-of-day cache, updated once per day)
+            # Get prices collected by live_price_thread from DB (1-minute bars)
+            # These are collected every 10 seconds with real-time data
             db = SessionLocal()
             try:
-                latest_records = db.query(HistoricalData).filter(
+                # Query 1-minute bars (collected by live_price_thread)
+                latest_price = db.query(HistoricalData).filter(
                     HistoricalData.ticker_id == self.ticker.id,
-                    HistoricalData.interval == '1day'
-                ).order_by(HistoricalData.timestamp.desc()).limit(2).all()
+                    HistoricalData.interval == '1min'  # 1-minute bars from live_price_thread
+                ).order_by(HistoricalData.timestamp.desc()).first()
                 
-                if latest_records:
-                    latest = latest_records[0]
-                    logger.debug(f"Fallback: Got cached price from DB: {latest.close:.2f} @ {latest.timestamp}")
-                    
+                if latest_price:
+                    logger.debug(f"Got live price from live_price_thread collection: {latest_price.close:.4f} @ {latest_price.timestamp}")
                     return {
-                        'timestamp': latest.timestamp,
-                        'open': latest.open,
-                        'high': latest.high,
-                        'low': latest.low,
-                        'close': latest.close,
-                        'volume': latest.volume if latest.volume else 0
+                        'timestamp': latest_price.timestamp,
+                        'open': latest_price.open,
+                        'high': latest_price.high,
+                        'low': latest_price.low,
+                        'close': latest_price.close,
+                        'volume': latest_price.volume if latest_price.volume else 0
                     }
                 else:
-                    logger.warning(f"No historical data in DB for {self.ticker.symbol}")
+                    logger.warning(f"No 1-minute bar data collected for {self.ticker.symbol}")
             finally:
                 db.close()
             
-            logger.warning(f"❌ Could not fetch live price for {self.ticker.symbol} (IBKR disconnected and no DB data)")
+            logger.warning(f"❌ Could not fetch live price for {self.ticker.symbol} (no DB data)")
             return None
             
         except Exception as e:
