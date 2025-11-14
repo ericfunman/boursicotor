@@ -106,15 +106,23 @@ class AutoTrader:
                     contract = self.ibkr_collector.get_contract(self.ticker.symbol)
                     
                     # Request 1 day of 5-minute data (should cover today)
-                    bars = self.ibkr_collector.ib.reqHistoricalData(
-                        contract,
-                        endDateTime='',  # Now
-                        durationStr='1 D',  # 1 day
-                        barSizeSetting='5 mins',  # 5-minute bars
-                        whatToShow='TRADES',
-                        useRTH=False,  # Extended hours
-                        formatDate=1
-                    )
+                    # Use a longer timeout since active stocks can have 80+ bars
+                    old_timeout = self.ibkr_collector.ib.RequestTimeout
+                    self.ibkr_collector.ib.RequestTimeout = 30  # 30 second timeout for historical data
+                    
+                    try:
+                        bars = self.ibkr_collector.ib.reqHistoricalData(
+                            contract,
+                            endDateTime='',  # Now
+                            durationStr='1 D',  # 1 day
+                            barSizeSetting='5 mins',  # 5-minute bars
+                            whatToShow='TRADES',
+                            useRTH=False,  # Extended hours
+                            formatDate=1
+                        )
+                    finally:
+                        # Restore original timeout
+                        self.ibkr_collector.ib.RequestTimeout = old_timeout
                     
                     if bars and len(bars) > 0:
                         logger.info(f"📥 Received {len(bars)} bars from IBKR for today")
@@ -149,10 +157,12 @@ class AutoTrader:
                             logger.info(f"✅ Stored {inserted} new 5-minute data points for today")
                             return inserted + (today_5m_count if today_5m_count > 0 else 0)
                     else:
-                        logger.warning(f"⚠️ No bars received from IBKR")
+                        logger.warning(f"⚠️ No bars received from IBKR (empty response)")
                         
+                except TimeoutError:
+                    logger.warning(f"⏱️ IBKR timeout collecting 5-min data - market may be busy, will use fallback")
                 except Exception as e:
-                    logger.error(f"Error collecting 5-minute data from IBKR: {e}")
+                    logger.warning(f"⚠️ Error collecting 5-minute data from IBKR: {e} (non-critical, using fallback)")
                     import traceback
                     logger.error(traceback.format_exc())
             else:
