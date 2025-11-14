@@ -480,40 +480,23 @@ def dashboard_page():
                     # Force refresh by requesting fresh positions from IBKR
                     try:
                         if collector and collector.ib and collector.ib.isConnected():
-                            # Cancel previous subscription if exists
-                            try:
-                                collector.ib.cancelPositions()
-                            except:
-                                pass
-                            
-                            # Request fresh positions directly from IBKR
-                            import time
-                            collector.ib.reqPositions()
-                            time.sleep(0.5)  # Give IBKR time to respond
-                            
-                            st.success("✅ Positions rafraîchies depuis IBKR (nouvelles données chargées)")
+                            # reqPositions() returns fresh positions list directly
+                            fresh_positions = collector.ib.reqPositions()
+                            st.success(f"✅ {len(fresh_positions)} position(s) rafraîchie(s) depuis IBKR")
                     except Exception as e:
                         st.warning(f"⚠️ Erreur lors du rafraîchissement: {e}")
                     st.rerun()
             
             try:
                 positions_list = []
+                logger.info(f"Dashboard: Starting position fetch (collector connected: {collector and collector.ib and collector.ib.isConnected()})")
                 
                 try:
                     # Get positions directly from IBKR broker
                     if hasattr(collector, 'ib') and collector.ib.isConnected():
-                        # Force a fresh request for positions from IBKR
-                        # (instead of using cached positions)
-                        import time as time_module_pos
-                        try:
-                            collector.ib.reqPositions()
-                            time_module_pos.sleep(0.3)  # Let IBKR send fresh data
-                        except:
-                            pass  # If reqPositions fails, continue with cached
-                        
-                        # Get positions from collector (now with fresh data)
-                        ib_positions = collector.ib.positions()
-                        logger.info(f"Got {len(ib_positions)} positions from IBKR (fresh request)")
+                        # reqPositions() returns fresh positions list directly (not cached)
+                        ib_positions = collector.ib.reqPositions()
+                        logger.info(f"✅ Got {len(ib_positions)} positions from IBKR")
                         
                         # Get market prices using separate connection with fixed clientId (like test script)
                         from ib_insync import IB
@@ -534,7 +517,8 @@ def dashboard_page():
                                         break
                                 
                                 if not ib_market.isConnected():
-                                    st.error("❌ Failed to connect to IBKR!")
+                                    st.warning("⚠️ Impossible de récupérer les prix actuels - utilisation des prix moyens")
+                                    logger.warning("Failed to connect to IBKR for market data")
                                     market_data = {pos.contract.symbol: pos.avgCost for pos in ib_positions}
                                 else:
                                     market_data = {}
@@ -571,6 +555,7 @@ def dashboard_page():
                                             logger.error(f"Error for {symbol}: {e}")
                                             market_data[symbol] = pos.avgCost
                                 
+                                # Build positions list (moved outside ib_market connection check)
                                 for pos in ib_positions:
                                     market_price = market_data.get(pos.contract.symbol, pos.avgCost)
                                     market_value = pos.position * market_price
@@ -587,6 +572,17 @@ def dashboard_page():
                             except Exception as e:
                                 st.error(f"Erreur marché: {e}")
                                 logger.error(f"Market fetch error: {e}")
+                                # Fallback: still build positions list with average cost prices
+                                for pos in ib_positions:
+                                    positions_list.append({
+                                        'symbol': pos.contract.symbol,
+                                        'position': pos.position,
+                                        'avg_cost': pos.avgCost,
+                                        'market_price': pos.avgCost,  # Fallback to average cost
+                                        'market_value': pos.position * pos.avgCost,
+                                        'currency': pos.contract.currency,
+                                        'exchange': pos.contract.exchange
+                                    })
                             finally:
                                 try:
                                     ib_market.disconnect()
@@ -599,6 +595,7 @@ def dashboard_page():
                     logger.error(traceback.format_exc())
                 
                 if positions_list:
+                    logger.info(f"✅ Displaying {len(positions_list)} positions in UI")
                     import pandas as pd
                     pos_data = []
                     for pos in positions_list:
@@ -625,6 +622,7 @@ def dashboard_page():
                     with col_pos2:
                         st.metric("Valeur totale", f"{total_value:,.2f} €")
                 else:
+                    logger.warning(f"⚠️ No positions found (positions_list is empty)")
                     st.info("ℹ️ Aucune position ouverte")
                     
             except Exception as e:
@@ -4238,6 +4236,9 @@ def auto_trading_page():
         
         with col_status2:
             if st.button(BTN_REFRESH, width='stretch'):
+                # Persist current tab before rerun - get from query_params or default to Sessions Actives (1)
+                if 'auto_trading_tab' not in st.query_params:
+                    st.query_params['auto_trading_tab'] = '1'  # Default to Sessions Actives
                 st.rerun()
         
         st.markdown("---")
@@ -4254,16 +4255,19 @@ def auto_trading_page():
         # Tabs with selection buttons to persist state
         tab_labels = ["🆕 Nouvelle Session", "▶️ Sessions Actives", "📜 Historique"]
         
-        # Try to use index parameter if available, else use manual tab selection
-        try:
-            tab1, tab2, tab3 = st.tabs(tab_labels)
-        except TypeError:
-            # Fallback for older Streamlit
-            tab1, tab2, tab3 = st.tabs(tab_labels)
+        # Use query_params to set default tab and handle changes
+        default_tab = tab_labels[current_tab] if current_tab < len(tab_labels) else tab_labels[1]
         
-        # Create tab selection based on query params
-        tabs_list = [tab1, tab2, tab3]
-        active_tab = tabs_list[current_tab] if current_tab < len(tabs_list) else tab1
+        try:
+            # Try new parameter 'default'
+            tab1, tab2, tab3 = st.tabs(tab_labels, default=default_tab)
+        except TypeError:
+            # Fallback for older Streamlit versions
+            try:
+                tab1, tab2, tab3 = st.tabs(tab_labels)
+            except:
+                # Fallback to older API
+                tab1, tab2, tab3 = st.tabs(tab_labels)
         
         # ========== TAB 1: NOUVELLE SESSION ==========
         with tab1:
