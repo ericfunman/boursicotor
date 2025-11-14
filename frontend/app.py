@@ -473,6 +473,20 @@ def dashboard_page():
             # Get positions from OrderManager (trading positions)
             st.subheader("📊 Positions Trading (via IBKR)")
             
+            # Add refresh button for positions
+            col_pos1, col_pos2 = st.columns([3, 1])
+            with col_pos2:
+                if st.button("🔄 Rafraîchir Positions", key="refresh_positions", width='stretch'):
+                    # Force refresh by clearing cache and reconnecting
+                    try:
+                        if collector and collector.ib and collector.ib.isConnected():
+                            # Request fresh account summary
+                            collector.ib.reqAccountSummary(9999, "All", "$LEDGER")
+                            st.success("✅ Positions rafraîchies depuis IBKR")
+                    except Exception as e:
+                        st.warning(f"⚠️ Erreur lors du rafraîchissement: {e}")
+                    st.rerun()
+            
             try:
                 positions_list = []
                 
@@ -3280,10 +3294,11 @@ def trading_page():
         st.subheader("📜 Historique des Trades")
         
         try:
-            fills = collector.ib.fills()
+            fills_data = []
             
-            if fills:
-                fills_data = []
+            # 1. Get fills from IBKR (current session trades)
+            try:
+                fills = collector.ib.fills()
                 for fill in fills:
                     fills_data.append({
                         'Date': fill.time,
@@ -3291,11 +3306,45 @@ def trading_page():
                         'Action': fill.execution.side,
                         'Quantity': fill.execution.shares,
                         'Prix': f"{fill.execution.price:.2f}",
-                        'Commission': f"{fill.commissionReport.commission:.2f}" if fill.commissionReport else "N/A"
+                        'Commission': f"{fill.commissionReport.commission:.2f}" if fill.commissionReport else "N/A",
+                        'Source': 'IBKR'
                     })
-                
+            except Exception as e:
+                logger.warning(f"Could not get IBKR fills: {e}")
+            
+            # 2. Get FILLED orders from database (includes AutoTrader trades)
+            try:
+                from backend.models import Order, OrderStatus
+                orders_db = SessionLocal()
+                try:
+                    filled_orders = orders_db.query(Order).filter(
+                        Order.status == OrderStatus.FILLED
+                    ).order_by(Order.created_at.desc()).limit(50).all()
+                    
+                    for order in filled_orders:
+                        # Only add if not already in IBKR fills (avoid duplicates)
+                        if not any(f['Symbol'] == order.ticker.symbol and 
+                                 f['Date'] == order.created_at for f in fills_data):
+                            fills_data.append({
+                                'Date': order.created_at,
+                                'Symbol': order.ticker.symbol,
+                                'Action': order.action,
+                                'Quantity': order.quantity,
+                                'Prix': f"{order.limit_price:.2f}" if order.limit_price else "Market",
+                                'Commission': f"{order.commission:.2f}" if order.commission else "N/A",
+                                'Source': '🤖 AutoTrader' if order.strategy_id else 'Manual'
+                            })
+                finally:
+                    orders_db.close()
+            except Exception as e:
+                logger.warning(f"Could not get DB orders: {e}")
+            
+            # Sort by date descending
+            fills_data.sort(key=lambda x: x['Date'], reverse=True)
+            
+            if fills_data:
                 fills_df = pd.DataFrame(fills_data)
-                st.dataframe(fills_df, width='stretch')
+                st.dataframe(fills_df, width='stretch', hide_index=True)
             else:
                 st.info("ℹ️ Aucun trade exécuté")
         
