@@ -145,7 +145,7 @@ class LivePriceCollector:
             logger.info(f"[LivePriceCollector] Thread ended for {self.symbol}")
 
     def _save_price_to_db(self, db: Session, symbol: str, price: float) -> bool:
-        """Save price to database"""
+        """Save price to database - updates existing daily record or creates new one"""
         try:
             # Get or create ticker
             ticker = db.query(Ticker).filter(Ticker.symbol == symbol).first()
@@ -160,19 +160,38 @@ class LivePriceCollector:
                 db.commit()
                 db.refresh(ticker)
             
-            # Create historical data record
-            record = HistoricalData(
-                ticker_id=ticker.id,
-                timestamp=datetime.now(),
-                open=price,
-                high=price,
-                low=price,
-                close=price,
-                volume=0,
-                interval='1day'  # Live data stored as daily interval
-            )
-            db.add(record)
-            db.commit()
+            # Check if we already have a record for today with interval='1day'
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_end = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            existing_record = db.query(HistoricalData).filter(
+                HistoricalData.ticker_id == ticker.id,
+                HistoricalData.interval == '1day',
+                HistoricalData.timestamp >= today_start,
+                HistoricalData.timestamp <= today_end
+            ).first()
+            
+            if existing_record:
+                # Update existing record with new price
+                existing_record.high = max(existing_record.high, price)
+                existing_record.low = min(existing_record.low, price)
+                existing_record.close = price
+                existing_record.timestamp = datetime.now()
+                db.commit()
+            else:
+                # Create new historical data record
+                record = HistoricalData(
+                    ticker_id=ticker.id,
+                    timestamp=datetime.now(),
+                    open=price,
+                    high=price,
+                    low=price,
+                    close=price,
+                    volume=0,
+                    interval='1day'  # Live data stored as daily interval
+                )
+                db.add(record)
+                db.commit()
             
             return True
         except Exception as e:

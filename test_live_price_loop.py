@@ -12,8 +12,9 @@ def test_live_price_loop():
     
     # Create ONE persistent connection
     ib = IB()
+    ib.RequestTimeout = 30  # Augmenter le timeout de 30 secondes
     logger.info(f"Connecting to IBKR...")
-    ib.connect('127.0.0.1', 4002, clientId=201)
+    ib.connect('127.0.0.1', 4002, clientId=0)
     
     # Wait for connection
     for i in range(20):
