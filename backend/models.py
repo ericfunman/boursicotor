@@ -373,9 +373,11 @@ class AutoTraderSession(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     
-    # Relationships with cascade delete to prevent orphaned records
-    ticker = relationship("Ticker", cascade="all, delete-orphan")
-    strategy = relationship("Strategy", cascade="all, delete-orphan")
+    # Relationships
+    # NOTE: Cascade delete not appropriate for many-to-one relationships
+    # Instead, use the cleanup script to remove orphaned sessions
+    ticker = relationship("Ticker")
+    strategy = relationship("Strategy")
     
     __table_args__ = (
         Index('idx_auto_trader_status', 'status'),
